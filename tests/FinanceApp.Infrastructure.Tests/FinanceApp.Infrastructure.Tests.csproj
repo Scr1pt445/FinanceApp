@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <None Update="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\FinanceApp.Core.Tests\Fixtures\archive-sample.csv" Link="Fixtures\archive-sample.csv" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

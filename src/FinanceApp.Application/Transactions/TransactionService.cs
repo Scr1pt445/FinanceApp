@@ -2,8 +2,6 @@ using FinanceApp.Application.Abstractions;
 using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Settings;
 using FinanceApp.Domain;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FinanceApp.Application.Transactions;
 
@@ -29,11 +27,8 @@ public sealed class TransactionService(
     IExchangeRateService exchangeRates,
     ISettingsStore settings,
     TimeProvider timeProvider,
-    IEnumerable<IDataChangedListener> listeners,
-    ILogger<TransactionService>? logger = null)
+    DataChangedNotifier notifier)
 {
-    private readonly ILogger _logger = logger ?? NullLogger<TransactionService>.Instance;
-
     public async Task<SavedTransaction> AddAsync(TransactionInput input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -46,7 +41,7 @@ public sealed class TransactionService(
         transactions.Add(transaction);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        NotifyChanged();
+        notifier.NotifyChanged();
         return new SavedTransaction(transaction, isFallback);
     }
 
@@ -66,7 +61,7 @@ public sealed class TransactionService(
         transaction.Update(input.Date, input.Type, input.Amount, rate, category, account, input.Note, Now);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        NotifyChanged();
+        notifier.NotifyChanged();
         return new SavedTransaction(transaction, isFallback);
     }
 
@@ -77,7 +72,7 @@ public sealed class TransactionService(
         transactions.Remove(transaction);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        NotifyChanged();
+        notifier.NotifyChanged();
         return transaction;
     }
 
@@ -107,23 +102,6 @@ public sealed class TransactionService(
 
         var quote = await exchangeRates.GetRateAsync(account.Currency, baseCurrency, input.Date, cancellationToken);
         return (quote.Rate, quote.IsFallback);
-    }
-
-    private void NotifyChanged()
-    {
-        foreach (var listener in listeners)
-        {
-            try
-            {
-                listener.OnDataChanged();
-            }
-#pragma warning disable CA1031 // An integration must never break saving a transaction.
-            catch (Exception ex)
-#pragma warning restore CA1031
-            {
-                _logger.LogError(ex, "Data-changed listener {Listener} failed", listener.GetType().Name);
-            }
-        }
     }
 
     private static DomainException NotFound(Guid id) => new($"Операция {id} не найдена.");
