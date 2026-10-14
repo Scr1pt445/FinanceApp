@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Domain model: transactions, categories, accounts, currencies. No dependencies.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FinanceApp.Core.Tests" />
+  </ItemGroup>
+
+</Project>
