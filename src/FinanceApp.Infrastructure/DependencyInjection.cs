@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<PeriodOverviewService>();
         services.AddScoped<AccountService>();
         services.AddScoped<AccountBalancesService>();
+        services.AddScoped<CatalogService>();
         services.AddScoped<CsvExportService>();
 
         services.AddSingleton(exportOptions ?? new CsvExportOptions());
