@@ -1,6 +1,5 @@
 # FinanceApp
 
-[![CI](https://github.com/Scr1pt445/FinanceApp/actions/workflows/ci.yml/badge.svg)](https://github.com/Scr1pt445/FinanceApp/actions/workflows/ci.yml)
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
 ![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
