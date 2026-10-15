@@ -4,6 +4,7 @@
     <Project Path="src/FinanceApp.Cli/FinanceApp.Cli.csproj" />
     <Project Path="src/FinanceApp.Domain/FinanceApp.Domain.csproj" />
     <Project Path="src/FinanceApp.Infrastructure/FinanceApp.Infrastructure.csproj" />
+    <Project Path="src/FinanceApp.Presentation/FinanceApp.Presentation.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FinanceApp.Core.Tests/FinanceApp.Core.Tests.csproj" />

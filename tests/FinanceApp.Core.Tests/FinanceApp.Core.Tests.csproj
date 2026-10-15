@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FinanceApp.Application\FinanceApp.Application.csproj" />
+    <ProjectReference Include="..\..\src\FinanceApp.Presentation\FinanceApp.Presentation.csproj" />
   </ItemGroup>
 
   <ItemGroup>
