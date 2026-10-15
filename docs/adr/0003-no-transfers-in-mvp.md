@@ -1,6 +1,6 @@
 # 0003. No transfers between accounts in the MVP
 
-Date: 2026-10-15 · Status: Accepted
+Date: 2026-10-15 · Status: Superseded by [0010](0010-accounts-envelopes-transfers.md)
 
 ## Context
 
