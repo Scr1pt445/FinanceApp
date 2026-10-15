@@ -18,7 +18,7 @@ The quick-entry window has a single input line; recording a transaction must tak
 | Amount | Positive, comma or dot as decimal separator, at most two decimals; thousands may be separated by spaces. | `350`, `350,50`, `1 200` |
 | Category | The first word(s) after the amount, matched by prefix against visible categories **of that type**, case-insensitive; an exact name wins over a prefix. If no category is named, it is suggested from previous notes (`кофе` → «Еда»). | `ед`, `тр`, `пассивный доход` |
 | Date | Anywhere after the amount: `сегодня`, `вчера`, `позавчера`; a weekday (`пн`…`вс` or full name) — the most recent such day, today included; `ДД.ММ` (this year, or last year if that date is still ahead) or `ДД.ММ.ГГГГ`. Default — today. | `вчера`, `пт`, `12.10` |
-| Account | `@` followed by the beginning of the account name; multi-word names are matched greedily and an exact name wins. Default — the last used account. | `@нал`, `@карта usd` |
+| Account | `@` followed by the beginning of the account name; multi-word names are matched greedily and an exact name wins. Default — the last base-currency account used **for the same type**; foreign-currency accounts are only used when named. | `@нал`, `@карта usd` |
 | Currency | Always the currency of the account (ADR 0002); there is no separate currency syntax. | `20 еда ужин @карта usd` |
 | Note | Every remaining word, in order. | |
 
@@ -29,3 +29,4 @@ The type is never inferred from the category: `50000 зарплата` is an exp
 - The parser is a pure function of the line, the catalogs, the note history and today's date, so it is fully unit-testable and can run on every keystroke to preview the result.
 - Ambiguities are reported, not guessed: an `@` that matches several accounts or a category prefix that matches several categories is shown to the user before saving.
 - Foreign-currency entry needs a dedicated account per currency, which matches how the core stores money.
+- The default account is tracked per type and in the base currency only. A plain "last used account" turned out to be a trap: after `>10000 копилка @вклад` the next expense defaulted to the deposit, and after `20 еда @карта usd` the next expense would silently be in dollars.

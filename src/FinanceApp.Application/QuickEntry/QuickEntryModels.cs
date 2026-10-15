@@ -3,10 +3,13 @@ using FinanceApp.Domain;
 namespace FinanceApp.Application.QuickEntry;
 
 /// <summary>Everything the parser needs besides the input line. Hidden categories and accounts are ignored.</summary>
+/// <param name="LastAccountByType">Account of the most recent transaction of each type.</param>
+/// <param name="BaseCurrency">Only accounts in this currency are used by default; others need an explicit <c>@account</c>.</param>
 public sealed record QuickEntryContext(
     IReadOnlyList<Category> Categories,
     IReadOnlyList<Account> Accounts,
-    Guid? LastAccountId,
+    IReadOnlyDictionary<TransactionType, Guid> LastAccountByType,
+    CurrencyCode BaseCurrency,
     CategoryHints Hints,
     DateOnly Today);
 

@@ -1,4 +1,5 @@
 using FinanceApp.Application.Abstractions;
+using FinanceApp.Application.Settings;
 using FinanceApp.Application.Transactions;
 using FinanceApp.Domain;
 
@@ -42,17 +43,26 @@ public sealed class QuickEntryService(
     IAccountRepository accounts,
     ITransactionRepository transactions,
     TransactionService transactionService,
+    ISettingsStore settings,
     TimeProvider timeProvider)
 {
     public async Task<QuickEntryContext> LoadContextAsync(CancellationToken cancellationToken = default)
     {
         var history = await transactions.ListAsync(cancellationToken: cancellationToken);
-        var lastAccountId = history.Count == 0 ? (Guid?)null : history.MaxBy(t => t.CreatedAt)!.AccountId;
+        var baseCurrency = settings.Load().BaseCurrency;
+
+        // Foreign-currency transactions do not count: after a dinner abroad the default goes back to
+        // the last base-currency account of that type, not to the first one in the list.
+        var lastAccountByType = history
+            .Where(t => t.Currency == baseCurrency)
+            .GroupBy(t => t.Type)
+            .ToDictionary(g => g.Key, g => g.MaxBy(t => t.CreatedAt)!.AccountId);
 
         return new QuickEntryContext(
             await categories.ListAsync(cancellationToken),
             await accounts.ListAsync(cancellationToken),
-            lastAccountId,
+            lastAccountByType,
+            baseCurrency,
             CategoryHints.Build(history),
             DateOnly.FromDateTime(timeProvider.GetLocalNow().DateTime));
     }

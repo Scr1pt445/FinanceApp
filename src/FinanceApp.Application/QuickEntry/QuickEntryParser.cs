@@ -42,8 +42,7 @@ public static partial class QuickEntryParser
             }
         }
 
-        var defaultAccount = context.Accounts.FirstOrDefault(a => a.Id == context.LastAccountId && !a.IsHidden)
-            ?? context.Accounts.FirstOrDefault(a => !a.IsHidden);
+        var defaultAccount = DefaultAccount(type, context);
 
         if (tokens.Count == 0)
         {
@@ -74,7 +73,7 @@ public static partial class QuickEntryParser
         }
         else if (account is null)
         {
-            issues.Add(new(QuickEntryIssueKind.NoAccount, "Нет ни одного счёта — добавьте счёт."));
+            issues.Add(new(QuickEntryIssueKind.NoAccount, $"Нет счёта в {context.BaseCurrency} — укажите счёт через @, например: @карта usd"));
         }
 
         var date = context.Today;
@@ -111,6 +110,17 @@ public static partial class QuickEntryParser
 
         var note = rest.Count == 0 ? null : string.Join(' ', rest);
         return new QuickEntryDraft(type, amount, category, categoryFromHint, account, accountIsDefault, date, note, issues);
+    }
+
+    /// <summary>
+    /// The last account used for this type, but only in the base currency, so a saving to a deposit or a
+    /// dinner abroad never silently becomes the default for everyday expenses. Foreign accounts need <c>@</c>.
+    /// </summary>
+    private static Account? DefaultAccount(TransactionType type, QuickEntryContext context)
+    {
+        var candidates = context.Accounts.Where(a => !a.IsHidden && a.Currency == context.BaseCurrency).ToList();
+        return candidates.FirstOrDefault(a => context.LastAccountByType.TryGetValue(type, out var last) && a.Id == last)
+            ?? candidates.FirstOrDefault();
     }
 
     private static decimal? ParseAmount(string token, List<QuickEntryIssue> issues)

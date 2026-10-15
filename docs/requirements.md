@@ -35,7 +35,7 @@ A desktop app for personal finance tracking that people actually keep using:
   - `20 еда ужин @карта usd` → account «Карта USD», amount in dollars.
 - The category is matched by prefix and suggested from previous notes (*кофе* → *Еда*).
 - `Enter` saves and closes the window, `Esc` closes it.
-- The default account is the last one used.
+- The default account is the last base-currency account used for the same type; foreign-currency accounts are chosen explicitly with `@`.
 
 ### 3.2. Transaction list
 

@@ -53,6 +53,24 @@ public class QuickEntryServiceTests
     }
 
     [Fact]
+    public async Task DefaultAccount_IsPerType_AndNeverForeign()
+    {
+        await using var app = await TestApp.CreateAsync(exportEnabled: false);
+        await using (var scope = app.Scope())
+        {
+            scope.Get<IAccountRepository>().Add(new Account(Guid.NewGuid(), "Карта USD", CurrencyCode.Usd, 10));
+            await scope.Get<IUnitOfWork>().SaveChangesAsync(Ct);
+        }
+
+        await SaveAsync(app, "350 еда @нал");
+        await SaveAsync(app, ">10000 копилка @вклад");
+        await SaveAsync(app, "20 еда ужин @карта usd");
+
+        (await PreviewAsync(app, "1200 тр такси")).Account.ShouldNotBeNull().Name.ShouldBe("Наличные");
+        (await PreviewAsync(app, ">500 копилка")).Account.ShouldNotBeNull().Name.ShouldBe("Вклад");
+    }
+
+    [Fact]
     public async Task IncompleteLine_IsRejected_NothingSaved()
     {
         await using var app = await TestApp.CreateAsync(exportEnabled: false);

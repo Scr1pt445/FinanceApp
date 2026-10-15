@@ -18,9 +18,19 @@ public class QuickEntryParserTests
 
     private static Category Named(string name, TransactionType type) => Categories.Single(c => c.Name == name && c.Type == type);
 
-    private static QuickEntryDraft Parse(string input, Guid? lastAccount = null, CategoryHints? hints = null) =>
-        QuickEntryParser.Parse(input, new QuickEntryContext(
-            Categories, [Card, Cash, Deposit, CardUsd], lastAccount ?? Cash.Id, hints ?? CategoryHints.Empty, Today));
+    /// <summary>By default the last expense was paid in cash and the last saving went to the deposit.</summary>
+    private static QuickEntryDraft Parse(string input, Dictionary<TransactionType, Guid>? lastAccounts = null, CategoryHints? hints = null) =>
+        QuickEntryParser.Parse(input, Context(
+            [Card, Cash, Deposit, CardUsd],
+            lastAccounts ?? new() { [TransactionType.Expense] = Cash.Id, [TransactionType.Saving] = Deposit.Id },
+            hints));
+
+    private static QuickEntryContext Context(
+        IReadOnlyList<Account> accounts,
+        Dictionary<TransactionType, Guid>? lastAccounts = null,
+        CategoryHints? hints = null,
+        IReadOnlyList<Category>? categories = null) =>
+        new(categories ?? Categories, accounts, lastAccounts ?? [], CurrencyCode.Rub, hints ?? CategoryHints.Empty, Today);
 
     [Fact]
     public void BasicExpense()
@@ -155,7 +165,7 @@ public class QuickEntryParserTests
     {
         var hidden = new Category(Guid.NewGuid(), "Хобби", TransactionType.Expense);
         hidden.Hide();
-        var context = new QuickEntryContext([.. Categories, hidden], [Card], Card.Id, CategoryHints.Empty, Today);
+        var context = Context([Card], categories: [.. Categories, hidden]);
 
         QuickEntryParser.Parse("100 хобби", context).Category.ShouldBeNull();
     }
@@ -209,7 +219,7 @@ public class QuickEntryParserTests
     [Fact]
     public void Account_Ambiguous_IsReported()
     {
-        var context = new QuickEntryContext(Categories, [Card, CardUsd, new Account(Guid.NewGuid(), "Кошелёк", CurrencyCode.Rub)], Card.Id, CategoryHints.Empty, Today);
+        var context = Context([Card, CardUsd, new Account(Guid.NewGuid(), "Кошелёк", CurrencyCode.Rub)]);
 
         var draft = QuickEntryParser.Parse("350 еда @к", context);
 
@@ -229,18 +239,54 @@ public class QuickEntryParserTests
     }
 
     [Fact]
-    public void Account_DefaultsToFirstVisible_WhenLastIsUnknown()
+    public void DefaultAccount_IsLastUsedForTheSameType()
     {
-        var draft = Parse("350 еда", lastAccount: Guid.NewGuid());
+        Parse("350 еда").Account.ShouldBe(Cash);
+        Parse(">1000 копилка").Account.ShouldBe(Deposit);
+    }
+
+    [Fact]
+    public void DefaultAccount_TypeWithoutHistory_IsFirstBaseCurrencyAccount()
+    {
+        var draft = Parse("+50000 зарплата");
 
         draft.Account.ShouldBe(Card);
         draft.AccountIsDefault.ShouldBeTrue();
     }
 
     [Fact]
+    public void DefaultAccount_IsNeverForeignCurrency()
+    {
+        var draft = Parse("500 развл кино", new() { [TransactionType.Expense] = CardUsd.Id });
+
+        draft.Account.ShouldBe(Card);
+        draft.Account!.Currency.ShouldBe(CurrencyCode.Rub);
+    }
+
+    [Fact]
+    public void DefaultAccount_SkipsHiddenLastAccount()
+    {
+        var hiddenCash = new Account(Guid.NewGuid(), "Старая карта", CurrencyCode.Rub);
+        hiddenCash.Hide();
+
+        var draft = QuickEntryParser.Parse("350 еда", Context([hiddenCash, Card], new() { [TransactionType.Expense] = hiddenCash.Id }));
+
+        draft.Account.ShouldBe(Card);
+    }
+
+    [Fact]
+    public void ForeignAccount_WorksExplicitly_EvenWithoutBaseCurrencyAccounts()
+    {
+        var context = Context([CardUsd]);
+
+        QuickEntryParser.Parse("20 еда @карта", context).Account.ShouldBe(CardUsd);
+        QuickEntryParser.Parse("20 еда", context).Issues.ShouldContain(i => i.Kind == QuickEntryIssueKind.NoAccount);
+    }
+
+    [Fact]
     public void NoAccounts_IsReported()
     {
-        var draft = QuickEntryParser.Parse("350 еда", new QuickEntryContext(Categories, [], null, CategoryHints.Empty, Today));
+        var draft = QuickEntryParser.Parse("350 еда", Context([]));
 
         draft.Issues.ShouldContain(i => i.Kind == QuickEntryIssueKind.NoAccount);
     }
