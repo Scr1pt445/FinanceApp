@@ -107,7 +107,13 @@ public sealed class CsvImportService(
         var categoryNames = allCategories.ToDictionary(c => c.Id, c => c.Name);
         var accountNames = allAccounts.ToDictionary(a => a.Id, a => a.Name);
         var stored = existing
-            .GroupBy(t => Fingerprint.Of(t.Date, t.Type, t.BaseAmount, categoryNames.GetValueOrDefault(t.CategoryId), accountNames.GetValueOrDefault(t.AccountId), t.Note))
+            .GroupBy(t => Fingerprint.Of(
+                t.Date,
+                t.Type,
+                t.BaseAmount,
+                t.CategoryId is { } categoryId ? categoryNames.GetValueOrDefault(categoryId) : null,
+                accountNames.GetValueOrDefault(t.AccountId),
+                t.Note))
             .ToDictionary(g => g.Key, g => g.Count());
 
         var nextCategoryOrder = allCategories.Count == 0 ? 0 : allCategories.Max(c => c.SortOrder) + 1;

@@ -6,6 +6,12 @@ public enum TransactionType
     Income = 1,
     Expense = 2,
 
-    /// <summary>Money put aside (savings, investments). Reduces the month's balance like an expense.</summary>
+    /// <summary>
+    /// Legacy: money put aside without an envelope. Being replaced by transfers into envelopes (ADR 0010);
+    /// existing rows are converted by a migration.
+    /// </summary>
     Saving = 3,
+
+    /// <summary>Money moved between two accounts or envelopes; no category, does not change income or expenses.</summary>
+    Transfer = 4,
 }

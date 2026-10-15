@@ -41,7 +41,7 @@ public sealed class CsvExportService(
                 t.Date,
                 t.Type,
                 t.BaseAmount,
-                categoryNames.GetValueOrDefault(t.CategoryId),
+                t.CategoryId is { } categoryId ? categoryNames.GetValueOrDefault(categoryId) : null,
                 accountNames.GetValueOrDefault(t.AccountId),
                 t.Note,
                 t.Currency,

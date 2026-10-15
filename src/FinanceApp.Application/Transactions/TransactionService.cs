@@ -89,10 +89,17 @@ public sealed class TransactionService(
             return;
         }
 
-        _ = await categories.FindAsync(deleted.CategoryId, cancellationToken)
-            ?? throw new DomainException("Категория операции больше не существует.");
-        _ = await accounts.FindAsync(deleted.AccountId, cancellationToken)
-            ?? throw new DomainException("Счёт операции больше не существует.");
+        if (deleted.CategoryId is { } categoryId)
+        {
+            _ = await categories.FindAsync(categoryId, cancellationToken)
+                ?? throw new DomainException("Категория операции больше не существует.");
+        }
+
+        foreach (var accountId in new[] { deleted.AccountId, deleted.ToAccountId }.OfType<Guid>())
+        {
+            _ = await accounts.FindAsync(accountId, cancellationToken)
+                ?? throw new DomainException("Счёт операции больше не существует.");
+        }
 
         transactions.Add(deleted);
         await unitOfWork.SaveChangesAsync(cancellationToken);

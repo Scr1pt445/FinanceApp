@@ -17,6 +17,7 @@ public sealed record MonthTotals(decimal Income, decimal Expense, decimal Saving
             TransactionType.Income => this with { Income = Income + amount },
             TransactionType.Expense => this with { Expense = Expense + amount },
             TransactionType.Saving => this with { Saving = Saving + amount },
+            TransactionType.Transfer => this, // interim: envelope semantics come with period summaries
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
         };
 }
@@ -76,10 +77,10 @@ public static class SummaryCalculator
                 previous = previous.Add(transaction.Type, amount);
             }
 
-            if (transaction.Type == TransactionType.Expense)
+            if (transaction is { Type: TransactionType.Expense, CategoryId: { } categoryId })
             {
-                var totals = byCategory.GetValueOrDefault(transaction.CategoryId);
-                byCategory[transaction.CategoryId] = isCurrent
+                var totals = byCategory.GetValueOrDefault(categoryId);
+                byCategory[categoryId] = isCurrent
                     ? (totals.Current + amount, totals.Previous)
                     : (totals.Current, totals.Previous + amount);
             }
