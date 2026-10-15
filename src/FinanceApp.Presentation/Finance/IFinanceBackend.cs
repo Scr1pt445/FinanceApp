@@ -31,4 +31,13 @@ public interface IFinanceBackend
     Task<Account> UpdateAccountAsync(Guid id, AccountInput input, CancellationToken cancellationToken = default);
 
     Task SetAccountHiddenAsync(Guid id, bool hidden, CancellationToken cancellationToken = default);
+
+    Task<Category> CreateCategoryAsync(string name, TransactionType type, CancellationToken cancellationToken = default);
+
+    Task<Category> RenameCategoryAsync(Guid id, string name, CancellationToken cancellationToken = default);
+
+    Task SetCategoryHiddenAsync(Guid id, bool hidden, CancellationToken cancellationToken = default);
+
+    /// <summary>Remembers the currency of the «Всего» totals; <c>null</c> — the base currency.</summary>
+    Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default);
 }

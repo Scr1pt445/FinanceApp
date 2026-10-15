@@ -462,7 +462,8 @@ public class ShellViewModelTests : FinanceViewModelTestBase
         var shell = await OpenAsync();
 
         shell.TotalText.ShouldBe("100 000 ₽");
-        shell.SplitText.ShouldBe("свободно 40 000 ₽ · в конвертах 60 000 ₽");
+        shell.AccountsTotalText.ShouldBe("40 000 ₽");
+        shell.EnvelopesTotalText.ShouldBe("60 000 ₽");
         shell.Accounts.Select(a => (a.Title, a.BalanceText)).ShouldBe([("Карта", "40 000 ₽"), ("Наличные", "0 ₽")]);
         var car = shell.Envelopes.ShouldHaveSingleItem();
         car.Progress.ShouldBe(0.4);

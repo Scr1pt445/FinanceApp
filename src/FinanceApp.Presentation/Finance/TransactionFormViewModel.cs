@@ -29,6 +29,7 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     private readonly Catalog _catalog;
     private readonly DateOnly _today;
     private readonly Transaction? _editing;
+    private readonly List<Category> _created = [];
 
     private TransactionFormViewModel(IFinanceBackend backend, Catalog catalog, DateOnly today, Transaction? editing)
     {
@@ -65,7 +66,7 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     public bool IsTransfer => Kind == TransactionType.Transfer;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave), nameof(AmountCurrency))]
+    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave), nameof(AmountCurrency), nameof(ReceivedPreview))]
     public partial string AmountText { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -74,12 +75,45 @@ public sealed partial class TransactionFormViewModel : ObservableObject
 
     /// <summary>The account paid from or into; the source of a transfer.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave), nameof(NeedsReceivedAmount), nameof(AmountCurrency), nameof(ReceivedCurrency))]
+    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave), nameof(NeedsReceivedAmount), nameof(AmountCurrency), nameof(ReceivedCurrency), nameof(RateLabel), nameof(ReceivedPreview))]
     public partial Account? Account { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave), nameof(NeedsReceivedAmount), nameof(ReceivedCurrency))]
+    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave), nameof(NeedsReceivedAmount), nameof(ReceivedCurrency), nameof(RateLabel), nameof(ReceivedPreview))]
     public partial Account? ToAccount { get; set; }
+
+    /// <summary>Different currencies: enter the rate instead of the received amount.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave), nameof(ReceivedPreview))]
+    public partial bool UseRate { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave), nameof(ReceivedPreview))]
+    public partial string RateText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// <c>false</c>: «1 {from} = rate {to}», received = amount × rate; <c>true</c>: «1 {to} = rate {from}»,
+    /// received = amount ÷ rate. Starts so that the rate reads as usual: «1 USD = 90 RUB» both ways.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RateLabel), nameof(ReceivedPreview))]
+    public partial bool RateInverted { get; set; }
+
+    public string RateLabel =>
+        Account is null || ToAccount is null ? string.Empty
+        : RateInverted ? $"1 {ToAccount.Currency.Value} =" : $"1 {Account.Currency.Value} =";
+
+    public string RateUnit => Account is null || ToAccount is null ? string.Empty : (RateInverted ? Account.Currency : ToAccount.Currency).Value;
+
+    /// <summary>«Зачислится 100 USD» under the rate.</summary>
+    public string ReceivedPreview =>
+        NeedsReceivedAmount && UseRate && ReceivedByRate() is { } received ? $"Зачислится {Format.Money(received, ToAccount!.Currency)}" : string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsAddingCategory { get; set; }
+
+    [ObservableProperty]
+    public partial string NewCategoryName { get; set; } = string.Empty;
 
     /// <summary>Optional for different currencies: empty — converted at the CBR rate.</summary>
     [ObservableProperty]
@@ -112,7 +146,8 @@ public sealed partial class TransactionFormViewModel : ObservableObject
         : Account is null ? (IsTransfer ? "Выберите, откуда перевести." : "Выберите счёт.")
         : IsTransfer && ToAccount is null ? "Выберите, куда перевести."
         : IsTransfer && ToAccount!.Id == Account.Id ? "Счета «откуда» и «куда» должны различаться."
-        : NeedsReceivedAmount && ReceivedText.Trim().Length > 0 && !TryAmount(ReceivedText, out _) ? "Зачислено — положительное число."
+        : NeedsReceivedAmount && !UseRate && ReceivedText.Trim().Length > 0 && !TryAmount(ReceivedText, out _) ? "Зачислено — положительное число."
+        : NeedsReceivedAmount && UseRate && ReceivedByRate() is null ? "Курс — положительное число."
         : !IsTransfer && Category is null ? "Выберите категорию."
         : null;
 
@@ -178,6 +213,54 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SwapRate()
+    {
+        if (Format.TryParseAmount(RateText, out var rate) && rate > 0)
+        {
+            RateText = decimal.Round(1m / rate, 6).ToString("0.######", Format.Russian);
+        }
+
+        RateInverted = !RateInverted;
+    }
+
+    [RelayCommand]
+    private void StartAddCategory()
+    {
+        NewCategoryName = string.Empty;
+        IsAddingCategory = true;
+    }
+
+    [RelayCommand]
+    private void CancelAddCategory() => IsAddingCategory = false;
+
+    /// <summary>«+ Своя»: creates a category of the current kind and selects it.</summary>
+    [RelayCommand]
+    private async Task AddCategoryAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(NewCategoryName) || IsTransfer)
+        {
+            IsAddingCategory = false;
+            return;
+        }
+
+        try
+        {
+            var category = await _backend.CreateCategoryAsync(NewCategoryName, Kind, cancellationToken);
+            _created.RemoveAll(c => c.Id == category.Id);
+            _created.Add(category);
+            IsAddingCategory = false;
+            SaveError = string.Empty;
+            RebuildTiles(category.Id);
+        }
+#pragma warning disable CA1031 // A duplicate name is shown on the form.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
+        {
+            SaveError = ex.Message;
+        }
+    }
+
+    [RelayCommand]
     private void Today() => DateText = Format.DateText(_today);
 
     [RelayCommand]
@@ -204,7 +287,9 @@ public sealed partial class TransactionFormViewModel : ObservableObject
             SavedTransaction saved;
             if (IsTransfer)
             {
-                decimal? received = NeedsReceivedAmount && TryAmount(ReceivedText, out var r) ? r : null;
+                decimal? received = !NeedsReceivedAmount ? null
+                    : UseRate ? ReceivedByRate()
+                    : TryAmount(ReceivedText, out var r) ? r : null;
                 var input = new TransferInput(date, amount, Account!.Id, ToAccount!.Id, Note, received);
                 saved = _editing is null
                     ? await _backend.AddTransferAsync(input, cancellationToken)
@@ -232,8 +317,31 @@ public sealed partial class TransactionFormViewModel : ObservableObject
         }
     }
 
+    partial void OnAccountChanged(Account? value) => UpdateRateDirection();
+
+    partial void OnToAccountChanged(Account? value) => UpdateRateDirection();
+
+    /// <summary>From the base currency, the rate is quoted for the other one: RUB → USD reads «1 USD = 90 RUB».</summary>
+    private void UpdateRateDirection()
+    {
+        RateInverted = Account is not null && Account.Currency == _catalog.BaseCurrency;
+        OnPropertyChanged(nameof(RateUnit));
+    }
+
+    private decimal? ReceivedByRate()
+    {
+        if (!TryAmount(AmountText, out var amount) || !Format.TryParseAmount(RateText, out var rate) || rate <= 0)
+        {
+            return null;
+        }
+
+        var received = decimal.Round(RateInverted ? amount / rate : amount * rate, 2, MidpointRounding.AwayFromZero);
+        return received > 0 && received <= Domain.Transaction.MaxAmount ? received : null;
+    }
+
     partial void OnKindChanged(TransactionType value)
     {
+        IsAddingCategory = false;
         RebuildTiles();
         if (value == TransactionType.Transfer)
         {
@@ -249,7 +357,10 @@ public sealed partial class TransactionFormViewModel : ObservableObject
             return;
         }
 
-        var categories = _catalog.CategoriesFor(Kind).ToList();
+        var categories = _catalog.CategoriesFor(Kind)
+            .Where(c => _created.All(n => n.Id != c.Id))
+            .Concat(_created.Where(c => c.Type == Kind))
+            .ToList();
         if (selected is { } id && categories.All(c => c.Id != id) && _catalog.Categories.FirstOrDefault(c => c.Id == id) is { } hidden)
         {
             categories.Insert(0, hidden);

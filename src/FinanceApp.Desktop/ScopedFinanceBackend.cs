@@ -1,4 +1,5 @@
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.Settings;
 using FinanceApp.Application.Summaries;
 using FinanceApp.Application.Transactions;
 using FinanceApp.Domain;
@@ -51,6 +52,26 @@ internal sealed class ScopedFinanceBackend(IServiceScopeFactory scopes) : IFinan
         InScopeAsync<AccountService, bool>(async s =>
         {
             await s.SetHiddenAsync(id, hidden, cancellationToken);
+            return true;
+        });
+
+    public Task<Category> CreateCategoryAsync(string name, TransactionType type, CancellationToken cancellationToken = default) =>
+        InScopeAsync<CategoryService, Category>(s => s.CreateAsync(name, type, cancellationToken));
+
+    public Task<Category> RenameCategoryAsync(Guid id, string name, CancellationToken cancellationToken = default) =>
+        InScopeAsync<CategoryService, Category>(s => s.RenameAsync(id, name, cancellationToken));
+
+    public Task SetCategoryHiddenAsync(Guid id, bool hidden, CancellationToken cancellationToken = default) =>
+        InScopeAsync<CategoryService, bool>(async s =>
+        {
+            await s.SetHiddenAsync(id, hidden, cancellationToken);
+            return true;
+        });
+
+    public Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default) =>
+        InScopeAsync<ISettingsStore, bool>(async store =>
+        {
+            await store.SaveAsync(store.Load() with { TotalsCurrency = currency }, cancellationToken);
             return true;
         });
 

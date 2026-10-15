@@ -31,6 +31,8 @@ public sealed class FakeFinanceBackend : IFinanceBackend
 
     public Exception? Failure { get; set; }
 
+    public CurrencyCode? TotalsCurrency { get; private set; }
+
     public int Calls { get; private set; }
 
     public Category Named(string name, TransactionType type = TransactionType.Expense) =>
@@ -63,7 +65,10 @@ public sealed class FakeFinanceBackend : IFinanceBackend
             .ToList();
         var regular = balances.Where(b => !b.Account.IsEnvelope).ToList();
         var envelopes = balances.Where(b => b.Account.IsEnvelope).ToList();
-        return Task.FromResult(new BalancesOverview(regular, envelopes, regular.Sum(b => b.BaseBalance!.Value), envelopes.Sum(b => b.BaseBalance!.Value), CurrencyCode.Rub, false));
+        var display = TotalsCurrency ?? CurrencyCode.Rub;
+        return Task.FromResult(new BalancesOverview(
+            regular, envelopes, regular.Sum(b => b.BaseBalance!.Value), envelopes.Sum(b => b.BaseBalance!.Value), CurrencyCode.Rub, false,
+            display, display == CurrencyCode.Usd ? 1m / 90 : 1m));
     }
 
     public Task<PeriodOverview> LoadPeriodAsync(Period period, CancellationToken cancellationToken = default)
@@ -168,6 +173,47 @@ public sealed class FakeFinanceBackend : IFinanceBackend
             Find(id).Show();
         }
 
+        return Task.CompletedTask;
+    }
+
+    public Task<Category> CreateCategoryAsync(string name, TransactionType type, CancellationToken cancellationToken = default)
+    {
+        ThrowIfFailing();
+        if (Categories.Any(c => c.Type == type && string.Equals(c.Name, name.Trim(), StringComparison.CurrentCultureIgnoreCase)))
+        {
+            throw new DomainException($"Категория «{name}» уже есть.");
+        }
+
+        var category = new Category(Guid.NewGuid(), name, type, Categories.Count);
+        Categories.Add(category);
+        return Task.FromResult(category);
+    }
+
+    public Task<Category> RenameCategoryAsync(Guid id, string name, CancellationToken cancellationToken = default)
+    {
+        var category = Categories.Single(c => c.Id == id);
+        category.Rename(name);
+        return Task.FromResult(category);
+    }
+
+    public Task SetCategoryHiddenAsync(Guid id, bool hidden, CancellationToken cancellationToken = default)
+    {
+        var category = Categories.Single(c => c.Id == id);
+        if (hidden)
+        {
+            category.Hide();
+        }
+        else
+        {
+            category.Show();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default)
+    {
+        TotalsCurrency = currency;
         return Task.CompletedTask;
     }
 

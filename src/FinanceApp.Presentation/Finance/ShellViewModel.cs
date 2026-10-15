@@ -10,6 +10,7 @@ public enum SidebarKind
 {
     AllOperations,
     Summary,
+    Categories,
     Account,
     Envelope,
 }
@@ -53,6 +54,7 @@ public sealed partial class ShellViewModel : ObservableObject
 {
     private readonly IFinanceBackend _backend;
     private readonly TimeProvider _timeProvider;
+    private bool _refreshingTotals;
 
     public ShellViewModel(IFinanceBackend backend, TimeProvider timeProvider)
     {
@@ -60,6 +62,7 @@ public sealed partial class ShellViewModel : ObservableObject
         _timeProvider = timeProvider;
         Operations = new OperationsViewModel(backend, timeProvider);
         Summary = new SummaryViewModel(backend, timeProvider);
+        Categories = new CategoriesViewModel(backend);
         Operations.EditRequested += (_, transaction) => _ = OpenEditAsync(transaction);
         Operations.Changed += (_, _) => _ = RefreshBalancesAsync();
         Selected = AllOperations;
@@ -68,6 +71,10 @@ public sealed partial class ShellViewModel : ObservableObject
     public SidebarItem AllOperations { get; } = new(SidebarKind.AllOperations, "Все операции", null);
 
     public SidebarItem SummaryItem { get; } = new(SidebarKind.Summary, "Итоги", null);
+
+    public SidebarItem CategoriesItem { get; } = new(SidebarKind.Categories, "Категории", null);
+
+    public CategoriesViewModel Categories { get; }
 
     public OperationsViewModel Operations { get; }
 
@@ -80,17 +87,32 @@ public sealed partial class ShellViewModel : ObservableObject
     [ObservableProperty]
     public partial string TotalText { get; private set; } = string.Empty;
 
+    /// <summary>«На счетах»: regular accounts, in the totals currency.</summary>
     [ObservableProperty]
-    public partial string SplitText { get; private set; } = string.Empty;
+    public partial string AccountsTotalText { get; private set; } = string.Empty;
+
+    /// <summary>«В накоплениях»: envelopes, in the totals currency.</summary>
+    [ObservableProperty]
+    public partial string EnvelopesTotalText { get; private set; } = string.Empty;
+
+    /// <summary>Currencies offered for the totals (base, usual ones, those of the accounts).</summary>
+    public ObservableCollection<CurrencyCode> TotalsCurrencies { get; } = [];
+
+    [ObservableProperty]
+    public partial CurrencyCode? TotalsCurrency { get; set; }
 
     [ObservableProperty]
     public partial string Warning { get; private set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSummary), nameof(IsEnvelopeSelected), nameof(SelectedAccount))]
+    [NotifyPropertyChangedFor(nameof(IsSummary), nameof(IsCategories), nameof(IsOperations), nameof(IsEnvelopeSelected), nameof(SelectedAccount))]
     public partial SidebarItem Selected { get; set; }
 
     public bool IsSummary => Selected.Kind == SidebarKind.Summary;
+
+    public bool IsCategories => Selected.Kind == SidebarKind.Categories;
+
+    public bool IsOperations => !IsSummary && !IsCategories;
 
     public bool IsEnvelopeSelected => Selected.Kind == SidebarKind.Envelope;
 
@@ -120,6 +142,10 @@ public sealed partial class ShellViewModel : ObservableObject
         if (IsSummary)
         {
             await Summary.LoadAsync(cancellationToken);
+        }
+        else if (IsCategories)
+        {
+            await Categories.LoadAsync(cancellationToken);
         }
         else
         {
@@ -170,14 +196,32 @@ public sealed partial class ShellViewModel : ObservableObject
 
     partial void OnSelectedChanged(SidebarItem value)
     {
-        if (value.Kind == SidebarKind.Summary)
+        switch (value.Kind)
         {
-            _ = Summary.LoadAsync();
+            case SidebarKind.Summary:
+                _ = Summary.LoadAsync();
+                break;
+            case SidebarKind.Categories:
+                _ = Categories.LoadAsync();
+                break;
+            default:
+                _ = Operations.ShowAsync(value.Account);
+                break;
         }
-        else
+    }
+
+    partial void OnTotalsCurrencyChanged(CurrencyCode? value)
+    {
+        if (!_refreshingTotals && value is { } currency)
         {
-            _ = Operations.ShowAsync(value.Account);
+            _ = ChangeTotalsCurrencyAsync(currency);
         }
+    }
+
+    private async Task ChangeTotalsCurrencyAsync(CurrencyCode currency)
+    {
+        await _backend.SetTotalsCurrencyAsync(currency);
+        await RefreshBalancesAsync();
     }
 
     partial void OnShowHiddenChanged(bool value) => _ = RefreshBalancesAsync();
@@ -239,10 +283,22 @@ public sealed partial class ShellViewModel : ObservableObject
         try
         {
             var balances = await _backend.LoadBalancesAsync(ShowHidden, cancellationToken);
-            var currency = balances.BaseCurrency;
-            TotalText = Format.Balance(balances.Total, currency);
-            SplitText = $"свободно {Format.Balance(balances.FreeTotal, currency)} · в конвертах {Format.Balance(balances.EnvelopesTotal, currency)}";
-            Warning = balances.HasMissingRates ? "Для части валютных счетов нет курса — они не вошли в итог." : string.Empty;
+            var display = balances.DisplayCurrency;
+            TotalText = Format.Balance(balances.InDisplay(balances.Total), display);
+            AccountsTotalText = Format.Balance(balances.InDisplay(balances.FreeTotal), display);
+            EnvelopesTotalText = Format.Balance(balances.InDisplay(balances.EnvelopesTotal), display);
+            Warning = balances.HasMissingRates ? "Для части валют нет курса — итог посчитан без них." : string.Empty;
+
+            _refreshingTotals = true;
+            try
+            {
+                Replace(TotalsCurrencies, balances.DisplayChoices);
+                TotalsCurrency = display;
+            }
+            finally
+            {
+                _refreshingTotals = false;
+            }
 
             var selectedId = Selected.Account?.Id;
             Replace(Accounts, balances.Accounts.Select(b => SidebarItem.From(b, Today)));
