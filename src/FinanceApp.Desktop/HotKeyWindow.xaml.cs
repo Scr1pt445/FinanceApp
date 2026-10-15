@@ -15,6 +15,7 @@ internal sealed partial class HotKeyWindow : Window
         _viewModel = viewModel;
         InitializeComponent();
         DataContext = viewModel;
+        DarkTitleBar.Apply(this);
         viewModel.Load(startupError);
         viewModel.Saved += (_, _) => Close();
 

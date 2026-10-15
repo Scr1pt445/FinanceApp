@@ -1,0 +1,314 @@
+<Window x:Class="FinanceApp.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FinanceApp.Desktop"
+        xmlns:vm="clr-namespace:FinanceApp.Presentation.Main;assembly=FinanceApp.Presentation"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance vm:MainViewModel}"
+        x:ClassModifier="internal"
+        Title="FinanceApp" Width="1120" Height="740" MinWidth="900" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}"
+        FontFamily="{StaticResource UiFont}" FontSize="13.5">
+  <Window.Resources>
+    <local:ShareToStarConverter x:Key="ShareToStar" />
+    <local:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    <local:TextToVisibilityConverter x:Key="TextToVisibility" />
+    <local:TransactionTypeNameConverter x:Key="TypeName" />
+
+    <Style TargetType="Button" BasedOn="{StaticResource FlatButton}" />
+    <Style TargetType="TextBox" BasedOn="{StaticResource DarkTextBox}" />
+    <Style TargetType="ComboBox" BasedOn="{StaticResource DarkComboBox}" />
+
+    <Style x:Key="Caption" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style x:Key="RowItem" TargetType="ListBoxItem">
+      <Setter Property="Padding" Value="12,9" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ListBoxItem">
+            <Border x:Name="Root" Background="Transparent" Padding="{TemplateBinding Padding}" CornerRadius="6">
+              <ContentPresenter />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Root" Property="Background" Value="{StaticResource ControlBrush}" />
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Root" Property="Background" Value="{StaticResource AccentSoftBrush}" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
+  <Window.InputBindings>
+    <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
+    <KeyBinding Key="Left" Modifiers="Alt" Command="{Binding PreviousMonthCommand}" />
+    <KeyBinding Key="Right" Modifiers="Alt" Command="{Binding NextMonthCommand}" />
+    <KeyBinding Key="F" Modifiers="Control" Command="{x:Static local:MainWindow.FocusSearchCommand}" />
+  </Window.InputBindings>
+
+  <Grid Margin="24,18,24,16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!-- Month switcher -->
+    <DockPanel Grid.Row="0" Margin="0,0,0,16" LastChildFill="False">
+      <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Content="◀" Command="{Binding PreviousMonthCommand}"
+              ToolTip="Предыдущий месяц (Alt+←)" />
+      <TextBlock DockPanel.Dock="Left" Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="10,0" VerticalAlignment="Center" />
+      <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Content="▶" Command="{Binding NextMonthCommand}"
+              ToolTip="Следующий месяц (Alt+→)" />
+      <Button DockPanel.Dock="Left" Margin="12,0,0,0" Content="Текущий месяц" Command="{Binding CurrentMonthCommand}" />
+      <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Click="OnQuickEntry"
+              ToolTip="Открыть окно быстрого ввода">
+        <TextBlock>
+          <Run Text="+ Операция" />
+          <Run x:Name="HotKeyHint" Foreground="#DDFFFFFF" FontSize="11.5" />
+        </TextBlock>
+      </Button>
+    </DockPanel>
+
+    <!-- Totals -->
+    <ItemsControl Grid.Row="1" ItemsSource="{Binding Cards}" Margin="-6,0,-6,16">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <UniformGrid Rows="1" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate DataType="vm:TotalCard">
+          <Border Margin="6,0" Padding="16,12" CornerRadius="10" Background="{StaticResource SurfaceBrush}">
+            <StackPanel>
+              <TextBlock Text="{Binding Title}" Style="{StaticResource Caption}" />
+              <TextBlock Text="{Binding AmountText}" FontSize="22" FontWeight="SemiBold" Margin="0,4,0,2" />
+              <TextBlock Text="{Binding ChangeText}" FontSize="12">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+                    <Style.Triggers>
+                      <MultiDataTrigger>
+                        <MultiDataTrigger.Conditions>
+                          <Condition Binding="{Binding HasChange}" Value="True" />
+                          <Condition Binding="{Binding ChangeIsGood}" Value="True" />
+                        </MultiDataTrigger.Conditions>
+                        <Setter Property="Foreground" Value="{StaticResource GoodBrush}" />
+                      </MultiDataTrigger>
+                      <MultiDataTrigger>
+                        <MultiDataTrigger.Conditions>
+                          <Condition Binding="{Binding HasChange}" Value="True" />
+                          <Condition Binding="{Binding ChangeIsGood}" Value="False" />
+                        </MultiDataTrigger.Conditions>
+                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                      </MultiDataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <Grid Grid.Row="2">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="300" />
+        <ColumnDefinition Width="16" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <!-- Expenses by category -->
+      <Border Grid.Column="0" Padding="16" CornerRadius="10" Background="{StaticResource SurfaceBrush}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="Расходы по категориям" FontWeight="SemiBold" Margin="0,0,0,12" />
+          <TextBlock DockPanel.Dock="Top" Text="Расходов в этом месяце нет" Style="{StaticResource Caption}"
+                     Visibility="{Binding CategoryBars.Count, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding CategoryBars}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:CategoryBar">
+                  <StackPanel Margin="0,0,0,12">
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding AmountText}" />
+                      <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                    <Grid Height="6" Margin="0,5,0,3">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="{Binding Share, Converter={StaticResource ShareToStar}}" />
+                        <ColumnDefinition Width="{Binding Share, Converter={StaticResource ShareToStar}, ConverterParameter=rest}" />
+                      </Grid.ColumnDefinitions>
+                      <Border Grid.ColumnSpan="2" CornerRadius="3" Background="{StaticResource ControlBrush}" />
+                      <Border Grid.Column="0" CornerRadius="3" Background="{StaticResource AccentBrush}" />
+                    </Grid>
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding ChangeText, StringFormat='{}{0} к прошлому'}" Style="{StaticResource Caption}"
+                                 Visibility="{Binding ChangeText, Converter={StaticResource TextToVisibility}}" />
+                      <TextBlock Text="{Binding ShareText}" Style="{StaticResource Caption}" />
+                    </DockPanel>
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+
+      <!-- Transactions -->
+      <Border Grid.Column="2" Padding="12" CornerRadius="10" Background="{StaticResource SurfaceBrush}">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" Margin="4,0,4,10">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="130" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="170" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="140" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" MinWidth="120" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox Grid.Column="0" ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding TypeFilter}" />
+            <ComboBox Grid.Column="2" ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding CategoryFilter}" />
+            <ComboBox Grid.Column="4" ItemsSource="{Binding AccountOptions}" SelectedItem="{Binding AccountFilter}" />
+            <Grid Grid.Column="6">
+              <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Поиск по комментарию и категории (Ctrl+F)" />
+              <TextBlock Text="Поиск…" Style="{StaticResource Caption}" Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                         Visibility="{Binding SearchText, Converter={StaticResource TextToVisibility}, ConverterParameter=invert}"
+                         x:Name="SearchPlaceholder" />
+            </Grid>
+            <Button Grid.Column="7" Margin="8,0,0,0" Style="{StaticResource GhostButton}" Content="Сбросить" Command="{Binding ResetFiltersCommand}" />
+          </Grid>
+
+          <DockPanel DockPanel.Dock="Bottom" Margin="4,8,4,0">
+            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}"
+                       Text="Двойной клик — изменить · Delete — удалить · Ctrl+Z — отменить" />
+            <TextBlock Text="{Binding RowsSummary}" Style="{StaticResource Caption}" />
+          </DockPanel>
+
+          <Grid>
+            <TextBlock Text="Операций нет. Нажмите «+ Операция» или горячую клавишу быстрого ввода."
+                       Style="{StaticResource Caption}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
+            <ListBox x:Name="RowsList" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                     Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource RowItem}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     MouseDoubleClick="OnRowDoubleClick" KeyDown="OnRowsKeyDown">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:TransactionRow">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="110" />
+                      <ColumnDefinition Width="150" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="120" />
+                      <ColumnDefinition Width="130" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding DateText}" Foreground="{StaticResource MutedTextBrush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding CategoryName}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="2" Text="{Binding Note}" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="3" Text="{Binding AccountName}" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Grid.Column="4" HorizontalAlignment="Right">
+                      <TextBlock Text="{Binding AmountText}" HorizontalAlignment="Right" FontWeight="SemiBold">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding Type}" Value="Income">
+                                <Setter Property="Foreground" Value="{StaticResource IncomeBrush}" />
+                              </DataTrigger>
+                              <DataTrigger Binding="{Binding Type}" Value="Saving">
+                                <Setter Property="Foreground" Value="{StaticResource SavingBrush}" />
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                      <TextBlock Text="{Binding OriginalAmountText}" HorizontalAlignment="Right" Style="{StaticResource Caption}"
+                                 Visibility="{Binding OriginalAmountText, Converter={StaticResource TextToVisibility}}" />
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </DockPanel>
+      </Border>
+
+      <!-- Edit panel -->
+      <Border Grid.Column="3" Width="300" Margin="16,0,0,0" Padding="16" CornerRadius="10"
+              Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1"
+              Visibility="{Binding DataContext.IsEditing, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
+              DataContext="{Binding Editor}" d:DataContext="{d:DesignInstance vm:TransactionEditorViewModel}">
+        <StackPanel>
+          <TextBlock Text="Изменить операцию" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,14" />
+
+          <TextBlock Text="Дата (дд.мм.гггг)" Style="{StaticResource Caption}" />
+          <TextBox Margin="0,4,0,10" Text="{Binding Date, StringFormat=dd.MM.yyyy, ConverterCulture=ru-RU, UpdateSourceTrigger=PropertyChanged}" />
+
+          <TextBlock Text="Тип" Style="{StaticResource Caption}" />
+          <ComboBox Margin="0,4,0,10" ItemsSource="{Binding Types}" SelectedItem="{Binding Type}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Converter={StaticResource TypeName}}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <TextBlock Text="Сумма (в валюте счёта)" Style="{StaticResource Caption}" />
+          <TextBox Margin="0,4,0,10" Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}" />
+
+          <TextBlock Text="Категория" Style="{StaticResource Caption}" />
+          <ComboBox Margin="0,4,0,10" ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}" DisplayMemberPath="Name" />
+
+          <TextBlock Text="Счёт" Style="{StaticResource Caption}" />
+          <ComboBox Margin="0,4,0,10" ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" DisplayMemberPath="Name" />
+
+          <TextBlock Text="Комментарий" Style="{StaticResource Caption}" />
+          <TextBox Margin="0,4,0,10" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" />
+
+          <TextBlock Text="{Binding Problem}" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,10"
+                     Visibility="{Binding Problem, Converter={StaticResource TextToVisibility}}" />
+
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Отмена" Style="{StaticResource GhostButton}"
+                    Command="{Binding DataContext.CancelEditCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+            <Button Content="Сохранить" Margin="8,0,0,0" Style="{StaticResource AccentButton}"
+                    Command="{Binding DataContext.SaveEditCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- Undo bar and status -->
+    <StackPanel Grid.Row="3" Margin="0,12,0,0">
+      <Border HorizontalAlignment="Center" Padding="16,8" CornerRadius="8" Background="{StaticResource ControlBrush}"
+              BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+              Visibility="{Binding CanUndo, Converter={StaticResource BoolToVisibility}}">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="{Binding UndoText}" VerticalAlignment="Center" Margin="0,0,16,0" />
+          <Button Content="Отменить (Ctrl+Z)" Style="{StaticResource AccentButton}" Command="{Binding UndoCommand}" />
+          <Button Content="✕" Margin="6,0,0,0" Style="{StaticResource GhostButton}" Command="{Binding DismissUndoCommand}" ToolTip="Скрыть" />
+        </StackPanel>
+      </Border>
+      <TextBlock Text="{Binding Status}" Foreground="{StaticResource WarningBrush}" HorizontalAlignment="Center" Margin="0,6,0,0"
+                 Visibility="{Binding Status, Converter={StaticResource TextToVisibility}}" />
+    </StackPanel>
+  </Grid>
+</Window>
