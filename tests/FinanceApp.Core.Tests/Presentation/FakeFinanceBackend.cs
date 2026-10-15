@@ -74,9 +74,11 @@ public sealed class FakeFinanceBackend : IFinanceBackend
     public Task<PeriodOverview> LoadPeriodAsync(Period period, CancellationToken cancellationToken = default)
     {
         Calls++;
-        var summary = SummaryCalculator.For(Transactions, period, Categories.ToDictionary(c => c.Id), Accounts.ToDictionary(a => a.Id), Today);
+        var (categories, accounts) = (Categories.ToDictionary(c => c.Id), Accounts.ToDictionary(a => a.Id));
+        var summary = SummaryCalculator.For(Transactions, period, categories, accounts, Today);
+        var insights = PeriodInsights.For(Transactions, period, categories, accounts, Today);
         var of = Transactions.Where(t => period.Contains(t.Date)).OrderByDescending(t => t.Date).ThenByDescending(t => t.CreatedAt).ToList();
-        return Task.FromResult(new PeriodOverview(period, of, summary, Categories, Accounts, CurrencyCode.Rub));
+        return Task.FromResult(new PeriodOverview(period, of, summary, Categories, Accounts, CurrencyCode.Rub, insights));
     }
 
     public Task<Catalog> LoadCatalogAsync(CancellationToken cancellationToken = default)

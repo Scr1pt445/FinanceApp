@@ -12,7 +12,8 @@ public sealed record PeriodOverview(
     PeriodSummary Summary,
     IReadOnlyList<Category> Categories,
     IReadOnlyList<Account> Accounts,
-    CurrencyCode BaseCurrency);
+    CurrencyCode BaseCurrency,
+    PeriodInsights Insights);
 
 /// <summary>Loads a period together with the previous one (for comparison) in one go.</summary>
 public sealed class PeriodOverviewService(
@@ -34,14 +35,16 @@ public sealed class PeriodOverviewService(
         var allAccounts = await accounts.ListAsync(cancellationToken);
         var today = DateOnly.FromDateTime(timeProvider.GetLocalNow().DateTime);
 
-        var summary = SummaryCalculator.For(
-            loaded, period, allCategories.ToDictionary(c => c.Id), allAccounts.ToDictionary(a => a.Id), today);
+        var categoryMap = allCategories.ToDictionary(c => c.Id);
+        var accountMap = allAccounts.ToDictionary(a => a.Id);
+        var summary = SummaryCalculator.For(loaded, period, categoryMap, accountMap, today);
+        var insights = PeriodInsights.For(loaded, period, categoryMap, accountMap, today);
         var ofPeriod = loaded
             .Where(t => period.Contains(t.Date))
             .OrderByDescending(t => t.Date)
             .ThenByDescending(t => t.CreatedAt)
             .ToList();
 
-        return new PeriodOverview(period, ofPeriod, summary, allCategories, allAccounts, settings.Load().BaseCurrency);
+        return new PeriodOverview(period, ofPeriod, summary, allCategories, allAccounts, settings.Load().BaseCurrency, insights);
     }
 }
