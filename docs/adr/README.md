@@ -12,3 +12,4 @@ Short records of decisions that are expensive to reverse. Format: context → de
 | [0006](0006-dotnet-10.md) | Target .NET 10 instead of .NET 8 | Accepted |
 | [0007](0007-ef-core-sqlite.md) | EF Core + SQLite, money as `decimal` | Accepted |
 | [0008](0008-csv-contract-extension.md) | Extend the CSV contract with columns on the right | Accepted |
+| [0009](0009-quick-entry-syntax.md) | Quick-entry syntax | Accepted |

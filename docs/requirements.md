@@ -25,14 +25,17 @@ A desktop app for personal finance tracking that people actually keep using:
 ### 3.1. Quick entry
 
 - A small entry window opens with a **global hotkey** from any application (default `Ctrl+Alt+M`) and from the tray icon.
-- One input line with parsing, for example:
-  - `350 food coffee` → expense 350, category *Food*, note *coffee*;
-  - `+50000 salary` → income;
-  - `>10000 piggy bank` → saving;
-  - `1200 transport taxi yesterday` → dated yesterday.
-- The category is suggested by prefix and by previous notes (*coffee* → *Food*).
+- One input line with parsing ([ADR 0009](adr/0009-quick-entry-syntax.md)), for example:
+  - `350 еда кофе` → expense 350, category «Еда», note «кофе»;
+  - `350 кофе` → the category is suggested from previous notes;
+  - `+50000 зарплата` → income;
+  - `>10000 копилка` → saving;
+  - `1200 тр такси вчера` → «Транспорт» by prefix, dated yesterday;
+  - `350,50 еда обед 12.10` → decimal comma, dated 12 October;
+  - `20 еда ужин @карта usd` → account «Карта USD», amount in dollars.
+- The category is matched by prefix and suggested from previous notes (*кофе* → *Еда*).
 - `Enter` saves and closes the window, `Esc` closes it.
-- The default account is the last one used.
+- The default account is the last base-currency account used for the same type; foreign-currency accounts are chosen explicitly with `@`.
 
 ### 3.2. Transaction list
 
@@ -163,4 +166,4 @@ The open questions of the initial draft are resolved in [architecture decision r
 - CSV export → optional integration, off by default ([ADR 0004](adr/0004-obsidian-export-is-optional.md)).
 - Data location → `%LocalAppData%\FinanceApp`, no sync ([ADR 0005](adr/0005-data-location.md)).
 - Target framework → .NET 10 ([ADR 0006](adr/0006-dotnet-10.md)); storage → EF Core + SQLite ([ADR 0007](adr/0007-ef-core-sqlite.md)).
-- Quick-entry syntax → decided in milestone 2, together with currency input.
+- Quick-entry syntax → `+`/`>` type prefixes, dates as words or `ДД.ММ`, `@account`, currency from the account ([ADR 0009](adr/0009-quick-entry-syntax.md)).
