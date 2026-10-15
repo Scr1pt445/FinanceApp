@@ -76,6 +76,30 @@ public sealed class TransactionService(
         return transaction;
     }
 
+    /// <summary>
+    /// Undo of <see cref="DeleteAsync"/>: puts the very same transaction back (same id, creation time and rate),
+    /// so the CSV export and any reference to the id stay as they were.
+    /// </summary>
+    public async Task RestoreAsync(Transaction deleted, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(deleted);
+
+        if ((await transactions.ExistingIdsAsync([deleted.Id], cancellationToken)).Count > 0)
+        {
+            return;
+        }
+
+        _ = await categories.FindAsync(deleted.CategoryId, cancellationToken)
+            ?? throw new DomainException("Категория операции больше не существует.");
+        _ = await accounts.FindAsync(deleted.AccountId, cancellationToken)
+            ?? throw new DomainException("Счёт операции больше не существует.");
+
+        transactions.Add(deleted);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        notifier.NotifyChanged();
+    }
+
     private DateTime Now => timeProvider.GetUtcNow().UtcDateTime;
 
     private async Task<(Category Category, Account Account)> LoadReferencesAsync(TransactionInput input, CancellationToken cancellationToken)
