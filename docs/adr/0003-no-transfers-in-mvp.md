@@ -1,12 +1,15 @@
-# 0003. Переводов между счетами в MVP нет
+# 0003. No transfers between accounts in the MVP
 
-Дата: 2026-10-15 · Статус: принято
+Date: 2026-10-15 · Status: Accepted
 
-## Контекст
-Перевод (сняли с карты наличные) не меняет ни доходы, ни расходы. Контракт с Obsidian допускает только типы `income`, `expense`, `saving`.
+## Context
 
-## Решение
-В MVP переводов нет. Типы операций: доход, расход, накопление.
+A transfer (e.g. withdrawing cash from a card) changes neither income nor expenses. The CSV contract only allows the types `income`, `expense` and `saving`.
 
-## Последствия
-Остатки по счетам в MVP не ведутся. Если переводы понадобятся, они станут отдельной сущностью, которая не попадает в CSV-экспорт, — контракт с Obsidian при этом не меняется.
+## Decision
+
+The MVP has no transfers. Transaction types are income, expense and saving.
+
+## Consequences
+
+Account balances are not tracked in the MVP. If transfers are needed later, they become a separate entity that is excluded from the CSV export, so the contract does not change.

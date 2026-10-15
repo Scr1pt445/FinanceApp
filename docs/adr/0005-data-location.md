@@ -1,14 +1,17 @@
-# 0005. Данные в `%LocalAppData%\FinanceApp`, без синхронизации
+# 0005. Data in `%LocalAppData%\FinanceApp`, no sync
 
-Дата: 2026-10-15 · Статус: принято
+Date: 2026-10-15 · Status: Accepted
 
-## Контекст
-Приложение ставят себе разные люди, у каждого свои данные. Рядом с исполняемым файлом писать нельзя, если приложение установлено в `Program Files`. Файл SQLite в синхронизируемой папке (облако, Obsidian Sync) рискует повредиться при одновременной записи.
+## Context
 
-## Решение
-- Каталог данных по умолчанию — `%LocalAppData%\FinanceApp` (`finance.db`, `settings.json`, позже — резервные копии).
-- Каталог переопределяется переменной окружения `FINANCEAPP_DATA_DIR` или параметром `--data-dir` (для CLI и тестов).
-- Синхронизации БД нет. Данные покидают компьютер только через экспорт и резервные копии.
+Each person who installs the app has their own data. Writing next to the executable fails when the app is installed under `Program Files`. A SQLite file inside a synced folder (cloud drive, note sync) risks corruption on concurrent writes.
 
-## Последствия
-У каждого пользователя Windows свои данные, ничего настраивать не нужно. Для общего бюджета на нескольких ПК понадобится отдельное решение (сервер или синхронизация); ключи-GUID и `UpdatedAt` в модели этому не мешают.
+## Decision
+
+- The default data directory is `%LocalAppData%\FinanceApp` (`finance.db`, `settings.json`, later backups).
+- It can be overridden with the `FINANCEAPP_DATA_DIR` environment variable or the `--data-dir` option (CLI and tests).
+- The database is not synchronized. Data leaves the machine only through exports and backups.
+
+## Consequences
+
+Every Windows user gets their own data with zero configuration. A shared budget across several machines would need a separate solution (a server or sync); GUID keys and `UpdatedAt` in the model already allow it.

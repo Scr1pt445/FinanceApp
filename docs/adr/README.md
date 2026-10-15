@@ -1,14 +1,14 @@
 # Architecture Decision Records
 
-Короткие записи о решениях, которые сложно отменить. Формат: контекст → решение → последствия.
+Short records of decisions that are expensive to reverse. Format: context → decision → consequences.
 
-| № | Решение | Статус |
+| # | Decision | Status |
 |---|---|---|
-| [0001](0001-ui-wpf.md) | UI на WPF | принято |
-| [0002](0002-multi-currency.md) | Мультивалютность с курсом ЦБ на дату операции | принято |
-| [0003](0003-no-transfers-in-mvp.md) | Переводов между счетами в MVP нет | принято |
-| [0004](0004-obsidian-export-is-optional.md) | Приложение самостоятельное, экспорт в Obsidian — опциональная интеграция | принято |
-| [0005](0005-data-location.md) | Данные в `%LocalAppData%\FinanceApp`, без синхронизации | принято |
-| [0006](0006-dotnet-10.md) | .NET 10 вместо .NET 8 | принято |
-| [0007](0007-ef-core-sqlite.md) | EF Core + SQLite, деньги — `decimal` | принято |
-| [0008](0008-csv-contract-extension.md) | Расширение CSV-контракта колонками справа | принято |
+| [0001](0001-ui-wpf.md) | WPF for the desktop UI | Accepted |
+| [0002](0002-multi-currency.md) | Multiple currencies, CBR rate fixed on the transaction date | Accepted |
+| [0003](0003-no-transfers-in-mvp.md) | No transfers between accounts in the MVP | Accepted |
+| [0004](0004-obsidian-export-is-optional.md) | Standalone app; CSV export is an optional integration | Accepted |
+| [0005](0005-data-location.md) | Data in `%LocalAppData%\FinanceApp`, no sync | Accepted |
+| [0006](0006-dotnet-10.md) | Target .NET 10 instead of .NET 8 | Accepted |
+| [0007](0007-ef-core-sqlite.md) | EF Core + SQLite, money as `decimal` | Accepted |
+| [0008](0008-csv-contract-extension.md) | Extend the CSV contract with columns on the right | Accepted |

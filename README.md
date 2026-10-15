@@ -1,80 +1,106 @@
 # FinanceApp
 
-Десктопное приложение для учёта личных финансов на C# / .NET 10. Главное — **ввод операции за ~5 секунд** по глобальной горячей клавише. Ещё: итоги месяца, мультивалютность с курсами ЦБ РФ и необязательная выгрузка в CSV, например для страницы финансов в Obsidian.
+[![CI](https://github.com/Scr1pt445/FinanceApp/actions/workflows/ci.yml/badge.svg)](https://github.com/Scr1pt445/FinanceApp/actions/workflows/ci.yml)
+![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
+![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D4)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> **Статус:** этап 1 из 4 — ядро без UI: модель, SQLite, курсы валют, экспорт и импорт CSV, консольный инструмент, тесты. Дальше — окно быстрого ввода на WPF ([этапы](docs/requirements.md#9-этапы)).
+**English** | [Русский](README.ru.md)
 
-## Архитектура
+A Windows desktop app for personal finance tracking, built around one idea: **recording a transaction should take five seconds.** A global hotkey opens a one-line entry box; monthly totals, multi-currency accounts and an open CSV export do the rest.
 
-Чистая архитектура: зависимости направлены внутрь, ядро не знает ни про UI, ни про SQLite, ни про Obsidian.
+> **Status:** milestone 1 of 4 is done — the core (domain, persistence, exchange rates, CSV import/export) with a command-line front end and 143 automated tests. The WPF quick-entry window is next. See the [roadmap](#roadmap).
 
+## Features
+
+- **Multi-currency accounts.** Each account has a currency; amounts are converted to a base currency at the Central Bank of Russia rate **fixed on the transaction date**, so past months never drift.
+- **Offline first.** Local SQLite database; exchange rates are cached and the latest known rate is used (and flagged) when there is no network.
+- **Monthly summary.** Income, expenses, savings, balance, expenses by category and comparison with the previous month.
+- **Open data.** Optional CSV export rewritten atomically after every change — readable by spreadsheets and note-taking apps such as Obsidian.
+- **Safe import.** All-or-nothing CSV import with dry run, duplicate detection and a per-month check against the source file.
+
+## Architecture
+
+Clean architecture: dependencies point inwards, the core knows nothing about the UI, the database or any integration.
+
+```mermaid
+flowchart LR
+    CLI["FinanceApp.Cli<br/>(WPF app next)"] --> Infra["FinanceApp.Infrastructure<br/>EF Core · SQLite · CBR rates · files · DI"]
+    CLI --> App
+    Infra --> App["FinanceApp.Application<br/>use cases · ports · CSV contract · summaries"]
+    App --> Domain["FinanceApp.Domain<br/>entities · invariants"]
 ```
-src/
-  FinanceApp.Domain          сущности и инварианты: Transaction, Category, Account, CurrencyCode, YearMonth
-  FinanceApp.Application     сценарии и порты: TransactionService, CsvImportService, CsvExportService,
-                             SummaryCalculator, ExchangeRateService, CSV-контракт
-  FinanceApp.Infrastructure  EF Core + SQLite, курсы ЦБ (cbr-xml-daily.ru), атомарная запись файлов,
-                             settings.json, регистрация в DI
-  FinanceApp.Cli             консольный инструмент `finance` — тот же граф сервисов, что будет у WPF
-tests/
-  FinanceApp.Core.Tests            чистые тесты домена и сценариев
-  FinanceApp.Infrastructure.Tests  интеграционные тесты на настоящем SQLite и файловой системе
-```
 
-Ключевые решения описаны в [ADR](docs/adr/README.md). Коротко:
+| Project | Responsibility |
+|---|---|
+| `FinanceApp.Domain` | `Transaction`, `Category`, `Account`, `CurrencyCode`, `YearMonth`; invariants such as positive amounts and category/type consistency. No dependencies. |
+| `FinanceApp.Application` | Use cases (`TransactionService`, `CsvImportService`, `CsvExportService`), `SummaryCalculator`, `ExchangeRateService`, the CSV contract and the ports they need. |
+| `FinanceApp.Infrastructure` | EF Core + SQLite repositories and migrations, CBR rate source with a local cache, atomic file writer, JSON settings, DI registration shared by all front ends. |
+| `FinanceApp.Cli` | `finance` command-line tool built on the same service graph as the upcoming desktop app. |
 
-- **Деньги — только `decimal`.** Сумма хранится в валюте счёта, рядом — курс к базовой валюте, **зафиксированный на дату операции**. Поэтому итоги прошлых месяцев не меняются вслед за курсом ([ADR 0002](docs/adr/0002-multi-currency.md)).
-- **Курсы ЦБ кэшируются**, без сети берётся последний известный курс, и это явно отмечается.
-- **Экспорт CSV — интеграция, а не часть ядра.** Ядро сообщает «данные изменились», а координатор экспорта в фоне перезаписывает файл целиком: с debounce, через временный файл и `File.Replace`, с повторами, если файл занят. Ошибка экспорта не ломает ввод операции ([ADR 0004](docs/adr/0004-obsidian-export-is-optional.md)).
-- **CSV-контракт** совместим с форматом Obsidian: первые шесть колонок неизменны, валюта и `id` добавлены справа ([ADR 0008](docs/adr/0008-csv-contract-extension.md)).
-- **Импорт идемпотентен:** строки с `id` обновляются, строки без `id` сопоставляются по содержимому с учётом повторов. Импорт выполняется целиком или не выполняется совсем, есть dry run.
+### Key design decisions
 
-## Запуск
+Each decision is recorded as an [ADR](docs/adr/README.md).
 
-Нужен [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+- **Money is `decimal`, rates are fixed per transaction** ([ADR 0002](docs/adr/0002-multi-currency.md)). The amount is stored in the account currency together with the rate to the base currency on that date.
+- **Integrations are listeners, not core code** ([ADR 0004](docs/adr/0004-obsidian-export-is-optional.md)). Use cases publish "data changed"; the CSV export coordinator debounces, rewrites the file via a temp file and `File.Replace`, and retries when the file is locked. An export failure becomes a status, never an error for the user saving a transaction.
+- **A stable CSV contract** ([ADR 0008](docs/adr/0008-csv-contract-extension.md)). The first six columns never change; currency and id are appended on the right, which makes export → import lossless.
+- **Idempotent import.** Rows with an `id` are upserted; rows without one are matched by content, counting duplicates, so importing the same file twice adds nothing.
+
+## Getting started
+
+Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) on Windows.
 
 ```bash
 dotnet build
-```
-
-```bash
 dotnet test
-```
-
-Консольный инструмент:
-
-```bash
 dotnet run --project src/FinanceApp.Cli -- --help
 ```
 
-Данные лежат в `%LocalAppData%\FinanceApp` (`finance.db`, `settings.json`). Другой каталог можно задать через `--data-dir <путь>` или переменную `FINANCEAPP_DATA_DIR`.
+Data is stored in `%LocalAppData%\FinanceApp` (`finance.db`, `settings.json`). Override it with `--data-dir <path>` or the `FINANCEAPP_DATA_DIR` environment variable.
 
-## CLI: основные команды
+### CLI examples
 
-| Команда | Что делает |
-|---|---|
-| `finance init [--base-currency RUB]` | создаёт базу со стартовыми категориями и счетами |
-| `finance add 350 -c Еда -n "кофе"` | добавляет операцию (`-t income\|expense\|saving`, `-a` счёт, `-d` дата, `--rate` курс вручную) |
-| `finance list [-m 2026-10] [--all]` | список операций |
-| `finance summary [-m 2026-10]` | итоги месяца, расходы по категориям, сравнение с прошлым месяцем |
-| `finance delete <id>` | удаляет операцию |
-| `finance import <file.csv> [--default-account Карта] [--dry-run]` | импорт CSV со сверкой сумм по месяцам |
-| `finance export [--path file.csv]` | записывает CSV со всеми операциями |
-| `finance config export --enable --path <file.csv>` | включает автоматический экспорт после каждого изменения |
-| `finance rates USD [-d 2026-10-07]` | курс ЦБ на дату |
-| `finance accounts [add "Карта USD" --currency USD]` | счета |
+```bash
+finance init --base-currency RUB
+finance add 350 --category Еда --note "coffee"
+finance accounts add "Card USD" --currency USD
+finance add 20 --category Еда --account "Card USD"    # converted at today's CBR rate
+finance summary --month 2026-10
+finance import legacy.csv --default-account Карта --dry-run
+finance config export --enable --path "C:\Notes\Finance\transactions.csv"
+```
 
-## Формат CSV
+Run `finance <command> --help` for all options.
+
+## CSV format
 
 ```csv
 date,type,amount,category,account,note,currency,original_amount,id
-2026-10-07,expense,350,Еда,Карта,"кофе, круассан",RUB,350,01a1…
-2026-10-07,expense,1714.23,Еда,Карта USD,ужин,USD,20,01a1…
+2026-10-07,expense,350,Еда,Карта,"coffee, croissant",RUB,350,01a1…
+2026-10-07,expense,1714.23,Еда,Card USD,dinner,USD,20,01a1…
 ```
 
-UTF-8 без BOM, разделитель — запятая, переводы строк LF, `amount` — в базовой валюте с точкой. Подробнее — в [требованиях, раздел 5](docs/requirements.md#5-контракт-с-obsidian).
+UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the base currency. Full contract: [requirements, section 5](docs/requirements.md#5-csv-export-contract).
 
-## Документы
+## Testing
 
-- [Требования](docs/requirements.md)
-- [Архитектурные решения (ADR)](docs/adr/README.md)
+143 tests on xUnit v3 and Microsoft Testing Platform:
+
+- **Core tests** — domain invariants, CSV writer/reader (byte-level checks for BOM, quoting and culture independence), summaries, exchange-rate fallback logic, export coordinator (debounce, retries, failure status).
+- **Infrastructure tests** — run against a real SQLite file and the real file system: migrations and seeding, decimal/date round-trips, atomic replace with a locked target, CBR parsing with a fake HTTP handler, end-to-end add → edit → delete → CSV, import idempotency and export → import round-trip.
+
+## Roadmap
+
+| Milestone | Scope | Status |
+|---|---|:-:|
+| 1. Core | Domain, SQLite, exchange rates, CSV export/import, CLI, tests | ✅ |
+| 2. Quick entry | Tray icon, global hotkey, one-line entry window, input parser | ⏳ |
+| 3. Main window | Transaction list, filters, editing, monthly summary | |
+| 4. Polish | Catalog management, settings, autostart, backups, screenshots | |
+
+Details: [product requirements](docs/requirements.md).
+
+## License
+
+[MIT](LICENSE)

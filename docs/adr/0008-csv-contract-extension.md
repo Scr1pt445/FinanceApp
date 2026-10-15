@@ -1,26 +1,29 @@
-# 0008. Расширение CSV-контракта колонками справа
+# 0008. Extend the CSV contract with columns on the right
 
-Дата: 2026-10-15 · Статус: принято
+Date: 2026-10-15 · Status: Accepted
 
-## Контекст
-Контракт с Obsidian (`date,type,amount,category,account,note`) не знает про валюты, а страница «Финансы» суммирует `amount` в одной валюте. Контракт разрешает добавлять новые колонки справа.
+## Context
 
-## Решение
-Формат экспорта:
+The original contract (`date,type,amount,category,account,note`) has no notion of currency, and consumers sum up `amount` in one currency. The contract allows appending new columns on the right.
+
+## Decision
+
+Export format:
 
 ```csv
 date,type,amount,category,account,note,currency,original_amount,id
-2026-10-07,expense,350,Еда,Карта,кофе,RUB,350,0b6c…
-2026-10-08,expense,1845.30,Еда,Карта USD,ужин,USD,20,4f1a…
+2026-10-07,expense,350,Еда,Карта,coffee,RUB,350,0b6c…
+2026-10-08,expense,1845.30,Еда,Card USD,dinner,USD,20,4f1a…
 ```
 
-- `amount` — всегда в **базовой** валюте, поэтому суммы в Obsidian верны.
-- `currency` и `original_amount` — валюта и сумма в валюте счёта.
-- `id` — идентификатор операции, нужен для повторного импорта без дублей.
-- Числа — `InvariantCulture`, без экспоненты: целые без дробной части (`350`), остальные — два знака (`350.50`).
-- UTF-8 без BOM, переводы строк LF, кавычки по RFC 4180.
+- `amount` is always in the **base** currency, so consumers' totals stay correct.
+- `currency` and `original_amount` are the account currency and the amount in it.
+- `id` identifies the transaction and makes re-import free of duplicates.
+- Numbers use the invariant culture with no exponent: whole numbers without a fractional part (`350`), others with two digits (`350.50`).
+- UTF-8 without BOM, LF line endings, RFC 4180 quoting.
 
-Импорт принимает и исходный формат из шести колонок (архив 2025 года), и расширенный. Колонки ищутся по имени, лишние игнорируются.
+Import accepts both the original six-column format (legacy data) and the extended one. Columns are matched by name; unknown columns are ignored.
 
-## Последствия
-Obsidian продолжает работать без изменений. Экспорт → импорт сохраняет всё, включая валюту и курс.
+## Consequences
+
+Existing consumers keep working unchanged. Export → import preserves everything, including currency and rate.

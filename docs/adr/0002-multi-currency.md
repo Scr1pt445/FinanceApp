@@ -1,17 +1,20 @@
-# 0002. Мультивалютность с курсом ЦБ на дату операции
+# 0002. Multiple currencies, CBR rate fixed on the transaction date
 
-Дата: 2026-10-15 · Статус: принято
+Date: 2026-10-15 · Status: Accepted
 
-## Контекст
-В системе 2025 года были операции в USD, EUR и BYN. Итоги месяца и страница «Финансы» в Obsidian считают в одной валюте.
+## Context
 
-## Решение
-- У приложения есть **базовая валюта** (настройка, по умолчанию RUB).
-- Валюта операции задаётся **счётом**.
-- В операции хранятся сумма в валюте счёта, валюта и **курс к базовой валюте, зафиксированный на дату операции**. Сумма в базовой валюте = `round(Amount × ExchangeRate, 2)`.
-- Курс берётся с `cbr-xml-daily.ru` (зеркало курсов ЦБ РФ) и кэшируется в БД. На выходные и праздники ЦБ курсы не публикует — берётся последний опубликованный. Без сети — последний известный курс из кэша. Курс можно поправить вручную.
-- Если базовая валюта не рубль, используется кросс-курс через рубль.
+Users hold money in several currencies (RUB, USD, EUR, BYN). Monthly totals — and any tool reading the CSV export — work in a single currency.
 
-## Последствия
-- Итоги прошлых месяцев не «плывут» при изменении курсов.
-- Приложение работает офлайн, но курс для новой валюты без кэша и без сети придётся ввести вручную.
+## Decision
+
+- The app has a **base currency** (a setting, RUB by default).
+- A transaction's currency is the currency of its **account**.
+- A transaction stores the amount in that currency and the **exchange rate to the base currency, fixed on the transaction date**. Base amount = `round(Amount × ExchangeRate, 2)`.
+- Rates come from `cbr-xml-daily.ru` (a mirror of the Central Bank of Russia rates) and are cached in the database. The CBR does not publish on weekends and holidays, so the last published rate is used. Offline, the latest cached rate is used and flagged as a fallback. The rate can always be entered manually.
+- For a non-ruble base currency, a cross rate via the ruble is used.
+
+## Consequences
+
+- Totals of past months never change when rates move.
+- The app works offline; a currency that has never been cached needs a manual rate when there is no network.
