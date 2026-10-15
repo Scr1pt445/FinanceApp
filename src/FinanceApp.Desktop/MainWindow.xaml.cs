@@ -111,6 +111,19 @@ internal sealed partial class MainWindow : Window
     }
 
     /// <summary>The first field of a form gets the keyboard as soon as the form appears.</summary>
+    /// <summary>Inline inputs that appear on demand (new category, rename) take the focus.</summary>
+    private void OnFocusWhenVisible(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is TextBox box && e.NewValue is true)
+        {
+            box.Dispatcher.BeginInvoke(() =>
+            {
+                box.Focus();
+                box.SelectAll();
+            }, System.Windows.Threading.DispatcherPriority.Input);
+        }
+    }
+
     private void OnFocusOnLoad(object sender, RoutedEventArgs e)
     {
         if (sender is TextBox box)

@@ -75,3 +75,11 @@ internal sealed class EqualsConverter : IMultiValueConverter
     public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 }
+
+/// <summary>Negates a <c>bool</c> both ways (a pair of radio buttons over one flag).</summary>
+internal sealed class NotConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value is not true;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => value is not true;
+}

@@ -83,14 +83,15 @@ public partial class App
 
             var startupError = RegisterHotKeyFromSettings(settings.Load());
             ShowHotKey(_hotKeys.Current?.ToString());
-            if (startupError is not null)
-            {
-                // Without a hotkey the app is easy to lose in the tray: ask for another combination right away.
-                OpenHotKeySettings(startupError);
-            }
-            else if (e.Args.Contains("--main", StringComparer.OrdinalIgnoreCase))
+            if (e.Args.Contains("--main", StringComparer.OrdinalIgnoreCase))
             {
                 OpenMain();
+            }
+
+            if (startupError is not null)
+            {
+                // Without a hotkey the app is easy to lose in the tray: ask for another combination right away (on top).
+                OpenHotKeySettings(startupError);
             }
         }
 #pragma warning disable CA1031 // Startup failure: tell the user and quit instead of crashing silently.
