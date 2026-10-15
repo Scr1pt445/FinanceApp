@@ -99,7 +99,7 @@ public static class TransactionCsvReader
         var typeText = Field(TransactionCsvFormat.Type);
         if (typeText is null || !TransactionCsvFormat.TryParseType(typeText, out var type))
         {
-            error = $"некорректный тип «{typeText}», ожидается income, expense или saving";
+            error = $"некорректный тип «{typeText}», ожидается income, expense или transfer";
             return false;
         }
 
@@ -152,6 +152,27 @@ public static class TransactionCsvReader
             id = parsedId;
         }
 
+        var toAccount = Field(TransactionCsvFormat.ToAccount);
+        decimal? toAmount = null;
+        if (type == TransactionType.Transfer)
+        {
+            if (toAccount is null)
+            {
+                error = "у перевода не указан to_account";
+                return false;
+            }
+
+            if (Field(TransactionCsvFormat.ToAmount) is { } toAmountText)
+            {
+                if (!TryReadPositiveAmount(toAmountText, "to_amount", out var parsedToAmount, out error))
+                {
+                    return false;
+                }
+
+                toAmount = parsedToAmount;
+            }
+        }
+
         row = new TransactionCsvRow(
             date,
             type,
@@ -162,7 +183,9 @@ public static class TransactionCsvReader
             currency,
             originalAmount,
             id,
-            record.LineNumber);
+            record.LineNumber,
+            type == TransactionType.Transfer ? toAccount : null,
+            toAmount);
         return true;
     }
 

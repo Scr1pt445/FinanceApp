@@ -45,7 +45,7 @@ public sealed partial class MainViewModel(IMainBackend backend, TimeProvider tim
         AllTypes,
         new("Расходы", TransactionType.Expense),
         new("Доходы", TransactionType.Income),
-        new("Накопления", TransactionType.Saving),
+        new("Переводы", TransactionType.Transfer),
     ];
 
     public ObservableCollection<FilterOption<Guid?>> CategoryOptions { get; } = [];
@@ -116,6 +116,12 @@ public sealed partial class MainViewModel(IMainBackend backend, TimeProvider tim
         row ??= SelectedRow;
         if (row is null || _overview is null)
         {
+            return;
+        }
+
+        if (row.Transaction.IsTransfer)
+        {
+            Status = "Переводы правятся в новом окне счетов — пока удалите перевод и создайте заново.";
             return;
         }
 

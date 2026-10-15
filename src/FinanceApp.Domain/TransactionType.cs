@@ -7,8 +7,8 @@ public enum TransactionType
     Expense = 2,
 
     /// <summary>
-    /// Legacy: money put aside without an envelope. Being replaced by transfers into envelopes (ADR 0010);
-    /// existing rows are converted by a migration.
+    /// Legacy, CSV import only: money put aside before envelopes existed (export format v1). Not a domain
+    /// transaction any more — imported and migrated rows become transfers into envelopes (ADR 0010).
     /// </summary>
     Saving = 3,
 

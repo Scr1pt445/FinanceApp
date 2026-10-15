@@ -54,10 +54,13 @@ public class CsvImportTests
         var report = await ImportAsync(app, ArchiveText, new ImportOptions(DefaultAccountName: "Наличные"));
 
         report.CreatedCategories.ShouldBeEmpty(); // «Работа» is in the starter catalog
-        report.CreatedAccounts.ShouldBeEmpty();
+        report.CreatedAccounts.ShouldBe(["Копилка (RUB)"]); // the archive's saving row becomes an envelope
         await using var scope = app.Scope();
         var cash = (await scope.Get<IAccountRepository>().ListAsync(Ct)).Single(a => a.Name == "Наличные");
         (await AllTransactionsAsync(app)).ShouldAllBe(t => t.AccountId == cash.Id);
+        var transfer = (await AllTransactionsAsync(app)).Single(t => t.IsTransfer);
+        transfer.Amount.ShouldBe(56638m);
+        (await scope.Get<IAccountRepository>().FindAsync(transfer.ToAccountId!.Value, Ct))!.IsEnvelope.ShouldBeTrue();
     }
 
     [Fact]
@@ -95,8 +98,8 @@ public class CsvImportTests
 
         var report = await ImportAsync(app, "date,type,amount,category,account\n2026-10-07,expense,100,Хобби,Тинькофф\n2026-10-08,saving,50,,\n");
 
-        report.CreatedCategories.ShouldBe(["Хобби (Expense)", "Прочее (Saving)"]);
-        report.CreatedAccounts.ShouldBe(["Тинькофф (RUB)"]);
+        report.CreatedCategories.ShouldBe(["Хобби (Expense)"]);
+        report.CreatedAccounts.ShouldBe(["Тинькофф (RUB)", "Копилка (RUB)"]);
     }
 
     [Fact]
@@ -201,6 +204,46 @@ public class CsvImportTests
         copy.Select(t => (t.Id, t.Date, t.Type, t.Amount, t.Currency, t.BaseAmount, t.Note))
             .ShouldBe(original.Select(t => (t.Id, t.Date, t.Type, t.Amount, t.Currency, t.BaseAmount, t.Note)), ignoreOrder: true);
         TransactionCsvReader.ReadText(exported).Rows.Count.ShouldBe(7);
+    }
+
+    [Fact]
+    public async Task ExportV2_WithAccountsFile_RoundTripsEnvelopesAndTransfers()
+    {
+        await using var source = await TestApp.CreateAsync(exportEnabled: false);
+        Account card;
+        Account car;
+        await using (var scope = source.Scope())
+        {
+            card = (await scope.Get<IAccountRepository>().ListAsync(Ct)).Single(a => a.Name == "Карта");
+            car = await scope.Get<FinanceApp.Application.Accounts.AccountService>().CreateAsync(
+                new FinanceApp.Application.Accounts.AccountInput("Машина", AccountKind.Envelope, GoalAmount: 150_000m, GoalDate: new DateOnly(2027, 5, 1)), Ct);
+            await scope.Get<FinanceApp.Application.Transactions.TransactionService>().AddTransferAsync(
+                new FinanceApp.Application.Transactions.TransferInput(new DateOnly(2026, 10, 15), 10_000m, card.Id, car.Id, "в конверт"), Ct);
+        }
+
+        var folder = Path.Combine(source.Paths.DataDirectory, "export");
+        await using (var scope = source.Scope())
+        {
+            await scope.Get<CsvExportService>().ExportAsync(Path.Combine(folder, "transactions.csv"), Ct);
+        }
+
+        var transactionsText = await File.ReadAllTextAsync(Path.Combine(folder, "transactions.csv"), Ct);
+        var accountsText = await File.ReadAllTextAsync(Path.Combine(folder, "accounts.csv"), Ct);
+        accountsText.ShouldContain("Машина,envelope,RUB,10000,false,150000,2027-05-01");
+        accountsText.ShouldContain("Карта,account,RUB,-10000,false,,");
+
+        await using var target = await TestApp.CreateAsync(exportEnabled: false);
+        var report = await ImportAsync(target, transactionsText, new ImportOptions(AccountsCsvText: accountsText));
+
+        report.Succeeded.ShouldBeTrue();
+        await using var check = target.Scope();
+        var restored = (await check.Get<IAccountRepository>().ListAsync(Ct)).Single(a => a.Name == "Машина");
+        restored.IsEnvelope.ShouldBeTrue();
+        restored.GoalAmount.ShouldBe(150_000m);
+        var transfer = (await AllTransactionsAsync(target)).ShouldHaveSingleItem();
+        transfer.ToAccountId.ShouldBe(restored.Id);
+        transfer.Note.ShouldBe("в конверт");
+        report.FileTotals[new YearMonth(2026, 10)].IntoEnvelopes.ShouldBe(10_000m);
     }
 
     [Fact]

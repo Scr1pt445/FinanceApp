@@ -33,7 +33,7 @@ public sealed partial class TransactionEditorViewModel : ObservableObject
 
     public Transaction Transaction { get; }
 
-    public IReadOnlyList<TransactionType> Types { get; } = [TransactionType.Expense, TransactionType.Income, TransactionType.Saving];
+    public IReadOnlyList<TransactionType> Types { get; } = [TransactionType.Expense, TransactionType.Income];
 
     public IReadOnlyList<Account> Accounts { get; }
 

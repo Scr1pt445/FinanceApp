@@ -5,7 +5,8 @@ using FinanceApp.Domain;
 namespace FinanceApp.Application.QuickEntry;
 
 /// <summary>
-/// Parses the quick-entry line (ADR 0009): <c>[+|&gt;]&lt;amount&gt; [category] [note…] [date] [@account]</c>.
+/// Parses the quick-entry line (ADR 0009): <c>[+|&gt;]&lt;amount&gt; [category|envelope] [note…] [date] [@account]</c>.
+/// <c>&gt;</c> puts money into an envelope (ADR 0010).
 /// Pure and fast — meant to run on every keystroke.
 /// </summary>
 public static partial class QuickEntryParser
@@ -34,7 +35,7 @@ public static partial class QuickEntryParser
         var type = TransactionType.Expense;
         if (tokens.Count > 0 && tokens[0][0] is '+' or '>')
         {
-            type = tokens[0][0] == '+' ? TransactionType.Income : TransactionType.Saving;
+            type = tokens[0][0] == '+' ? TransactionType.Income : TransactionType.Transfer;
             tokens[0] = tokens[0][1..];
             if (tokens[0].Length == 0)
             {
@@ -87,6 +88,27 @@ public static partial class QuickEntryParser
             }
         }
 
+        if (type == TransactionType.Transfer)
+        {
+            var envelopes = context.Accounts.Where(a => a.IsEnvelope && !a.IsHidden && a.Id != account?.Id).ToList();
+            var (envelope, envelopeWords, ambiguousEnvelopes) = MatchByName(rest, 0, envelopes, a => a.Name);
+            rest.RemoveRange(0, envelopeWords);
+            if (ambiguousEnvelopes.Count > 0)
+            {
+                issues.Add(new(QuickEntryIssueKind.AmbiguousEnvelope,
+                    $"Уточните конверт: {string.Join(", ", ambiguousEnvelopes.Select(a => a.Name))}"));
+            }
+            else if (envelope is null)
+            {
+                issues.Add(new(QuickEntryIssueKind.MissingEnvelope, envelopes.Count == 0
+                    ? "Конвертов пока нет — создайте конверт в окне приложения."
+                    : "Укажите конверт после суммы, например: >10000 машина"));
+            }
+
+            var transferNote = rest.Count == 0 ? null : string.Join(' ', rest);
+            return new QuickEntryDraft(type, amount, null, false, account, accountIsDefault, date, transferNote, issues, envelope);
+        }
+
         var categories = context.Categories.Where(c => c.Type == type && !c.IsHidden).ToList();
         var (category, consumed, ambiguous) = MatchByName(rest, 0, categories, c => c.Name);
         rest.RemoveRange(0, consumed);
@@ -113,12 +135,12 @@ public static partial class QuickEntryParser
     }
 
     /// <summary>
-    /// The last account used for this type, but only in the base currency, so a saving to a deposit or a
-    /// dinner abroad never silently becomes the default for everyday expenses. Foreign accounts need <c>@</c>.
+    /// The last account used for this type, but only a regular one in the base currency, so a dinner abroad
+    /// or spending from an envelope never silently becomes the default. Other accounts need <c>@</c>.
     /// </summary>
     private static Account? DefaultAccount(TransactionType type, QuickEntryContext context)
     {
-        var candidates = context.Accounts.Where(a => !a.IsHidden && a.Currency == context.BaseCurrency).ToList();
+        var candidates = context.Accounts.Where(a => !a.IsHidden && !a.IsEnvelope && a.Currency == context.BaseCurrency).ToList();
         return candidates.FirstOrDefault(a => context.LastAccountByType.TryGetValue(type, out var last) && a.Id == last)
             ?? candidates.FirstOrDefault();
     }

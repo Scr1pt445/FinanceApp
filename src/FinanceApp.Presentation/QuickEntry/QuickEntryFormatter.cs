@@ -15,7 +15,7 @@ public static class QuickEntryFormatter
         {
             TransactionType.Income => "Доход",
             TransactionType.Expense => "Расход",
-            TransactionType.Saving => "Накопление",
+            TransactionType.Transfer => "Перевод",
             _ => type.ToString(),
         };
 

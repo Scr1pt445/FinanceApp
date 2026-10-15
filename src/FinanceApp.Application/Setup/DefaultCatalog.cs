@@ -2,7 +2,7 @@ using FinanceApp.Domain;
 
 namespace FinanceApp.Application.Setup;
 
-/// <summary>Starter categories and accounts for a fresh database (requirements, section 3.4).</summary>
+/// <summary>Starter categories and accounts for a fresh database (requirements, sections 3.2 and 3.5).</summary>
 public static class DefaultCatalog
 {
     public static IReadOnlyList<(string Name, TransactionType Type)> Categories { get; } =
@@ -23,12 +23,10 @@ public static class DefaultCatalog
         ("Работа", TransactionType.Expense), // софт, подписки
         ("Связь", TransactionType.Expense),
         ("Прочее", TransactionType.Expense),
-
-        ("Копилка", TransactionType.Saving),
-        ("Инвестиции", TransactionType.Saving),
     ];
 
-    public static IReadOnlyList<string> Accounts { get; } = ["Карта", "Наличные", "Вклад"];
+    /// <summary>No starter envelopes: everyone has their own («Машина», «Отдых»…).</summary>
+    public static IReadOnlyList<string> Accounts { get; } = ["Карта", "Наличные"];
 
     public static IEnumerable<Category> CreateCategories() =>
         Categories.Select((c, index) => new Category(Guid.CreateVersion7(), c.Name, c.Type, index));

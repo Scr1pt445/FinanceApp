@@ -1,8 +1,8 @@
 namespace FinanceApp.Domain;
 
 /// <summary>
-/// A category belongs to exactly one transaction type, so «Прочее» can exist
-/// both as an income and as an expense category. (Name, Type) is unique.
+/// A category belongs to income or expense, so «Прочее» can exist as both. (Name, Type) is unique.
+/// Transfers have no category (ADR 0010).
 /// </summary>
 public sealed class Category
 {
@@ -15,9 +15,9 @@ public sealed class Category
             throw new DomainException("Идентификатор категории не задан.");
         }
 
-        if (!Enum.IsDefined(type))
+        if (type is not (TransactionType.Income or TransactionType.Expense))
         {
-            throw new DomainException($"Неизвестный тип операции: {type}.");
+            throw new DomainException("Категории бывают только у доходов и расходов.");
         }
 
         Id = id;

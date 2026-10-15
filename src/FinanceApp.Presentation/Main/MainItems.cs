@@ -39,7 +39,9 @@ public sealed record TransactionRow(
             t.Date.ToString("d MMM, ddd", QuickEntryFormatter.Russian),
             sign + QuickEntryFormatter.Money(t.BaseAmount, baseCurrency),
             t.Currency == baseCurrency ? null : QuickEntryFormatter.Money(t.Amount, t.Currency),
-            t.CategoryId is { } categoryId ? categories.GetValueOrDefault(categoryId, "?") : "Перевод",
+            t.CategoryId is { } categoryId
+                ? categories.GetValueOrDefault(categoryId, "?")
+                : "→ " + (t.ToAccountId is { } toId ? accounts.GetValueOrDefault(toId, "?") : "?"),
             accounts.GetValueOrDefault(t.AccountId, "?"),
             t.Note);
     }

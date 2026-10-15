@@ -81,8 +81,12 @@ public sealed class QuickEntryService(
                 : [new QuickEntryIssue(QuickEntryIssueKind.MissingCategory, "Строка неполная.")]);
         }
 
-        return await transactionService.AddAsync(
-            new TransactionInput(draft.Date, draft.Type, draft.Amount!.Value, draft.Category!.Id, draft.Account!.Id, draft.Note),
-            cancellationToken);
+        return draft.Type == TransactionType.Transfer
+            ? await transactionService.AddTransferAsync(
+                new TransferInput(draft.Date, draft.Amount!.Value, draft.Account!.Id, draft.ToAccount!.Id, draft.Note),
+                cancellationToken)
+            : await transactionService.AddAsync(
+                new TransactionInput(draft.Date, draft.Type, draft.Amount!.Value, draft.Category!.Id, draft.Account!.Id, draft.Note),
+                cancellationToken);
     }
 }

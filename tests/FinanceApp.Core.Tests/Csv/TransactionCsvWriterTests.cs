@@ -17,7 +17,7 @@ public class TransactionCsvWriterTests
     {
         var text = WriteToString();
 
-        text.ShouldBe("date,type,amount,category,account,note,currency,original_amount,id\n");
+        text.ShouldBe("date,type,amount,category,account,note,currency,original_amount,id,to_account,to_amount\n");
         text.ShouldStartWith("date,type,amount,category,account,note,");
     }
 
@@ -48,9 +48,9 @@ public class TransactionCsvWriterTests
             new TransactionCsvRow(new DateOnly(2026, 10, 8), TransactionType.Saving, 10000m, "Копилка", "Вклад", null));
 
         var lines = text.Split('\n');
-        lines[1].ShouldBe("2026-10-07,expense,350,Еда,Карта,кофе,RUB,350,0b6c2f8e-0000-7000-8000-000000000001");
-        lines[2].ShouldBe("2026-10-07,income,50000,Зарплата,Карта,,,,");
-        lines[3].ShouldBe("2026-10-08,saving,10000,Копилка,Вклад,,,,");
+        lines[1].ShouldBe("2026-10-07,expense,350,Еда,Карта,кофе,RUB,350,0b6c2f8e-0000-7000-8000-000000000001,,");
+        lines[2].ShouldBe("2026-10-07,income,50000,Зарплата,Карта,,,,,,");
+        lines[3].ShouldBe("2026-10-08,saving,10000,Копилка,Вклад,,,,,,");
     }
 
     [Theory]
@@ -96,6 +96,15 @@ public class TransactionCsvWriterTests
     {
         var text = WriteToString(new TransactionCsvRow(Oct7, TransactionType.Expense, 350m, "Еда", "Карта", "кофе, круассан"));
 
-        text.Split('\n')[1].ShouldBe("2026-10-07,expense,350,Еда,Карта,\"кофе, круассан\",,,");
+        text.Split('\n')[1].ShouldBe("2026-10-07,expense,350,Еда,Карта,\"кофе, круассан\",,,,,");
+    }
+
+    [Fact]
+    public void TransferRow_HasDestinationAndReceivedAmount()
+    {
+        var text = WriteToString(new TransactionCsvRow(
+            Oct7, TransactionType.Transfer, 9000m, null, "Карта", "обменник", CurrencyCode.Rub, 9000m, null, ToAccount: "Наличные USD", ToAmount: 100m));
+
+        text.Split('\n')[1].ShouldBe("2026-10-07,transfer,9000,,Карта,обменник,RUB,9000,,Наличные USD,100");
     }
 }

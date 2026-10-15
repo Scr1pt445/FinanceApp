@@ -74,7 +74,8 @@ public class TransactionCsvReaderTests
     [Theory]
     [InlineData("07.10.2026,expense,350", "дата")]
     [InlineData("2026-10-07,Expense,350", "тип")]
-    [InlineData("2026-10-07,transfer,350", "тип")]
+    [InlineData("2026-10-07,move,350", "тип")]
+    [InlineData("2026-10-07,transfer,350", "to_account")]
     [InlineData("2026-10-07,expense,350,50", null)] // extra unnamed field is ignored
     [InlineData("2026-10-07,expense,\"350,50\"", "сумма")]
     [InlineData("2026-10-07,expense,-350", "сумма")]
@@ -96,6 +97,18 @@ public class TransactionCsvReaderTests
         error.LineNumber.ShouldBe(2);
         error.Message.ShouldContain(expectedError);
         result.Rows.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Reads_TransferRows()
+    {
+        var result = TransactionCsvReader.ReadText(
+            "date,type,amount,account,to_account,to_amount\n2026-10-15,transfer,10000,Карта,Машина,\n2026-10-15,transfer,9000,Карта,Наличные USD,100\n");
+
+        result.Errors.ShouldBeEmpty();
+        result.Rows[0].ToAccount.ShouldBe("Машина");
+        result.Rows[0].ToAmount.ShouldBeNull();
+        result.Rows[1].ToAmount.ShouldBe(100m);
     }
 
     [Fact]

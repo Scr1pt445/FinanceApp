@@ -26,7 +26,6 @@ public sealed record PeriodTotals(decimal Income, decimal Expense, decimal IntoE
             TransactionType.Expense when IsEnvelope(t.AccountId, accounts) =>
                 this with { Expense = Expense + amount, ExpenseFromEnvelopes = ExpenseFromEnvelopes + amount },
             TransactionType.Expense => this with { Expense = Expense + amount },
-            TransactionType.Saving => this with { IntoEnvelopes = IntoEnvelopes + amount }, // legacy rows
             TransactionType.Transfer => this with
             {
                 IntoEnvelopes = IntoEnvelopes + (IsEnvelope(t.ToAccountId, accounts) == IsEnvelope(t.AccountId, accounts)

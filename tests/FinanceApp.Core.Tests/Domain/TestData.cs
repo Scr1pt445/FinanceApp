@@ -10,7 +10,6 @@ internal static class TestData
 
     public static Category Salary { get; } = new(Guid.NewGuid(), "Зарплата", TransactionType.Income);
 
-    public static Category PiggyBank { get; } = new(Guid.NewGuid(), "Копилка", TransactionType.Saving);
 
     public static Account Card { get; } = new(Guid.NewGuid(), "Карта", CurrencyCode.Rub);
 

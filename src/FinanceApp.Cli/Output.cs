@@ -17,7 +17,6 @@ internal static class Output
         {
             TransactionType.Income => "доход",
             TransactionType.Expense => "расход",
-            TransactionType.Saving => "отложено",
             TransactionType.Transfer => "перевод",
             _ => type.ToString(),
         };

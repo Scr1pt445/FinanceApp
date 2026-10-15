@@ -15,12 +15,16 @@ public sealed class CsvExportService(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        var rows = BuildRows(
-            await transactions.ListAsync(cancellationToken: cancellationToken),
-            await categories.ListAsync(cancellationToken),
-            await accounts.ListAsync(cancellationToken));
+        var history = await transactions.ListAsync(cancellationToken: cancellationToken);
+        var allAccounts = await accounts.ListAsync(cancellationToken);
+        var rows = BuildRows(history, await categories.ListAsync(cancellationToken), allAccounts);
+
+        // accounts.csv lives next to transactions.csv (ADR 0011); each file is replaced atomically.
+        var accountsPath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path))!, AccountsCsv.FileName);
+        var accountRows = allAccounts.Select(a => AccountsCsv.Row(a, a.OpeningBalance + history.Sum(t => t.EffectOn(a.Id))));
 
         await fileWriter.WriteAtomicallyAsync(path, TransactionCsvWriter.WriteToBytes(rows), cancellationToken);
+        await fileWriter.WriteAtomicallyAsync(accountsPath, AccountsCsv.WriteToBytes(accountRows), cancellationToken);
         return rows.Count;
     }
 
@@ -46,7 +50,9 @@ public sealed class CsvExportService(
                 t.Note,
                 t.Currency,
                 t.Amount,
-                t.Id))
+                t.Id,
+                ToAccount: t.ToAccountId is { } toId ? accountNames.GetValueOrDefault(toId) : null,
+                ToAmount: t.ToAmount))
             .ToList();
     }
 }
