@@ -9,6 +9,11 @@ public sealed record AppSettings
     public CurrencyCode BaseCurrency { get; init; } = CurrencyCode.Rub;
 
     public CsvExportSettings CsvExport { get; init; } = new();
+
+    /// <summary>Global hotkey for the quick-entry window, e.g. «Ctrl+Alt+M». Changed in the desktop app.</summary>
+    public string QuickEntryHotKey { get; init; } = DefaultQuickEntryHotKey;
+
+    public const string DefaultQuickEntryHotKey = "Ctrl+Alt+M";
 }
 
 /// <summary>Optional CSV export (e.g. for the Obsidian «Финансы» page, ADR 0004). Off by default.</summary>
