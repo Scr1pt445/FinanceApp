@@ -22,6 +22,8 @@ public enum QuickEntryIssueKind
     UnknownAccount,
     AmbiguousAccount,
     NoAccount,
+    MissingEnvelope,
+    AmbiguousEnvelope,
 }
 
 /// <summary>Why the line cannot be saved yet. <see cref="Message"/> is user-facing (Russian).</summary>
@@ -29,6 +31,7 @@ public sealed record QuickEntryIssue(QuickEntryIssueKind Kind, string Message);
 
 /// <summary>
 /// What the line means so far. Shown live under the input box; saved only when <see cref="IsComplete"/>.
+/// For <c>&gt;</c> lines <see cref="Type"/> is a transfer from <see cref="Account"/> into <see cref="ToAccount"/>.
 /// </summary>
 public sealed record QuickEntryDraft(
     TransactionType Type,
@@ -39,7 +42,10 @@ public sealed record QuickEntryDraft(
     bool AccountIsDefault,
     DateOnly Date,
     string? Note,
-    IReadOnlyList<QuickEntryIssue> Issues)
+    IReadOnlyList<QuickEntryIssue> Issues,
+    Account? ToAccount = null)
 {
-    public bool IsComplete => Issues.Count == 0 && Amount is not null && Category is not null && Account is not null;
+    public bool IsComplete =>
+        Issues.Count == 0 && Amount is not null && Account is not null
+        && (Type == TransactionType.Transfer ? ToAccount is not null : Category is not null);
 }

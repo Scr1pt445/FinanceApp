@@ -12,11 +12,16 @@ internal sealed class TestDatabase : IAsyncDisposable
 
     public FinancePaths Paths { get; }
 
-    public static async Task<TestDatabase> CreateAsync(bool seed = true)
+    /// <param name="migrate">false — an empty file, for tests that apply migrations themselves.</param>
+    public static async Task<TestDatabase> CreateAsync(bool seed = true, bool migrate = true)
     {
         var paths = new FinancePaths(Path.Combine(Path.GetTempPath(), "FinanceApp.Tests", Guid.NewGuid().ToString("N")));
         paths.EnsureDataDirectory();
         var database = new TestDatabase(paths);
+        if (!migrate)
+        {
+            return database;
+        }
 
         await using var db = database.CreateContext();
         if (seed)

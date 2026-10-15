@@ -37,6 +37,10 @@ public static class TransactionCsvWriter
             writer.Write(row.OriginalAmount is { } original ? TransactionCsvFormat.FormatAmount(original) : null);
             writer.Write(',');
             writer.Write(row.Id?.ToString("D"));
+            writer.Write(',');
+            writer.Write(Escape(row.ToAccount));
+            writer.Write(',');
+            writer.Write(row.ToAmount is { } toAmount ? TransactionCsvFormat.FormatAmount(toAmount) : null);
             writer.Write(NewLine);
         }
     }

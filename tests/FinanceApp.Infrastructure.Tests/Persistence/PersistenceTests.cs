@@ -21,7 +21,8 @@ public class PersistenceTests
 
         await using var check = database.CreateContext();
         (await check.Categories.CountAsync(Ct)).ShouldBe(DefaultCatalog.Categories.Count);
-        (await check.Accounts.Select(a => a.Name).ToListAsync(Ct)).ShouldBe(["Карта", "Наличные", "Вклад"], ignoreOrder: true);
+        (await check.Accounts.Select(a => a.Name).ToListAsync(Ct)).ShouldBe(["Карта", "Наличные"], ignoreOrder: true);
+        (await check.Accounts.AnyAsync(a => a.Kind == AccountKind.Envelope, Ct)).ShouldBeFalse();
         (await check.Accounts.AllAsync(a => a.Currency == CurrencyCode.Rub, Ct)).ShouldBeTrue();
         (await check.Categories.CountAsync(c => c.Name == "Прочее", Ct)).ShouldBe(2);
     }

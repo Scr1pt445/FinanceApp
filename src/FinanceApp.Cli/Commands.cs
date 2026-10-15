@@ -1,6 +1,7 @@
 using System.CommandLine;
 using System.Globalization;
 using FinanceApp.Application.Abstractions;
+using FinanceApp.Application.Accounts;
 using FinanceApp.Application.Csv;
 using FinanceApp.Application.Export;
 using FinanceApp.Application.ExchangeRates;
@@ -21,6 +22,7 @@ internal static class Commands
         yield return Init(dataDir);
         yield return Quick(dataDir);
         yield return Add(dataDir);
+        yield return Transfer(dataDir);
         yield return List(dataDir);
         yield return Delete(dataDir);
         yield return Summary(dataDir);
@@ -94,7 +96,9 @@ internal static class Commands
         var amount = draft.Amount is { } value
             ? Output.Money(value, draft.Account?.Currency ?? CurrencyCode.Rub)
             : "?";
-        var category = draft.Category is null ? "?" : draft.Category.Name + (draft.CategoryFromHint ? " (по прошлым записям)" : "");
+        var category = draft.Type == TransactionType.Transfer
+            ? "→ " + (draft.ToAccount?.Name ?? "конверт?")
+            : draft.Category is null ? "?" : draft.Category.Name + (draft.CategoryFromHint ? " (по прошлым записям)" : "");
         var account = draft.Account is null ? "?" : draft.Account.Name + (draft.AccountIsDefault ? " (по умолчанию)" : "");
         var note = draft.Note is null ? "" : $" · «{draft.Note}»";
         return $"{draft.Date:yyyy-MM-dd} · {Output.TypeName(draft.Type)} {amount} · {category} · {account}{note}";
@@ -103,7 +107,7 @@ internal static class Commands
     private static Command Add(Option<string?> dataDir)
     {
         var amount = new Argument<decimal>("amount") { Description = "Сумма в валюте счёта, например 350.50" };
-        var type = new Option<string>("--type", "-t") { Description = "income | expense | saving", DefaultValueFactory = _ => "expense" };
+        var type = new Option<string>("--type", "-t") { Description = "income | expense (переводы — команда transfer)", DefaultValueFactory = _ => "expense" };
         var category = new Option<string>("--category", "-c") { Description = "Категория", Required = true };
         var account = new Option<string>("--account", "-a") { Description = "Счёт", DefaultValueFactory = _ => "Карта" };
         var date = new Option<string?>("--date", "-d") { Description = "Дата ГГГГ-ММ-ДД (по умолчанию сегодня)" };
@@ -159,7 +163,7 @@ internal static class Commands
             foreach (var row in rows)
             {
                 var original = row.Currency != host.Settings.BaseCurrency ? $" ({Output.Money(row.OriginalAmount!.Value, row.Currency!.Value)})" : "";
-                Console.WriteLine($"{row.Date:yyyy-MM-dd}  {Output.TypeName(row.Type),-8} {Output.Money(row.Amount),12}{original}  {row.Category} · {row.Account}  {row.Note}  [{row.Id}]");
+                Console.WriteLine($"{row.Date:yyyy-MM-dd}  {Output.TypeName(row.Type),-8} {Output.Money(row.Amount),12}{original}  {row.Category ?? "→ " + row.ToAccount} · {row.Account}  {row.Note}  [{row.Id}]");
             }
 
             Console.WriteLine($"Всего: {rows.Count}");
@@ -185,19 +189,36 @@ internal static class Commands
     private static Command Summary(Option<string?> dataDir)
     {
         var month = new Option<string?>("--month", "-m") { Description = "Месяц ГГГГ-ММ (по умолчанию текущий)" };
-        var command = new Command("summary", "Итоги месяца") { month };
+        var kind = new Option<string>("--period", "-p") { Description = "week | month | quarter | year | all", DefaultValueFactory = _ => "month" };
+        var command = new Command("summary", "Итоги за период") { month, kind };
         command.SetAction(async (parse, ct) =>
         {
             await using var host = await CliHost.StartAsync(parse.GetValue(dataDir), null, ct);
-            var period = ParseMonth(parse.GetValue(month));
-            var summary = await host.InScopeAsync(async sp => SummaryCalculator.ForMonth(
-                await sp.GetRequiredService<ITransactionRepository>().ListAsync(period.Previous.FirstDay, period.LastDay, ct),
-                period,
-                (await sp.GetRequiredService<ICategoryRepository>().ListAsync(ct)).ToDictionary(c => c.Id)));
+            var anchor = ParseMonth(parse.GetValue(month)).FirstDay;
+            if (parse.GetValue(month) is null)
+            {
+                anchor = DateOnly.FromDateTime(DateTime.Now);
+            }
+
+            var period = parse.GetValue(kind)!.ToLowerInvariant() switch
+            {
+                "week" => Period.WeekOf(anchor),
+                "month" => Period.MonthOf(anchor),
+                "quarter" => Period.QuarterOf(anchor),
+                "year" => Period.YearOf(anchor),
+                "all" => Period.AllTime,
+                var other => throw new DomainException($"Период «{other}» не распознан: week, month, quarter, year или all."),
+            };
+            var summary = (await host.InScopeAsync(sp => sp.GetRequiredService<PeriodOverviewService>().LoadAsync(period, ct))).Summary;
 
             var currency = host.Settings.BaseCurrency;
-            Output.Totals($"Итоги {period}:", summary.Current, currency);
-            Console.WriteLine($"  Прошлый месяц: остаток {Output.Money(summary.Previous.Balance, currency)}, расходы {Output.Money(summary.Previous.Expense, currency)}");
+            var title = period.Kind == PeriodKind.AllTime ? "Итоги за всё время:" : $"Итоги {period.Start:yyyy-MM-dd} — {period.End:yyyy-MM-dd}:";
+            Output.Totals(title, summary.Current, currency);
+            Console.WriteLine($"  В среднем тратится в день: {Output.Money(summary.AverageDailyExpense, currency)}");
+            if (summary.Previous is { } previous)
+            {
+                Console.WriteLine($"  Прошлый период: остаток {Output.Money(previous.Balance, currency)}, расходы {Output.Money(previous.Expense, currency)}");
+            }
             if (summary.ExpensesByCategory.Count > 0)
             {
                 Console.WriteLine("Расходы по категориям:");
@@ -231,8 +252,18 @@ internal static class Commands
 
             await using var host = await CliHost.StartAsync(parse.GetValue(dataDir), null, ct);
             var text = await File.ReadAllTextAsync(source.FullName, ct);
+
+            // An export v2 has accounts.csv next to it: envelopes keep their kind and goal.
+            var accountsFile = Path.Combine(source.DirectoryName!, AccountsCsv.FileName);
+            var accountsText = !string.Equals(source.Name, AccountsCsv.FileName, StringComparison.OrdinalIgnoreCase) && File.Exists(accountsFile)
+                ? await File.ReadAllTextAsync(accountsFile, ct)
+                : null;
+            if (accountsText is not null)
+            {
+                Console.WriteLine($"Найден {AccountsCsv.FileName} — счета и конверты будут созданы с видом и целями.");
+            }
             var report = await host.InScopeAsync(sp => sp.GetRequiredService<CsvImportService>().ImportAsync(
-                text, new ImportOptions(parse.GetValue(defaultAccount)!, parse.GetValue(dryRun)), ct));
+                text, new ImportOptions(parse.GetValue(defaultAccount)!, parse.GetValue(dryRun), accountsText), ct));
 
             if (!report.Succeeded)
             {
@@ -272,16 +303,17 @@ internal static class Commands
     {
         var months = report.FileTotals.Keys.ToList();
         var stored = await host.InScopeAsync(async sp => SummaryCalculator.ByMonth(
-            await sp.GetRequiredService<ITransactionRepository>().ListAsync(months[0].FirstDay, months[^1].LastDay, ct)));
+            await sp.GetRequiredService<ITransactionRepository>().ListAsync(months[0].FirstDay, months[^1].LastDay, ct),
+            (await sp.GetRequiredService<IAccountRepository>().ListAsync(ct)).ToDictionary(a => a.Id)));
 
         Console.WriteLine("Сверка по месяцам (файл → база):");
         var allMatch = true;
         foreach (var (month, fileTotals) in report.FileTotals)
         {
-            var dbTotals = stored.GetValueOrDefault(month, MonthTotals.Empty);
+            var dbTotals = stored.GetValueOrDefault(month, PeriodTotals.Empty);
             var match = dbTotals == fileTotals;
             allMatch &= match;
-            Console.WriteLine($"  {month}  доходы {Output.Money(fileTotals.Income),12}  расходы {Output.Money(fileTotals.Expense),12}  отложено {Output.Money(fileTotals.Saving),12}  {(match ? "✓" : $"✗ в базе: {Output.Money(dbTotals.Income)} / {Output.Money(dbTotals.Expense)} / {Output.Money(dbTotals.Saving)}")}");
+            Console.WriteLine($"  {month}  доходы {Output.Money(fileTotals.Income),12}  расходы {Output.Money(fileTotals.Expense),12}  в конверты {Output.Money(fileTotals.IntoEnvelopes),12}  {(match ? "✓" : $"✗ в базе: {Output.Money(dbTotals.Income)} / {Output.Money(dbTotals.Expense)} / {Output.Money(dbTotals.IntoEnvelopes)}")}");
         }
 
         Console.WriteLine(allMatch
@@ -329,44 +361,95 @@ internal static class Commands
 
     private static Command Accounts(Option<string?> dataDir)
     {
-        var command = new Command("accounts", "Счета");
+        var all = new Option<bool>("--all") { Description = "Показать и скрытые" };
+        var command = new Command("accounts", "Счета и конверты с остатками") { all };
         command.SetAction(async (parse, ct) =>
         {
             await using var host = await CliHost.StartAsync(parse.GetValue(dataDir), null, ct);
-            foreach (var account in await host.InScopeAsync(sp => sp.GetRequiredService<IAccountRepository>().ListAsync(ct)))
+            var balances = await host.InScopeAsync(sp => sp.GetRequiredService<AccountBalancesService>().LoadAsync(parse.GetValue(all), ct));
+            var currency = balances.BaseCurrency;
+            var today = DateOnly.FromDateTime(DateTime.Now);
+
+            Console.WriteLine($"Всего {Output.Money(balances.Total, currency)} · свободно {Output.Money(balances.FreeTotal, currency)} · в конвертах {Output.Money(balances.EnvelopesTotal, currency)}");
+            Console.WriteLine("Счета:");
+            foreach (var b in balances.Accounts)
             {
-                Console.WriteLine($"{account.Name} ({account.Currency}){(account.IsHidden ? " — скрыт" : "")}");
+                Console.WriteLine($"  {b.Account.Name,-20} {Output.Money(b.Balance, b.Account.Currency),18}{(b.Account.IsHidden ? "  (скрыт)" : "")}");
+            }
+
+            Console.WriteLine("Конверты:");
+            if (balances.Envelopes.Count == 0)
+            {
+                Console.WriteLine("  пока нет — finance accounts add \"Машина\" --envelope");
+            }
+
+            foreach (var b in balances.Envelopes)
+            {
+                var goal = b.Account.GoalAmount is { } target
+                    ? $"  цель {Output.Money(target, b.Account.Currency)} ({b.GoalProgress:P0})"
+                      + (b.MonthlyToGoal(today) is { } monthly ? $", откладывать по {Output.Money(monthly, b.Account.Currency)}/мес" : "")
+                    : "";
+                Console.WriteLine($"  {b.Account.Name,-20} {Output.Money(b.Balance, b.Account.Currency),18}{goal}");
+            }
+
+            if (balances.HasMissingRates)
+            {
+                Console.WriteLine("⚠ Для части валютных счетов нет курса — они не вошли в итог.");
             }
 
             return 0;
         });
 
-        var name = new Argument<string>("name") { Description = "Название счёта" };
-        var currency = new Option<string?>("--currency") { Description = "Валюта счёта (по умолчанию базовая)" };
-        var add = new Command("add", "Добавить счёт") { name, currency };
+        var name = new Argument<string>("name") { Description = "Название" };
+        var currencyOption = new Option<string?>("--currency") { Description = "Валюта (по умолчанию базовая)" };
+        var envelope = new Option<bool>("--envelope") { Description = "Конверт (копилка), а не обычный счёт" };
+        var opening = new Option<decimal>("--opening") { Description = "Начальный остаток, если нужен" };
+        var goalAmount = new Option<decimal?>("--goal") { Description = "Цель конверта, например 150000" };
+        var goalDate = new Option<string?>("--goal-date") { Description = "К какой дате, ГГГГ-ММ-ДД" };
+        var add = new Command("add", "Добавить счёт или конверт") { name, currencyOption, envelope, opening, goalAmount, goalDate };
         add.SetAction(async (parse, ct) =>
         {
             await using var host = await CliHost.StartAsync(parse.GetValue(dataDir), null, ct);
-            var code = parse.GetValue(currency) is { } text ? CurrencyCode.Parse(text) : host.Settings.BaseCurrency;
-            var account = await host.InScopeAsync(async sp =>
-            {
-                var repository = sp.GetRequiredService<IAccountRepository>();
-                var existing = await repository.ListAsync(ct);
-                if (existing.Any(a => string.Equals(a.Name, parse.GetValue(name)!.Trim(), StringComparison.CurrentCultureIgnoreCase)))
-                {
-                    throw new DomainException($"Счёт «{parse.GetValue(name)}» уже есть.");
-                }
-
-                var created = new Account(Guid.CreateVersion7(), parse.GetValue(name)!, code, existing.Count);
-                repository.Add(created);
-                await sp.GetRequiredService<IUnitOfWork>().SaveChangesAsync(ct);
-                sp.GetRequiredService<DataChangedNotifier>().NotifyChanged();
-                return created;
-            });
-            Console.WriteLine($"Добавлен счёт {account}");
+            var input = new AccountInput(
+                parse.GetValue(name)!,
+                parse.GetValue(envelope) ? AccountKind.Envelope : AccountKind.Regular,
+                parse.GetValue(currencyOption) is { } code ? CurrencyCode.Parse(code) : null,
+                parse.GetValue(opening),
+                parse.GetValue(goalAmount),
+                parse.GetValue(goalDate) is { } date ? ParseDate(date) : null);
+            var account = await host.InScopeAsync(sp => sp.GetRequiredService<AccountService>().CreateAsync(input, ct));
+            Console.WriteLine($"Добавлен {(account.IsEnvelope ? "конверт" : "счёт")} {account}");
             return 0;
         });
         command.Subcommands.Add(add);
+        return command;
+    }
+
+    private static Command Transfer(Option<string?> dataDir)
+    {
+        var amount = new Argument<decimal>("amount") { Description = "Сумма списания, в валюте счёта «откуда»" };
+        var from = new Option<string>("--from", "-f") { Description = "Откуда", DefaultValueFactory = _ => "Карта" };
+        var to = new Option<string>("--to", "-t") { Description = "Куда: счёт или конверт", Required = true };
+        var received = new Option<decimal?>("--received") { Description = "Сколько зачислено, если валюты разные (по умолчанию по курсу ЦБ)" };
+        var date = new Option<string?>("--date", "-d") { Description = "Дата ГГГГ-ММ-ДД (по умолчанию сегодня)" };
+        var note = new Option<string?>("--note", "-n") { Description = "Комментарий" };
+        var command = new Command("transfer", "Перевод между счетами и конвертами") { amount, from, to, received, date, note };
+        command.SetAction(async (parse, ct) =>
+        {
+            await using var host = await CliHost.StartAsync(parse.GetValue(dataDir), null, ct);
+            var saved = await host.InScopeAsync(async sp =>
+            {
+                var source = await FindAccountAsync(sp, parse.GetValue(from)!, ct);
+                var destination = await FindAccountAsync(sp, parse.GetValue(to)!, ct);
+                return await sp.GetRequiredService<TransactionService>().AddTransferAsync(
+                    new TransferInput(ParseDate(parse.GetValue(date)), parse.GetValue(amount), source.Id, destination.Id, parse.GetValue(note), parse.GetValue(received)),
+                    ct);
+            });
+
+            var t = saved.Transaction;
+            Console.WriteLine($"Переведено {Output.Money(t.Amount, t.Currency)} → зачислено {t.ToAmount:#,0.##} · id {t.Id}");
+            return 0;
+        });
         return command;
     }
 
@@ -447,9 +530,9 @@ internal static class Commands
     }
 
     private static TransactionType ParseType(string value) =>
-        TransactionCsvFormat.TryParseType(value.Trim().ToLowerInvariant(), out var type)
+        TransactionCsvFormat.TryParseType(value.Trim().ToLowerInvariant(), out var type) && type is TransactionType.Income or TransactionType.Expense
             ? type
-            : throw new DomainException($"Тип «{value}» не распознан: income, expense или saving.");
+            : throw new DomainException($"Тип «{value}» не распознан: income или expense (переводы — команда transfer).");
 
     private static DateOnly ParseDate(string? value) =>
         value is null

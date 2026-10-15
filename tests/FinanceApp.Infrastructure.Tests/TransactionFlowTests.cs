@@ -60,7 +60,7 @@ public class TransactionFlowTests
 
         var saved = await AddAsync(app, new TransactionInput(Oct7, TransactionType.Expense, 350m, food.Id, card.Id, "кофе, круассан"));
         var csv = await WaitForCsvAsync(app, text => text.Contains(saved.Transaction.Id.ToString(), StringComparison.Ordinal));
-        csv.Split('\n')[1].ShouldBe($"2026-10-07,expense,350,Еда,Карта,\"кофе, круассан\",RUB,350,{saved.Transaction.Id}");
+        csv.Split('\n')[1].ShouldBe($"2026-10-07,expense,350,Еда,Карта,\"кофе, круассан\",RUB,350,{saved.Transaction.Id},,");
 
         await using (var scope = app.Scope())
         {

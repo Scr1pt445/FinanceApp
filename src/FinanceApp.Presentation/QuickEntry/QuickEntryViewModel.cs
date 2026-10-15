@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FinanceApp.Application.QuickEntry;
 using FinanceApp.Application.Transactions;
+using FinanceApp.Domain;
 
 namespace FinanceApp.Presentation.QuickEntry;
 
@@ -115,14 +116,18 @@ public sealed partial class QuickEntryViewModel(IQuickEntryBackend backend) : Ob
         var draft = QuickEntryService.Preview(Input, _context);
         _draft = draft;
 
+        var isTransfer = draft.Type == TransactionType.Transfer;
+        var typeName = isTransfer ? "В конверт" : QuickEntryFormatter.Type(draft.Type);
         Headline = draft.Amount is { } amount && draft.Account is { } account
-            ? $"{QuickEntryFormatter.Type(draft.Type)} {QuickEntryFormatter.Money(amount, account.Currency)}"
-            : QuickEntryFormatter.Type(draft.Type);
+            ? $"{typeName} {QuickEntryFormatter.Money(amount, account.Currency)}"
+            : typeName;
 
         var parts = new List<string>
         {
-            draft.Category is null ? "категория?" : draft.Category.Name + (draft.CategoryFromHint ? " (по прошлым записям)" : string.Empty),
-            draft.Account?.Name ?? "счёт?",
+            isTransfer
+                ? "→ " + (draft.ToAccount?.Name ?? "конверт?")
+                : draft.Category is null ? "категория?" : draft.Category.Name + (draft.CategoryFromHint ? " (по прошлым записям)" : string.Empty),
+            (isTransfer ? "с " : string.Empty) + (draft.Account?.Name ?? "счёт?"),
             QuickEntryFormatter.Date(draft.Date, _context.Today),
         };
         if (draft.Note is not null)

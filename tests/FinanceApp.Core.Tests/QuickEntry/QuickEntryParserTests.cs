@@ -14,6 +14,9 @@ public class QuickEntryParserTests
     private static readonly Account Card = new(Guid.NewGuid(), "Карта", CurrencyCode.Rub, 0);
     private static readonly Account Cash = new(Guid.NewGuid(), "Наличные", CurrencyCode.Rub, 1);
     private static readonly Account Deposit = new(Guid.NewGuid(), "Вклад", CurrencyCode.Rub, 2);
+    private static readonly Account Car = new(Guid.NewGuid(), "Машина", CurrencyCode.Rub, 4, AccountKind.Envelope);
+    private static readonly Account Vacation = new(Guid.NewGuid(), "Отдых", CurrencyCode.Rub, 5, AccountKind.Envelope);
+    private static readonly Account Bike = new(Guid.NewGuid(), "Велосипед", CurrencyCode.Rub, 6, AccountKind.Envelope);
     private static readonly Account CardUsd = new(Guid.NewGuid(), "Карта USD", CurrencyCode.Usd, 3);
 
     private static Category Named(string name, TransactionType type) => Categories.Single(c => c.Name == name && c.Type == type);
@@ -21,8 +24,8 @@ public class QuickEntryParserTests
     /// <summary>By default the last expense was paid in cash and the last saving went to the deposit.</summary>
     private static QuickEntryDraft Parse(string input, Dictionary<TransactionType, Guid>? lastAccounts = null, CategoryHints? hints = null) =>
         QuickEntryParser.Parse(input, Context(
-            [Card, Cash, Deposit, CardUsd],
-            lastAccounts ?? new() { [TransactionType.Expense] = Cash.Id, [TransactionType.Saving] = Deposit.Id },
+            [Card, Cash, Deposit, CardUsd, Car, Vacation, Bike],
+            lastAccounts ?? new() { [TransactionType.Expense] = Cash.Id, [TransactionType.Transfer] = Deposit.Id },
             hints));
 
     private static QuickEntryContext Context(
@@ -51,8 +54,6 @@ public class QuickEntryParserTests
     [Theory]
     [InlineData("+50000 зарплата", TransactionType.Income, "Зарплата")]
     [InlineData("+ 50000 зарплата", TransactionType.Income, "Зарплата")]
-    [InlineData(">10000 копилка", TransactionType.Saving, "Копилка")]
-    [InlineData("> 10000 инв", TransactionType.Saving, "Инвестиции")]
     public void TypePrefix(string input, TransactionType type, string category)
     {
         var draft = Parse(input);
@@ -60,6 +61,53 @@ public class QuickEntryParserTests
         draft.Type.ShouldBe(type);
         draft.Category.ShouldBe(Named(category, type));
         draft.IsComplete.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(">10000 машина", "Машина", null)]
+    [InlineData("> 10000 отд на море", "Отдых", "на море")]
+    [InlineData(">500 вел", "Велосипед", null)]
+    public void GreaterThan_PutsMoneyIntoAnEnvelope(string input, string envelope, string? note)
+    {
+        var draft = Parse(input);
+
+        draft.Type.ShouldBe(TransactionType.Transfer);
+        draft.ToAccount.ShouldNotBeNull().Name.ShouldBe(envelope);
+        draft.Category.ShouldBeNull();
+        draft.Account.ShouldBe(Deposit); // the last regular account used for transfers
+        draft.Note.ShouldBe(note);
+        draft.IsComplete.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void GreaterThan_WithoutEnvelope_AsksForOne()
+    {
+        Parse(">10000").Issues.ShouldContain(i => i.Kind == QuickEntryIssueKind.MissingEnvelope);
+        Parse(">10000 холодильник").Issues.ShouldContain(i => i.Kind == QuickEntryIssueKind.MissingEnvelope);
+    }
+
+    [Fact]
+    public void GreaterThan_AmbiguousEnvelope_IsReported()
+    {
+        var draft = QuickEntryParser.Parse(">100 м", Context([Card, Car, new Account(Guid.NewGuid(), "Мебель", CurrencyCode.Rub, kind: AccountKind.Envelope)]));
+
+        draft.Issues.ShouldContain(i => i.Kind == QuickEntryIssueKind.AmbiguousEnvelope);
+        draft.IsComplete.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void GreaterThan_WithoutAnyEnvelopes_SaysHowToCreateOne() =>
+        QuickEntryParser.Parse(">100 машина", Context([Card])).Issues
+            .ShouldContain(i => i.Kind == QuickEntryIssueKind.MissingEnvelope && i.Message.Contains("создайте"));
+
+    [Fact]
+    public void Envelopes_AreNeverTheDefaultAccount_ButCanBeSpentFromExplicitly()
+    {
+        Parse("350 еда", new() { [TransactionType.Expense] = Bike.Id }).Account.ShouldBe(Card);
+
+        var bought = Parse("30000 транспорт велосипед @велосипед");
+        bought.Account.ShouldBe(Bike);
+        bought.IsComplete.ShouldBeTrue();
     }
 
     [Fact]
@@ -242,7 +290,7 @@ public class QuickEntryParserTests
     public void DefaultAccount_IsLastUsedForTheSameType()
     {
         Parse("350 еда").Account.ShouldBe(Cash);
-        Parse(">1000 копилка").Account.ShouldBe(Deposit);
+        Parse(">1000 машина").Account.ShouldBe(Deposit);
     }
 
     [Fact]
@@ -294,14 +342,14 @@ public class QuickEntryParserTests
     [Fact]
     public void Everything_Together()
     {
-        var draft = Parse(">5000,5 копилка на отпуск 01.10 @вклад");
+        var draft = Parse(">5000,5 отдых на море 01.10 @нал");
 
-        draft.Type.ShouldBe(TransactionType.Saving);
+        draft.Type.ShouldBe(TransactionType.Transfer);
         draft.Amount.ShouldBe(5000.5m);
-        draft.Category.ShouldBe(Named("Копилка", TransactionType.Saving));
-        draft.Note.ShouldBe("на отпуск");
+        draft.ToAccount.ShouldBe(Vacation);
+        draft.Note.ShouldBe("на море");
         draft.Date.ShouldBe(new DateOnly(2026, 10, 1));
-        draft.Account.ShouldBe(Deposit);
+        draft.Account.ShouldBe(Cash);
         draft.IsComplete.ShouldBeTrue();
     }
 

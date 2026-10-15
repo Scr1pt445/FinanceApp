@@ -15,7 +15,7 @@ public static class QuickEntryFormatter
         {
             TransactionType.Income => "Доход",
             TransactionType.Expense => "Расход",
-            TransactionType.Saving => "Накопление",
+            TransactionType.Transfer => "Перевод",
             _ => type.ToString(),
         };
 
@@ -29,7 +29,9 @@ public static class QuickEntryFormatter
             "BYN" => "Br",
             _ => currency.Value,
         };
-        return $"{amount.ToString("#,0.##", Russian)} {symbol}";
+        // Whole amounts without kopecks, otherwise always two digits: «350 ₽», «350,50 ₽» — never «350,5 ₽».
+        var format = decimal.Round(amount, 2) == decimal.Truncate(amount) ? "#,0" : "#,0.00";
+        return $"{decimal.Round(amount, 2, MidpointRounding.AwayFromZero).ToString(format, Russian)} {symbol}";
     }
 
     /// <summary>«сегодня», «вчера», «позавчера», otherwise «12 октября» (with the year if it is not this year).</summary>

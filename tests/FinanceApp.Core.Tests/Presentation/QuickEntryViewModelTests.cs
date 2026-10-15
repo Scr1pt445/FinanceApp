@@ -41,7 +41,7 @@ public class QuickEntryViewModelTests
 
         viewModel.Input = "350,5 еда кофе вчера";
 
-        viewModel.Headline.ShouldBe("Расход 350,5 ₽");
+        viewModel.Headline.ShouldBe("Расход 350,50 ₽");
         viewModel.Details.ShouldBe("Еда · Наличные · вчера · «кофе»");
         viewModel.HasProblem.ShouldBeFalse();
         viewModel.SaveCommand.CanExecute(null).ShouldBeTrue();
@@ -139,7 +139,11 @@ public class QuickEntryViewModelTests
 
     [Fact]
     public void Formatter_Money() =>
-        QuickEntryFormatter.Money(1234567.5m, CurrencyCode.Usd).ShouldBe("1 234 567,5 $");
+        QuickEntryFormatter.Money(1234567.5m, CurrencyCode.Usd).ShouldBe("1 234 567,50 $");
+
+    [Fact]
+    public void Formatter_Money_WholeAmountsHaveNoKopecks() =>
+        QuickEntryFormatter.Money(350m, CurrencyCode.Rub).ShouldBe("350 ₽");
 
     private sealed class FakeBackend : IQuickEntryBackend
     {

@@ -19,6 +19,7 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
         configurationBuilder.Properties<CurrencyCode>().HaveConversion<CurrencyCodeConverter>().HaveMaxLength(3);
         configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
         configurationBuilder.Properties<TransactionType>().HaveConversion<string>().HaveMaxLength(16);
+        configurationBuilder.Properties<AccountKind>().HaveConversion<string>().HaveMaxLength(16);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -38,6 +39,8 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
             account.HasKey(a => a.Id);
             account.Property(a => a.Id).ValueGeneratedNever();
             account.Property(a => a.Name).HasMaxLength(Account.MaxNameLength);
+            account.Property(a => a.Kind).HasDefaultValue(AccountKind.Regular).HasSentinel((AccountKind)0);
+            account.Property(a => a.OpeningBalance).HasDefaultValue(0m);
             account.HasIndex(a => a.Name).IsUnique();
         });
 
@@ -53,6 +56,7 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
             // Categories and accounts are hidden, never deleted, while transactions reference them.
             transaction.HasOne<Category>().WithMany().HasForeignKey(t => t.CategoryId).OnDelete(DeleteBehavior.Restrict);
             transaction.HasOne<Account>().WithMany().HasForeignKey(t => t.AccountId).OnDelete(DeleteBehavior.Restrict);
+            transaction.HasOne<Account>().WithMany().HasForeignKey(t => t.ToAccountId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CachedExchangeRate>(rate =>

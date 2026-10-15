@@ -18,10 +18,12 @@ public static class TransactionCsvFormat
     public const string Currency = "currency";
     public const string OriginalAmount = "original_amount";
     public const string Id = "id";
+    public const string ToAccount = "to_account";
+    public const string ToAmount = "to_amount";
 
-    /// <summary>Exported columns, in order. The first six are the Obsidian contract.</summary>
+    /// <summary>Exported columns, in order (format v2, ADR 0011). The first six are the original contract.</summary>
     public static IReadOnlyList<string> Columns { get; } =
-        [Date, Type, Amount, Category, Account, Note, Currency, OriginalAmount, Id];
+        [Date, Type, Amount, Category, Account, Note, Currency, OriginalAmount, Id, ToAccount, ToAmount];
 
     public static IReadOnlyList<string> RequiredColumns { get; } = [Date, Type, Amount];
 
@@ -50,17 +52,22 @@ public static class TransactionCsvFormat
         {
             TransactionType.Income => "income",
             TransactionType.Expense => "expense",
+            TransactionType.Transfer => "transfer",
             TransactionType.Saving => "saving",
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
         };
 
-    /// <summary>Exactly <c>income</c>, <c>expense</c> or <c>saving</c> — case-sensitive, as the contract says.</summary>
+    /// <summary>
+    /// Exactly <c>income</c>, <c>expense</c> or <c>transfer</c>; legacy <c>saving</c> (format v1) is accepted
+    /// on import. Case-sensitive, as the contract says.
+    /// </summary>
     public static bool TryParseType(string value, out TransactionType type)
     {
         (var ok, type) = value switch
         {
             "income" => (true, TransactionType.Income),
             "expense" => (true, TransactionType.Expense),
+            "transfer" => (true, TransactionType.Transfer),
             "saving" => (true, TransactionType.Saving),
             _ => (false, default),
         };

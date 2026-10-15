@@ -62,12 +62,35 @@ public class QuickEntryServiceTests
             await scope.Get<IUnitOfWork>().SaveChangesAsync(Ct);
         }
 
+        await using (var scope = app.Scope())
+        {
+            scope.Get<IAccountRepository>().Add(new Account(Guid.NewGuid(), "Машина", CurrencyCode.Rub, 11, AccountKind.Envelope));
+            await scope.Get<IUnitOfWork>().SaveChangesAsync(Ct);
+        }
+
         await SaveAsync(app, "350 еда @нал");
-        await SaveAsync(app, ">10000 копилка @вклад");
+        await SaveAsync(app, ">10000 машина @карта");
         await SaveAsync(app, "20 еда ужин @карта usd");
 
         (await PreviewAsync(app, "1200 тр такси")).Account.ShouldNotBeNull().Name.ShouldBe("Наличные");
-        (await PreviewAsync(app, ">500 копилка")).Account.ShouldNotBeNull().Name.ShouldBe("Вклад");
+        (await PreviewAsync(app, ">500 машина")).Account.ShouldNotBeNull().Name.ShouldBe("Карта");
+    }
+
+    [Fact]
+    public async Task GreaterThan_SavesATransferIntoTheEnvelope()
+    {
+        await using var app = await TestApp.CreateAsync(exportEnabled: false);
+        await using (var scope = app.Scope())
+        {
+            scope.Get<IAccountRepository>().Add(new Account(Guid.NewGuid(), "Отдых", CurrencyCode.Rub, 11, AccountKind.Envelope));
+            await scope.Get<IUnitOfWork>().SaveChangesAsync(Ct);
+        }
+
+        var saved = await SaveAsync(app, ">10 000 отдых на море");
+
+        saved.Transaction.IsTransfer.ShouldBeTrue();
+        saved.Transaction.ToAmount.ShouldBe(10_000m);
+        saved.Transaction.Note.ShouldBe("на море");
     }
 
     [Fact]

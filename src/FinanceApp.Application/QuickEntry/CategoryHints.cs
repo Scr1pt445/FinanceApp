@@ -23,6 +23,11 @@ public sealed class CategoryHints
         var stats = new Dictionary<(TransactionType, string), Dictionary<Guid, (int Count, DateTime Last)>>();
         foreach (var transaction in history)
         {
+            if (transaction.CategoryId is not { } categoryId)
+            {
+                continue; // transfers have no category
+            }
+
             foreach (var word in Words(transaction.Note))
             {
                 var key = (transaction.Type, word);
@@ -31,8 +36,8 @@ public sealed class CategoryHints
                     stats[key] = perCategory = [];
                 }
 
-                var (count, last) = perCategory.GetValueOrDefault(transaction.CategoryId);
-                perCategory[transaction.CategoryId] = (count + 1, transaction.CreatedAt > last ? transaction.CreatedAt : last);
+                var (count, last) = perCategory.GetValueOrDefault(categoryId);
+                perCategory[categoryId] = (count + 1, transaction.CreatedAt > last ? transaction.CreatedAt : last);
             }
         }
 
