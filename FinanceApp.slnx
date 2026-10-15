@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/FinanceApp.Application/FinanceApp.Application.csproj" />
     <Project Path="src/FinanceApp.Cli/FinanceApp.Cli.csproj" />
+    <Project Path="src/FinanceApp.Desktop/FinanceApp.Desktop.csproj" />
     <Project Path="src/FinanceApp.Domain/FinanceApp.Domain.csproj" />
     <Project Path="src/FinanceApp.Infrastructure/FinanceApp.Infrastructure.csproj" />
     <Project Path="src/FinanceApp.Presentation/FinanceApp.Presentation.csproj" />
