@@ -30,15 +30,31 @@ public sealed record AccountBalance(Account Account, decimal Balance, decimal? B
 }
 
 /// <summary>Left column of the main window: accounts, envelopes and the totals above them.</summary>
+/// <param name="FreeTotal">On regular accounts, in the base currency.</param>
+/// <param name="EnvelopesTotal">In envelopes, in the base currency.</param>
+/// <param name="DisplayCurrency">The currency the user wants totals in (settings), or the base one.</param>
+/// <param name="DisplayRate">Base → display currency at today's rate; 1 for the base currency.</param>
 public sealed record BalancesOverview(
     IReadOnlyList<AccountBalance> Accounts,
     IReadOnlyList<AccountBalance> Envelopes,
     decimal FreeTotal,
     decimal EnvelopesTotal,
     CurrencyCode BaseCurrency,
-    bool HasMissingRates)
+    bool HasMissingRates,
+    CurrencyCode DisplayCurrency,
+    decimal DisplayRate = 1m)
 {
     public decimal Total => FreeTotal + EnvelopesTotal;
+
+    /// <summary>A base-currency total converted to <see cref="DisplayCurrency"/>.</summary>
+    public decimal InDisplay(decimal baseAmount) => decimal.Round(baseAmount * DisplayRate, 2, MidpointRounding.AwayFromZero);
+
+    /// <summary>Currencies worth offering for the totals: the base one, those of the accounts, and the usual ones.</summary>
+    public IReadOnlyList<CurrencyCode> DisplayChoices =>
+        new[] { BaseCurrency, CurrencyCode.Usd, CurrencyCode.Eur }
+            .Concat(Accounts.Concat(Envelopes).Select(b => b.Account.Currency))
+            .Distinct()
+            .ToList();
 }
 
 /// <summary>
@@ -82,6 +98,22 @@ public sealed class AccountBalancesService(
             balances.Add(new AccountBalance(account, balance, baseBalance));
         }
 
+        // Totals in another currency: one more rate; offline without a cached rate — back to the base currency.
+        var display = settings.Load().TotalsCurrency ?? baseCurrency;
+        var displayRate = 1m;
+        if (display != baseCurrency)
+        {
+            try
+            {
+                displayRate = (await exchangeRates.GetRateAsync(baseCurrency, display, today, cancellationToken)).Rate;
+            }
+            catch (ExchangeRateUnavailableException)
+            {
+                display = baseCurrency;
+                missingRates = true;
+            }
+        }
+
         var regular = balances.Where(b => !b.Account.IsEnvelope).ToList();
         var envelopes = balances.Where(b => b.Account.IsEnvelope).ToList();
         return new BalancesOverview(
@@ -90,6 +122,8 @@ public sealed class AccountBalancesService(
             regular.Sum(b => b.BaseBalance ?? 0),
             envelopes.Sum(b => b.BaseBalance ?? 0),
             baseCurrency,
-            missingRates);
+            missingRates,
+            display,
+            displayRate);
     }
 }

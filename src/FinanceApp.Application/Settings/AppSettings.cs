@@ -14,6 +14,9 @@ public sealed record AppSettings
     public string QuickEntryHotKey { get; init; } = DefaultQuickEntryHotKey;
 
     public const string DefaultQuickEntryHotKey = "Ctrl+Alt+M";
+
+    /// <summary>Currency the «Всего» totals are shown in, at today's rate; <c>null</c> — the base currency.</summary>
+    public CurrencyCode? TotalsCurrency { get; init; }
 }
 
 /// <summary>Optional CSV export (e.g. for the Obsidian «Финансы» page, ADR 0004). Off by default.</summary>
