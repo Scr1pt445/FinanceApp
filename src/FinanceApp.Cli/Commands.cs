@@ -5,6 +5,7 @@ using FinanceApp.Application.Csv;
 using FinanceApp.Application.Export;
 using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Import;
+using FinanceApp.Application.QuickEntry;
 using FinanceApp.Application.Settings;
 using FinanceApp.Application.Summaries;
 using FinanceApp.Application.Transactions;
@@ -18,6 +19,7 @@ internal static class Commands
     public static IEnumerable<Command> All(Option<string?> dataDir)
     {
         yield return Init(dataDir);
+        yield return Quick(dataDir);
         yield return Add(dataDir);
         yield return List(dataDir);
         yield return Delete(dataDir);
@@ -42,6 +44,60 @@ internal static class Commands
             return 0;
         });
         return command;
+    }
+
+    private static Command Quick(Option<string?> dataDir)
+    {
+        var line = new Argument<string[]>("line")
+        {
+            Description = "Строка быстрого ввода, например \"350 еда кофе\". Берите в кавычки: > и @ — спецсимволы оболочки",
+            Arity = ArgumentArity.OneOrMore,
+        };
+        var dryRun = new Option<bool>("--dry-run") { Description = "Только показать, как строка понята" };
+        var command = new Command("q", "Быстрый ввод одной строкой: [+|>]сумма категория комментарий [дата] [@счёт]") { line, dryRun };
+        command.SetAction(async (parse, ct) =>
+        {
+            var text = string.Join(' ', parse.GetValue(line)!);
+            await using var host = await CliHost.StartAsync(parse.GetValue(dataDir), null, ct);
+            var draft = await host.InScopeAsync(async sp =>
+                QuickEntryService.Preview(text, await sp.GetRequiredService<QuickEntryService>().LoadContextAsync(ct)));
+
+            Console.WriteLine(Describe(draft));
+            foreach (var issue in draft.Issues)
+            {
+                Console.Error.WriteLine($"  ⚠ {issue.Message}");
+            }
+
+            if (!draft.IsComplete)
+            {
+                return 1;
+            }
+
+            if (parse.GetValue(dryRun))
+            {
+                return 0;
+            }
+
+            var saved = await host.InScopeAsync(sp => sp.GetRequiredService<QuickEntryService>().SaveAsync(text, ct));
+            var t = saved.Transaction;
+            var converted = t.Currency != host.Settings.BaseCurrency
+                ? $" → {Output.Money(t.BaseAmount, host.Settings.BaseCurrency)}{(saved.RateIsFallback ? " (последний известный курс)" : "")}"
+                : "";
+            Console.WriteLine($"Сохранено{converted} · id {t.Id}");
+            return 0;
+        });
+        return command;
+    }
+
+    private static string Describe(QuickEntryDraft draft)
+    {
+        var amount = draft.Amount is { } value
+            ? Output.Money(value, draft.Account?.Currency ?? CurrencyCode.Rub)
+            : "?";
+        var category = draft.Category is null ? "?" : draft.Category.Name + (draft.CategoryFromHint ? " (по прошлым записям)" : "");
+        var account = draft.Account is null ? "?" : draft.Account.Name + (draft.AccountIsDefault ? " (по умолчанию)" : "");
+        var note = draft.Note is null ? "" : $" · «{draft.Note}»";
+        return $"{draft.Date:yyyy-MM-dd} · {Output.TypeName(draft.Type)} {amount} · {category} · {account}{note}";
     }
 
     private static Command Add(Option<string?> dataDir)
