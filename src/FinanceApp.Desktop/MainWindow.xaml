@@ -20,6 +20,7 @@
     <local:TextToVisibilityConverter x:Key="TextVisible" />
     <local:EqualsConverter x:Key="Equals" />
     <local:NotConverter x:Key="Not" />
+    <local:RestConverter x:Key="Rest" />
 
     <Style TargetType="Button" BasedOn="{StaticResource FlatButton}" />
     <Style TargetType="TextBox" BasedOn="{StaticResource DarkTextBox}" />
@@ -583,7 +584,61 @@
     <!-- ===== Summary ===== -->
     <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" DataContext="{Binding Summary}"
                   Visibility="{Binding DataContext.IsSummary, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}">
-      <StackPanel Margin="24,18,24,14">
+      <ScrollViewer.Resources>
+        <!-- Colors of the «where income went» segments. -->
+        <Style x:Key="FlowFill" TargetType="Border">
+          <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding Tone}" Value="Second">
+              <Setter Property="Background" Value="#B58CFA" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Tone}" Value="Other">
+              <Setter Property="Background" Value="#4E3A72" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Tone}" Value="Envelopes">
+              <Setter Property="Background" Value="{StaticResource SavingBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Tone}" Value="Free">
+              <Setter Property="Background" Value="{StaticResource IncomeBrush}" />
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+
+        <!-- Notes: green for good news, orange for bad, gray otherwise. -->
+        <Style x:Key="ToneText" TargetType="TextBlock">
+          <Setter Property="FontSize" Value="12" />
+          <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding Tone}" Value="Good">
+              <Setter Property="Foreground" Value="{StaticResource GoodBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Tone}" Value="Bad">
+              <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+
+        <Style x:Key="Card" TargetType="Border">
+          <Setter Property="Padding" Value="16,14" />
+          <Setter Property="CornerRadius" Value="10" />
+          <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        </Style>
+
+        <Style x:Key="CardTitle" TargetType="TextBlock">
+          <Setter Property="FontWeight" Value="SemiBold" />
+          <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+
+        <DataTemplate x:Key="AmountRowTemplate" DataType="{x:Type vm:AmountRow}">
+          <DockPanel Margin="0,3">
+            <TextBlock DockPanel.Dock="Right" Text="{Binding AmountText}" Margin="12,0,0,0" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding Subtitle}" Style="{StaticResource Caption}" Margin="8,0,0,0" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+          </DockPanel>
+        </DataTemplate>
+      </ScrollViewer.Resources>
+
+      <StackPanel Margin="24,18,24,18">
         <DockPanel Margin="0,0,0,14" LastChildFill="False">
           <ListBox DockPanel.Dock="Left" ItemsSource="{x:Static vm:SummaryViewModel.Choices}" SelectedItem="{Binding Choice}"
                    Background="Transparent" BorderThickness="0">
@@ -620,7 +675,11 @@
           </ListBox>
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
             <Button Content="◀" Style="{StaticResource GhostButton}" Command="{Binding PreviousCommand}" />
-            <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Margin="6,0" />
+            <StackPanel VerticalAlignment="Center" Margin="6,0">
+              <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" />
+              <TextBlock Text="{Binding ProgressText}" Style="{StaticResource Caption}" FontSize="11" HorizontalAlignment="Center"
+                         Visibility="{Binding ProgressText, Converter={StaticResource TextVisible}}" />
+            </StackPanel>
             <Button Content="▶" Style="{StaticResource GhostButton}" Command="{Binding NextCommand}" />
           </StackPanel>
         </DockPanel>
@@ -633,108 +692,221 @@
           <Button Content="Показать" Margin="10,0,0,0" Command="{Binding ApplyCustomCommand}" />
         </StackPanel>
 
-        <ItemsControl ItemsSource="{Binding Cards}" Margin="-6,0,-6,8">
+        <Border Style="{StaticResource Card}" Margin="0,0,0,12" Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}">
+          <TextBlock Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,20"
+                     Text="За этот период операций нет. Выберите другой период или добавьте операцию." />
+        </Border>
+
+        <!-- Where income went -->
+        <Border Style="{StaticResource Card}" Margin="0,0,0,12" Visibility="{Binding HasFlow, Converter={StaticResource Visible}}">
+          <StackPanel>
+            <TextBlock Text="Куда ушёл доход" Style="{StaticResource CardTitle}" />
+            <TextBlock Text="{Binding IncomeText}" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+            <local:ProportionalPanel Height="14">
+              <Border local:ProportionalPanel.Weight="{Binding IncomeShare}" CornerRadius="3" Background="{StaticResource IncomeBrush}" Opacity="0.85" />
+              <Border local:ProportionalPanel.Weight="{Binding IncomeShare, Converter={StaticResource Rest}}" />
+            </local:ProportionalPanel>
+            <TextBlock Text="{Binding OutflowText}" Style="{StaticResource Caption}" Margin="0,10,0,4" />
+            <local:ProportionalPanel Height="14">
+              <ItemsControl local:ProportionalPanel.Weight="{Binding OutflowShare}" ItemsSource="{Binding FlowSegments}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <local:ProportionalPanel />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemContainerStyle>
+                  <Style TargetType="ContentPresenter">
+                    <Setter Property="local:ProportionalPanel.Weight" Value="{Binding Weight}" />
+                  </Style>
+                </ItemsControl.ItemContainerStyle>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type vm:FlowSegment}">
+                    <Border Style="{StaticResource FlowFill}" CornerRadius="3" Margin="0,0,2,0">
+                      <Border.ToolTip>
+                        <TextBlock>
+                          <Run Text="{Binding Label, Mode=OneWay}" /><Run Text=": " /><Run Text="{Binding AmountText, Mode=OneWay}" />
+                        </TextBlock>
+                      </Border.ToolTip>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Border local:ProportionalPanel.Weight="{Binding OutflowShare, Converter={StaticResource Rest}}" />
+            </local:ProportionalPanel>
+            <ItemsControl ItemsSource="{Binding FlowSegments}" Margin="0,10,0,0">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:FlowSegment}">
+                  <StackPanel Orientation="Horizontal" Margin="0,0,16,4">
+                    <Border Style="{StaticResource FlowFill}" Width="10" Height="10" CornerRadius="2" Margin="0,0,6,0" VerticalAlignment="Center" />
+                    <TextBlock Style="{StaticResource Caption}">
+                      <Run Text="{Binding Label, Mode=OneWay}" /> <Run Text="{Binding AmountText, Mode=OneWay}" Foreground="{StaticResource TextBrush}" />
+                    </TextBlock>
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{Binding FlowNote}" TextWrapping="Wrap" Margin="0,6,0,0" FontSize="12.5"
+                       Visibility="{Binding FlowNote, Converter={StaticResource TextVisible}}">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding FlowNoteIsWarning}" Value="True">
+                      <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+          </StackPanel>
+        </Border>
+
+        <!-- Cards -->
+        <ItemsControl ItemsSource="{Binding Cards}" Margin="-6,0,-6,12">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
               <UniformGrid Rows="1" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="{x:Type vm:SummaryCard}">
-              <Border Margin="6,0" Padding="16,12" CornerRadius="10" Background="{StaticResource SurfaceBrush}">
+            <DataTemplate DataType="{x:Type vm:InsightCard}">
+              <Border Margin="6,0" Style="{StaticResource Card}">
                 <StackPanel>
                   <TextBlock Text="{Binding Title}" Style="{StaticResource Caption}" />
-                  <TextBlock Text="{Binding AmountText}" FontSize="21" FontWeight="SemiBold" Margin="0,4,0,2" />
-                  <TextBlock Text="{Binding ChangeText}" FontSize="12" Visibility="{Binding HasChange, Converter={StaticResource Visible}}">
-                    <TextBlock.Style>
-                      <Style TargetType="TextBlock">
-                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
-                        <Style.Triggers>
-                          <DataTrigger Binding="{Binding ChangeIsGood}" Value="True">
-                            <Setter Property="Foreground" Value="{StaticResource GoodBrush}" />
-                          </DataTrigger>
-                        </Style.Triggers>
-                      </Style>
-                    </TextBlock.Style>
-                  </TextBlock>
+                  <TextBlock Text="{Binding ValueText}" FontSize="21" FontWeight="SemiBold" Margin="0,4,0,2" />
+                  <TextBlock Text="{Binding Note}" Style="{StaticResource ToneText}" TextWrapping="Wrap" />
                 </StackPanel>
               </Border>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <TextBlock Text="{Binding AverageDailyText}" Style="{StaticResource Caption}" Margin="2,0,0,14" />
 
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="3*" />
-            <ColumnDefinition Width="14" />
-            <ColumnDefinition Width="2*" />
-          </Grid.ColumnDefinitions>
-
-          <Border Grid.Column="0" Padding="16" CornerRadius="10" Background="{StaticResource SurfaceBrush}"
-                  Visibility="{Binding HasMonths, Converter={StaticResource Visible}}">
-            <StackPanel>
-              <DockPanel Margin="0,0,0,12">
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                  <Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource IncomeBrush}" Margin="0,0,4,0" />
-                  <TextBlock Text="доходы" Style="{StaticResource Caption}" Margin="0,0,12,0" />
-                  <Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource AccentBrush}" Margin="0,0,4,0" />
-                  <TextBlock Text="расходы" Style="{StaticResource Caption}" />
+        <!-- Pace -->
+        <Border Style="{StaticResource Card}" Margin="0,0,0,12" Visibility="{Binding IsEmpty, Converter={StaticResource Visible}, ConverterParameter=invert}">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,4">
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Width="14" Height="3" CornerRadius="1" Background="{StaticResource AccentBrush}" Margin="0,0,5,0" VerticalAlignment="Center" />
+                <TextBlock Text="этот период" Style="{StaticResource Caption}" Margin="0,0,14,0" />
+                <StackPanel Orientation="Horizontal" Visibility="{Binding HasPreviousPace, Converter={StaticResource Visible}}">
+                  <Line X1="0" X2="14" Y1="1" Y2="1" Stroke="{StaticResource MutedTextBrush}" StrokeThickness="1.5" StrokeDashArray="2 2" Margin="0,0,5,0" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding PreviousLegend}" Style="{StaticResource Caption}" Margin="0,0,14,0" />
                 </StackPanel>
-                <TextBlock Text="Доходы и расходы по месяцам" FontWeight="SemiBold" />
-              </DockPanel>
-              <ItemsControl ItemsSource="{Binding Months}" Height="170">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <UniformGrid Rows="1" />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate DataType="{x:Type vm:MonthBarItem}">
-                    <DockPanel Margin="3,0" ToolTip="{Binding Tooltip}" Background="Transparent">
-                      <TextBlock DockPanel.Dock="Bottom" Text="{Binding Label}" Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,4,0,0" />
-                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
-                        <Border Width="10" CornerRadius="2,2,0,0" Background="{StaticResource IncomeBrush}" Opacity="0.75" VerticalAlignment="Bottom"
-                                Height="{Binding IncomeHeight, Converter={StaticResource Scale}, ConverterParameter=140}" Margin="0,0,2,0" />
-                        <Border Width="10" CornerRadius="2,2,0,0" Background="{StaticResource AccentBrush}" VerticalAlignment="Bottom"
-                                Height="{Binding ExpenseHeight, Converter={StaticResource Scale}, ConverterParameter=140}" />
-                      </StackPanel>
-                    </DockPanel>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </StackPanel>
-          </Border>
+                <Border Width="8" Height="10" CornerRadius="1" Background="#4E3A72" Margin="0,0,5,0" VerticalAlignment="Center" />
+                <TextBlock Text="траты" Style="{StaticResource Caption}" />
+              </StackPanel>
+              <TextBlock Text="{Binding PaceTitle}" FontWeight="SemiBold" />
+            </DockPanel>
+            <TextBlock Text="{Binding PaceCaption}" Style="{StaticResource Caption}" Margin="0,0,0,10" />
+            <local:PaceChart Height="170" Data="{Binding Pace}" BarBrush="#4E3A72" LineBrush="{StaticResource AccentBrush}"
+                             PreviousBrush="{StaticResource MutedTextBrush}" AxisBrush="{StaticResource BorderBrush}" />
+            <DockPanel Margin="0,4,0,0">
+              <TextBlock DockPanel.Dock="Right" Text="{Binding PaceEndLabel}" Style="{StaticResource Caption}" FontSize="11" />
+              <TextBlock Text="{Binding PaceStartLabel}" Style="{StaticResource Caption}" FontSize="11" />
+            </DockPanel>
+          </StackPanel>
+        </Border>
 
-          <Border Grid.Column="2" Padding="16" CornerRadius="10" Background="{StaticResource SurfaceBrush}">
+        <!-- Categories | biggest expenses and incomes -->
+        <Grid Margin="0,0,0,12" Visibility="{Binding IsEmpty, Converter={StaticResource Visible}, ConverterParameter=invert}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="6*" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="5*" />
+          </Grid.ColumnDefinitions>
+          <Border Grid.Column="0" Style="{StaticResource Card}">
             <StackPanel>
-              <TextBlock Text="Расходы по категориям" FontWeight="SemiBold" Margin="0,0,0,12" />
+              <TextBlock Text="Расходы по категориям" Style="{StaticResource CardTitle}" />
               <TextBlock Text="Расходов за период нет" Style="{StaticResource Caption}"
-                         Visibility="{Binding HasCategories, Converter={StaticResource Visible}, ConverterParameter=invert}" />
+                         Visibility="{Binding Categories.Count, Converter={StaticResource Visible}, ConverterParameter=invert}" />
               <ItemsControl ItemsSource="{Binding Categories}">
                 <ItemsControl.ItemTemplate>
-                  <DataTemplate DataType="{x:Type vm:CategoryBarItem}">
-                    <StackPanel Margin="0,0,0,10">
+                  <DataTemplate DataType="{x:Type vm:CategoryRow}">
+                    <StackPanel Margin="0,0,0,9">
                       <DockPanel>
-                        <TextBlock DockPanel.Dock="Right" Text="{Binding AmountText}" />
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding AmountText}" Margin="10,0,0,0" />
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding ChangeText}" FontSize="12" VerticalAlignment="Center">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                              <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding ChangeTone}" Value="Good">
+                                  <Setter Property="Foreground" Value="{StaticResource GoodBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding ChangeTone}" Value="Bad">
+                                  <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                       </DockPanel>
-                      <Grid Height="5" Margin="0,5,0,2">
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="{Binding Share, Converter={StaticResource ShareToStar}}" />
-                          <ColumnDefinition Width="{Binding Share, Converter={StaticResource ShareToStar}, ConverterParameter=rest}" />
-                        </Grid.ColumnDefinitions>
-                        <Border Grid.ColumnSpan="2" CornerRadius="2" Background="{StaticResource ControlBrush}" />
-                        <Border Grid.Column="0" CornerRadius="2" Background="{StaticResource AccentBrush}" />
-                      </Grid>
-                      <TextBlock Text="{Binding ShareText}" Style="{StaticResource Caption}" />
+                      <local:ProportionalPanel Height="4" Margin="0,5,0,0">
+                        <Border local:ProportionalPanel.Weight="{Binding Share}" CornerRadius="2" Background="{StaticResource AccentBrush}" />
+                        <Border local:ProportionalPanel.Weight="{Binding Share, Converter={StaticResource Rest}}" CornerRadius="2" Background="{StaticResource ControlBrush}" />
+                      </local:ProportionalPanel>
                     </StackPanel>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </StackPanel>
           </Border>
+
+          <StackPanel Grid.Column="2">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12" Visibility="{Binding TopExpenses.Count, Converter={StaticResource Visible}}">
+              <StackPanel>
+                <TextBlock Text="Крупные траты" Style="{StaticResource CardTitle}" />
+                <ItemsControl ItemsSource="{Binding TopExpenses}" ItemTemplate="{StaticResource AmountRowTemplate}" />
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}" Visibility="{Binding Incomes.Count, Converter={StaticResource Visible}}">
+              <StackPanel>
+                <TextBlock Text="Доходы" Style="{StaticResource CardTitle}" />
+                <ItemsControl ItemsSource="{Binding Incomes}" ItemTemplate="{StaticResource AmountRowTemplate}" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
         </Grid>
+
+        <!-- Envelopes -->
+        <Border Style="{StaticResource Card}" Visibility="{Binding Envelopes.Count, Converter={StaticResource Visible}}">
+          <StackPanel>
+            <TextBlock Text="Конверты за период" Style="{StaticResource CardTitle}" />
+            <ItemsControl ItemsSource="{Binding Envelopes}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:EnvelopeRow}">
+                  <Grid Margin="0,4">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="140" />
+                      <ColumnDefinition Width="2*" />
+                      <ColumnDefinition Width="14" />
+                      <ColumnDefinition Width="3*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <local:ProportionalPanel Grid.Column="1" Height="6" VerticalAlignment="Center" Visibility="{Binding HasGoal, Converter={StaticResource Visible}}">
+                      <Border local:ProportionalPanel.Weight="{Binding Progress}" CornerRadius="3" Background="{StaticResource AccentBrush}" />
+                      <Border local:ProportionalPanel.Weight="{Binding Progress, Converter={StaticResource Rest}}" CornerRadius="3" Background="{StaticResource ControlBrush}" />
+                    </local:ProportionalPanel>
+                    <TextBlock Grid.Column="3" Text="{Binding Note}" Style="{StaticResource ToneText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <ItemsControl ItemsSource="{Binding EnvelopeWarnings}" Margin="0,8,0,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding}" Foreground="{StaticResource WarningBrush}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
 
         <TextBlock Text="{Binding Status}" Foreground="{StaticResource WarningBrush}" Margin="0,10,0,0"
                    Visibility="{Binding Status, Converter={StaticResource TextVisible}}" />

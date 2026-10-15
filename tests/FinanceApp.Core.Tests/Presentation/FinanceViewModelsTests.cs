@@ -364,27 +364,143 @@ public class SummaryViewModelTests : FinanceViewModelTestBase
     }
 
     [Fact]
-    public async Task Month_CardsComparedWithPreviousMonth()
+    public async Task Month_WhereIncomeWent()
     {
         Backend.Earn("2026-10-01", 50_000m);
         Backend.Spend("2026-10-05", 1_500m, "Еда");
+        Backend.Spend("2026-10-06", 500m, "Транспорт");
         Backend.Move("2026-10-06", 10_000m, Backend.Card, Car);
-        Backend.Spend("2026-09-05", 1_000m, "Еда");
 
         var viewModel = await OpenAsync();
 
         viewModel.Title.ShouldBe("Октябрь 2026");
-        viewModel.Cards.Select(c => c.Title).ShouldBe(["Доходы", "Расходы", "В конверты", "Остаток"]);
-        viewModel.Cards[1].ChangeText.ShouldBe("+500 ₽ к прошлому месяцу");
-        viewModel.Cards[1].ChangeIsGood.ShouldBeFalse();
-        viewModel.Cards[3].AmountText.ShouldBe("38 500 ₽");
-        viewModel.AverageDailyText.ShouldBe("В среднем 100 ₽ в день");
-        viewModel.HasMonths.ShouldBeFalse();
-        viewModel.Categories.ShouldHaveSingleItem().Name.ShouldBe("Еда");
+        viewModel.ProgressText.ShouldBe("15 из 31 дня");
+        viewModel.HasFlow.ShouldBeTrue();
+        viewModel.IncomeText.ShouldBe("Доход 50 000 ₽");
+        viewModel.FlowSegments.Select(s => (s.Label, s.Tone)).ShouldBe(
+        [
+            ("Еда", FlowTone.First),
+            ("Транспорт", FlowTone.Second),
+            ("в конверты", FlowTone.Envelopes),
+            ("осталось", FlowTone.Free),
+        ]);
+        viewModel.IncomeShare.ShouldBe(1d);
+        viewModel.OutflowShare.ShouldBe(1d);
+        viewModel.FlowNote.ShouldBe("Свободными осталось 38 000 ₽");
+        viewModel.FlowNoteIsWarning.ShouldBeFalse();
     }
 
     [Fact]
-    public async Task Year_ShowsMonthChart_AndNavigates()
+    public async Task Month_Cards_ComparedWithTheSameDayOfLastMonth()
+    {
+        Backend.Earn("2026-10-01", 50_000m);
+        Backend.Spend("2026-10-05", 1_500m, "Еда");
+        Backend.Spend("2026-10-06", 500m, "Транспорт");
+        Backend.Move("2026-10-06", 10_000m, Backend.Card, Car);
+        Backend.Spend("2026-09-05", 1_000m, "Еда");
+        Backend.Spend("2026-09-20", 3_000m, "Еда");
+
+        var viewModel = await OpenAsync();
+
+        viewModel.Cards.Select(c => c.Title).ShouldBe(["Отложено", "Расходы", "В среднем в день", "К концу месяца"]);
+        viewModel.Cards[0].ValueText.ShouldStartWith("20");
+        viewModel.Cards[1].Note.ShouldBe("+100 % к 15 сентября");
+        viewModel.Cards[1].Tone.ShouldBe(NoteTone.Bad);
+        viewModel.Cards[3].ValueText.ShouldBe("≈ 5 000 ₽"); // 2 000 so far + 3 000 that September spent later
+        viewModel.Cards[3].Note.ShouldBe("если дальше как в прошлом месяце");
+        viewModel.Categories.Select(c => (c.Name, c.ChangeText)).ShouldBe([("Еда", "−63 %"), ("Транспорт", "новое")]);
+        viewModel.Categories[0].ChangeTone.ShouldBe(NoteTone.Good);
+    }
+
+    [Fact]
+    public async Task WithoutHistory_NothingIsComparedWithZeros()
+    {
+        Backend.Spend("2026-10-05", 1_500m, "Еда");
+
+        var viewModel = await OpenAsync();
+
+        viewModel.Cards[1].Note.ShouldBeEmpty();
+        viewModel.Cards[2].Note.ShouldBeEmpty();
+        viewModel.Cards[3].Note.ShouldBe("при таком темпе");
+        viewModel.Categories.ShouldHaveSingleItem().ChangeText.ShouldBeEmpty();
+        viewModel.HasPreviousPace.ShouldBeFalse();
+        viewModel.PaceCaption.ShouldBe("1\u00a0500 ₽ к 15 октября");
+    }
+
+    [Fact]
+    public async Task SpendingMoreThanIncome_IsAWarning()
+    {
+        Backend.Spend("2026-10-03", 5_000m, "Еда");
+
+        var viewModel = await OpenAsync();
+
+        viewModel.FlowNoteIsWarning.ShouldBeTrue();
+        viewModel.FlowNote.ShouldBe("Дохода не было — 5 000 ₽ взято из остатков на счетах");
+    }
+
+    [Fact]
+    public async Task Pace_ByDay_UpToToday()
+    {
+        Backend.Spend("2026-09-05", 1_000m, "Еда");
+        Backend.Spend("2026-10-05", 2_000m, "Еда");
+
+        var viewModel = await OpenAsync();
+
+        viewModel.PaceTitle.ShouldBe("Темп трат по дням");
+        viewModel.Pace.Slots.ShouldBe(31);
+        viewModel.Pace.Current.Count.ShouldBe(15);
+        viewModel.Pace.Current[^1].ShouldBe(1d);
+        viewModel.Pace.Previous[^1].ShouldBe(0.5);
+        viewModel.HasPreviousPace.ShouldBeTrue();
+        viewModel.PreviousLegend.ShouldBe("сентябрь");
+        viewModel.PaceCaption.ShouldBe("2 000 ₽ к 15 октября · в прошлом месяце к этому дню 1 000 ₽");
+        (viewModel.PaceStartLabel, viewModel.PaceEndLabel).ShouldBe(("1 окт", "31 окт"));
+    }
+
+    [Fact]
+    public async Task TopExpenses_AndIncomes()
+    {
+        Backend.Earn("2026-10-01", 60_000m);
+        Backend.Spend("2026-10-03", 35_000m, "Жильё", note: "аренда");
+        Backend.Spend("2026-10-05", 500m, "Еда");
+        Backend.Spend("2026-10-07", 4_000m, "Развлечения", Car);
+
+        var viewModel = await OpenAsync();
+
+        viewModel.TopExpenses.Select(r => (r.Title, r.Subtitle)).ShouldBe(
+        [
+            ("Аренда", "3 окт · Жильё"),
+            ("Развлечения", "7 окт · из «Машина»"),
+            ("Еда", "5 окт"),
+        ]);
+        viewModel.Incomes.ShouldHaveSingleItem().Title.ShouldBe("Зарплата");
+        viewModel.FlowNote.ShouldContain("ещё 4 000 ₽ потрачено из конвертов");
+    }
+
+    [Fact]
+    public async Task Envelopes_GoalOnTrackOrNot()
+    {
+        Car.SetGoal(150_000m, new DateOnly(2027, 4, 30));
+        Backend.Move("2026-10-02", 10_000m, Backend.Card, Car);
+
+        var viewModel = await OpenAsync();
+
+        var car = viewModel.Envelopes.ShouldHaveSingleItem();
+        car.Tone.ShouldBe(NoteTone.Bad);
+        car.Note.ShouldBe("+10 000 ₽ · 10 000 ₽ из 150 000 ₽");
+        viewModel.EnvelopeWarnings.ShouldHaveSingleItem().ShouldBe(
+            "Машина: при 10 000 ₽ в месяц цель наберётся через 14 мес. — чтобы успеть к сроку (апрель 2027), нужно 20 000 ₽ в месяц");
+
+        Backend.Move("2026-10-03", 10_000m, Backend.Card, Car);
+        await viewModel.LoadAsync(Ct);
+
+        viewModel.Envelopes[0].Tone.ShouldBe(NoteTone.Good);
+        viewModel.Envelopes[0].Note.ShouldEndWith("в срок");
+        viewModel.EnvelopeWarnings.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Year_ByMonth_AndNavigates()
     {
         Backend.Spend("2026-02-10", 100m, "Еда");
         Backend.Spend("2026-10-10", 300m, "Еда");
@@ -393,14 +509,15 @@ public class SummaryViewModelTests : FinanceViewModelTestBase
         viewModel.Choice = SummaryViewModel.Choices.Single(c => c.Kind == PeriodKind.Year);
 
         viewModel.Title.ShouldBe("2026 год");
-        viewModel.HasMonths.ShouldBeTrue();
-        viewModel.Months.Count.ShouldBe(10);
-        viewModel.Months[9].ExpenseHeight.ShouldBe(1d);
-        viewModel.Months[1].Label.ShouldBe("фев");
+        viewModel.PaceTitle.ShouldBe("Темп трат по месяцам");
+        viewModel.Pace.Slots.ShouldBe(12);
+        viewModel.Pace.Bars[9].ShouldBe(1d);
+        viewModel.Cards[3].Title.ShouldBe("К концу года");
         viewModel.NextCommand.CanExecute(null).ShouldBeFalse(); // 2027 has not started
 
         await viewModel.PreviousCommand.ExecuteAsync(null);
         viewModel.Title.ShouldBe("2025 год");
+        viewModel.Cards[3].Title.ShouldBe("Свободный остаток");
     }
 
     [Fact]
@@ -412,7 +529,9 @@ public class SummaryViewModelTests : FinanceViewModelTestBase
         viewModel.Choice = SummaryViewModel.Choices.Single(c => c.Kind == PeriodKind.AllTime);
 
         viewModel.Title.ShouldBe("Всё время");
-        viewModel.Cards.ShouldAllBe(c => !c.HasChange);
+        viewModel.Cards[1].Note.ShouldBeEmpty();
+        viewModel.Cards[3].Title.ShouldBe("Свободный остаток");
+        viewModel.HasPreviousPace.ShouldBeFalse();
         viewModel.PreviousCommand.CanExecute(null).ShouldBeFalse();
     }
 
@@ -429,7 +548,7 @@ public class SummaryViewModelTests : FinanceViewModelTestBase
 
         viewModel.IsCustom.ShouldBeTrue();
         viewModel.Title.ShouldBe("1–5 октября 2026");
-        viewModel.Cards[1].AmountText.ShouldBe("300 ₽");
+        viewModel.Cards[1].ValueText.ShouldBe("300 ₽");
     }
 
     [Fact]
@@ -440,6 +559,7 @@ public class SummaryViewModelTests : FinanceViewModelTestBase
         viewModel.Choice = SummaryViewModel.Choices.Single(c => c.Kind == PeriodKind.Week);
 
         viewModel.Title.ShouldBe("12–18 октября 2026");
+        viewModel.Cards[3].Title.ShouldBe("К концу недели");
     }
 }
 

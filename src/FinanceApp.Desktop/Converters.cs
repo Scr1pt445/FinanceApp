@@ -83,3 +83,13 @@ internal sealed class NotConverter : IValueConverter
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => value is not true;
 }
+
+/// <summary>The rest of a 0..1 share (<c>1 − value</c>): the empty part of a bar.</summary>
+internal sealed class RestConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        Math.Max(1 - (value is double share ? Math.Clamp(share, 0, 1) : 0), 0);
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
