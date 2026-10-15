@@ -1,35 +1,32 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
-using FinanceApp.Presentation.Main;
+using FinanceApp.Presentation.Finance;
 
 namespace FinanceApp.Desktop;
 
 /// <summary>
 /// The main window. Closing it only hides it — the app keeps living in the tray.
-/// Everything except keyboard plumbing is in <see cref="MainViewModel"/>.
+/// Everything except mouse and keyboard plumbing is in <see cref="ShellViewModel"/>.
 /// </summary>
 internal sealed partial class MainWindow : Window
 {
     public static readonly RoutedUICommand FocusSearchCommand = new("Поиск", nameof(FocusSearchCommand), typeof(MainWindow));
 
-    private readonly MainViewModel _viewModel;
+    private readonly ShellViewModel _viewModel;
 
-    public MainWindow(MainViewModel viewModel)
+    public MainWindow(ShellViewModel viewModel)
     {
         _viewModel = viewModel;
         InitializeComponent();
         DataContext = viewModel;
         Interop.DarkTitleBar.Apply(this);
         CommandBindings.Add(new CommandBinding(FocusSearchCommand, (_, _) => SearchBox.Focus()));
+        PreviewKeyDown += OnPreviewKeyDown;
     }
 
-    /// <summary>Raised by «+ Операция».</summary>
-    public event EventHandler? QuickEntryRequested;
-
     public bool IsExiting { get; set; }
-
-    public void SetHotKeyHint(string? hotKey) => HotKeyHint.Text = hotKey is null ? string.Empty : $" {hotKey}";
 
     public async void ShowAndRefresh()
     {
@@ -40,15 +37,15 @@ internal sealed partial class MainWindow : Window
 
         Show();
         Activate();
-        await _viewModel.LoadAsync();
+        await _viewModel.RefreshAsync();
     }
 
-    /// <summary>Reloads the month if the window is open (e.g. after a quick entry).</summary>
+    /// <summary>Reloads balances and the current page if the window is open (e.g. after a quick entry).</summary>
     public async void RefreshIfVisible()
     {
         if (IsVisible)
         {
-            await _viewModel.LoadAsync();
+            await _viewModel.RefreshAsync();
         }
     }
 
@@ -63,32 +60,63 @@ internal sealed partial class MainWindow : Window
         base.OnClosing(e);
     }
 
-    private void OnQuickEntry(object sender, RoutedEventArgs e) => QuickEntryRequested?.Invoke(this, EventArgs.Empty);
-
-    private void OnRowDoubleClick(object sender, MouseButtonEventArgs e)
+    private void OnSidebarClick(object sender, RoutedEventArgs e)
     {
-        if (RowsList.SelectedItem is TransactionRow row)
+        if (sender is FrameworkElement { DataContext: SidebarItem item })
         {
-            _viewModel.EditCommand.Execute(row);
+            _viewModel.Selected = item;
         }
     }
 
-    private void OnRowsKeyDown(object sender, KeyEventArgs e)
+    private void OnSidebarDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (RowsList.SelectedItem is not TransactionRow row)
+        if (sender is FrameworkElement { DataContext: SidebarItem { Account: not null } item })
+        {
+            _viewModel.EditAccountCommand.Execute(item);
+        }
+    }
+
+    private void OnRowMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: OperationRow row })
         {
             return;
         }
 
-        if (e.Key == Key.Delete)
+        _viewModel.Operations.Selected = row;
+        if (e.ClickCount == 2)
         {
-            e.Handled = true;
-            _viewModel.DeleteCommand.Execute(row);
+            _viewModel.Operations.EditCommand.Execute(row);
         }
-        else if (e.Key == Key.Enter)
+    }
+
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // Forms: Esc closes (IsCancel buttons handle it); the list keys below must not fire under a form.
+        if (_viewModel.HasForm || Keyboard.FocusedElement is TextBox)
+        {
+            return;
+        }
+
+        if (e.Key == Key.Delete && _viewModel.Operations.Selected is { } row)
         {
             e.Handled = true;
-            _viewModel.EditCommand.Execute(row);
+            _ = _viewModel.Operations.DeleteCommand.ExecuteAsync(row);
+        }
+        else if (e.Key == Key.Enter && _viewModel.Operations.Selected is { } selected)
+        {
+            e.Handled = true;
+            _viewModel.Operations.EditCommand.Execute(selected);
+        }
+    }
+
+    /// <summary>The first field of a form gets the keyboard as soon as the form appears.</summary>
+    private void OnFocusOnLoad(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox box)
+        {
+            box.Focus();
+            box.SelectAll();
         }
     }
 }

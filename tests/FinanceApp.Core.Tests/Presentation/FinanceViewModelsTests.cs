@@ -212,6 +212,19 @@ public class TransactionFormViewModelTests : FinanceViewModelTestBase
     }
 
     [Fact]
+    public async Task Presets_FromAnotherLoad_AreMatchedById_SoDropdownsShowThem()
+    {
+        // The sidebar's balances and the form's catalog are separate loads: equal ids, different instances.
+        var carCopy = new Account(Car.Id, Car.Name, Car.Currency, kind: AccountKind.Envelope);
+
+        var form = await NewAsync(TransactionType.Transfer, toAccount: carCopy);
+
+        form.ToAccount.ShouldBeSameAs(Car);
+        form.Accounts.ShouldContain(form.ToAccount!);
+        form.Accounts.ShouldContain(form.Account!);
+    }
+
+    [Fact]
     public async Task Transfer_ToTheSameAccount_IsAProblem()
     {
         var form = await NewAsync(TransactionType.Transfer, Backend.Card, Backend.Cash);

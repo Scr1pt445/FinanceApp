@@ -6,7 +6,7 @@ using FinanceApp.Desktop.Interop;
 using FinanceApp.Desktop.Tray;
 using FinanceApp.Infrastructure;
 using FinanceApp.Infrastructure.Persistence;
-using FinanceApp.Presentation.Main;
+using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.QuickEntry;
 using FinanceApp.Presentation.Settings;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,8 +55,8 @@ public partial class App
                 .AddSingleton<HotKeyService>()
                 .AddSingleton<IHotKeyRegistrar>(sp => sp.GetRequiredService<HotKeyService>())
                 .AddTransient<HotKeySettingsViewModel>()
-                .AddSingleton<IMainBackend, ScopedMainBackend>()
-                .AddSingleton<MainViewModel>()
+                .AddSingleton<IFinanceBackend, ScopedFinanceBackend>()
+                .AddSingleton<ShellViewModel>()
                 .AddSingleton<MainWindow>()
                 .BuildServiceProvider(validateScopes: true);
 
@@ -68,7 +68,6 @@ public partial class App
 
             _quickEntry = _services.GetRequiredService<QuickEntryWindow>();
             _main = _services.GetRequiredService<MainWindow>();
-            _main.QuickEntryRequested += (_, _) => OpenQuickEntry();
             _services.GetRequiredService<QuickEntryViewModel>().Saved += (_, saved) =>
             {
                 _tray?.SetStatus("Сохранено: " + QuickEntryFormatter.Saved(saved, settings.Load().BaseCurrency));
@@ -127,7 +126,6 @@ public partial class App
     private void ShowHotKey(string? hotKey)
     {
         _tray?.SetHotKey(hotKey);
-        _main?.SetHotKeyHint(hotKey);
     }
 
     private void OpenMain() => _main?.ShowAndRefresh();

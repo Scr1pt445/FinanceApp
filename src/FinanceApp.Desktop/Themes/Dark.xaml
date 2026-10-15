@@ -127,9 +127,12 @@
                 </ControlTemplate>
               </ToggleButton.Template>
             </ToggleButton>
+            <!-- The selector and string format carry DisplayMemberPath into the selection box. -->
             <ContentPresenter Margin="10,0,28,0" VerticalAlignment="Center" IsHitTestVisible="False"
                               Content="{TemplateBinding SelectionBoxItem}"
-                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" />
+                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" />
             <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True"
                    Focusable="False" PopupAnimation="Fade">
               <Border Margin="0,4,0,0" Padding="4" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"

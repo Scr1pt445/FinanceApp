@@ -4,19 +4,21 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:FinanceApp.Desktop"
-        xmlns:vm="clr-namespace:FinanceApp.Presentation.Main;assembly=FinanceApp.Presentation"
+        xmlns:vm="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+        xmlns:domain="clr-namespace:FinanceApp.Domain;assembly=FinanceApp.Domain"
         mc:Ignorable="d"
-        d:DataContext="{d:DesignInstance vm:MainViewModel}"
+        d:DataContext="{d:DesignInstance vm:ShellViewModel}"
         x:ClassModifier="internal"
-        Title="FinanceApp" Width="1120" Height="740" MinWidth="900" MinHeight="560"
+        Title="FinanceApp" Width="1180" Height="760" MinWidth="960" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}"
         FontFamily="{StaticResource UiFont}" FontSize="13.5">
   <Window.Resources>
     <local:ShareToStarConverter x:Key="ShareToStar" />
-    <local:BoolToVisibilityConverter x:Key="BoolToVisibility" />
-    <local:TextToVisibilityConverter x:Key="TextToVisibility" />
-    <local:TransactionTypeNameConverter x:Key="TypeName" />
+    <local:ScaleConverter x:Key="Scale" />
+    <local:BoolToVisibilityConverter x:Key="Visible" />
+    <local:TextToVisibilityConverter x:Key="TextVisible" />
+    <local:EqualsConverter x:Key="Equals" />
 
     <Style TargetType="Button" BasedOn="{StaticResource FlatButton}" />
     <Style TargetType="TextBox" BasedOn="{StaticResource DarkTextBox}" />
@@ -27,288 +29,657 @@
       <Setter Property="FontSize" Value="12" />
     </Style>
 
-    <Style x:Key="RowItem" TargetType="ListBoxItem">
-      <Setter Property="Padding" Value="12,9" />
+    <Style x:Key="SectionHeader" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+      <Setter Property="Margin" Value="4,18,0,6" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Sidebar entry: highlighted when it is the selected one. -->
+    <Style x:Key="SidebarButton" TargetType="Button">
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Cursor" Value="Hand" />
       <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
       <Setter Property="Template">
         <Setter.Value>
-          <ControlTemplate TargetType="ListBoxItem">
-            <Border x:Name="Root" Background="Transparent" Padding="{TemplateBinding Padding}" CornerRadius="6">
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Root" Background="Transparent" CornerRadius="8" Padding="10,8">
               <ContentPresenter />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="Root" Property="Background" Value="{StaticResource ControlBrush}" />
               </Trigger>
-              <Trigger Property="IsSelected" Value="True">
+              <DataTrigger Value="True">
+                <DataTrigger.Binding>
+                  <MultiBinding Converter="{StaticResource Equals}">
+                    <Binding />
+                    <Binding Path="DataContext.Selected" RelativeSource="{RelativeSource AncestorType=Window}" />
+                  </MultiBinding>
+                </DataTrigger.Binding>
                 <Setter TargetName="Root" Property="Background" Value="{StaticResource AccentSoftBrush}" />
-              </Trigger>
+              </DataTrigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
     </Style>
+
+    <Style x:Key="Amount" TargetType="TextBlock">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Tone}" Value="Income">
+          <Setter Property="Foreground" Value="{StaticResource IncomeBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Tone}" Value="Envelope">
+          <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Tone}" Value="Neutral">
+          <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- Segmented choice of the form (Расход / Доход / Перевод). -->
+    <Style x:Key="Segment" TargetType="Button" BasedOn="{StaticResource FlatButton}">
+      <Setter Property="Padding" Value="16,7" />
+      <Setter Property="Margin" Value="0,0,6,0" />
+    </Style>
+
+    <!-- New / edit transaction form. -->
+    <DataTemplate DataType="{x:Type vm:TransactionFormViewModel}">
+      <Border Width="460" Padding="22,18" CornerRadius="12" Background="{StaticResource SurfaceBrush}"
+              BorderBrush="{StaticResource AccentBrush}" BorderThickness="1">
+        <StackPanel>
+          <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14" />
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Visibility="{Binding IsNew, Converter={StaticResource Visible}}">
+            <Button Content="Расход" Command="{Binding ChooseKindCommand}" CommandParameter="{x:Static domain:TransactionType.Expense}">
+              <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource Segment}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Kind}" Value="Expense">
+                      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Button.Style>
+            </Button>
+            <Button Content="Доход" Command="{Binding ChooseKindCommand}" CommandParameter="{x:Static domain:TransactionType.Income}">
+              <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource Segment}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Kind}" Value="Income">
+                      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Button.Style>
+            </Button>
+            <Button Content="Перевод" Command="{Binding ChooseKindCommand}" CommandParameter="{x:Static domain:TransactionType.Transfer}">
+              <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource Segment}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Kind}" Value="Transfer">
+                      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Button.Style>
+            </Button>
+          </StackPanel>
+
+          <TextBlock Text="Сумма" Style="{StaticResource Caption}" />
+          <Grid Margin="0,4,0,12">
+            <TextBox Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}" FontSize="22" Padding="10,6,60,6" Loaded="OnFocusOnLoad" />
+            <TextBlock Text="{Binding AmountCurrency}" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" />
+          </Grid>
+
+          <StackPanel Visibility="{Binding IsTransfer, Converter={StaticResource Visible}, ConverterParameter=invert}">
+            <TextBlock Text="Категория" Style="{StaticResource Caption}" />
+            <ItemsControl ItemsSource="{Binding Tiles}" Margin="0,6,0,8">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:CategoryTile}">
+                  <Button Content="{Binding Name}" Margin="0,0,6,6" Padding="10,5"
+                          Command="{Binding DataContext.ChooseCategoryCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                          CommandParameter="{Binding}">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource FlatButton}">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <Grid Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="Откуда" Style="{StaticResource Caption}" Visibility="{Binding IsTransfer, Converter={StaticResource Visible}}" />
+              <TextBlock Text="Счёт" Style="{StaticResource Caption}" Visibility="{Binding IsTransfer, Converter={StaticResource Visible}, ConverterParameter=invert}" />
+              <ComboBox Margin="0,4,0,0" ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" DisplayMemberPath="Name" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Visibility="{Binding IsTransfer, Converter={StaticResource Visible}}">
+              <TextBlock Text="Куда" Style="{StaticResource Caption}" />
+              <ComboBox Margin="0,4,0,0" ItemsSource="{Binding Accounts}" SelectedItem="{Binding ToAccount}" DisplayMemberPath="Name" />
+            </StackPanel>
+          </Grid>
+
+          <StackPanel Margin="0,0,0,12" Visibility="{Binding NeedsReceivedAmount, Converter={StaticResource Visible}}">
+            <TextBlock Style="{StaticResource Caption}" Text="Зачислено (пусто — по курсу ЦБ)" />
+            <Grid Margin="0,4,0,0">
+              <TextBox Text="{Binding ReceivedText, UpdateSourceTrigger=PropertyChanged}" Padding="8,5,50,5" />
+              <TextBlock Text="{Binding ReceivedCurrency}" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" />
+            </Grid>
+          </StackPanel>
+
+          <TextBlock Text="Дата" Style="{StaticResource Caption}" />
+          <StackPanel Orientation="Horizontal" Margin="0,4,0,12">
+            <TextBox Width="130" Text="{Binding DateText, UpdateSourceTrigger=PropertyChanged}" />
+            <Button Content="Сегодня" Margin="8,0,0,0" Style="{StaticResource GhostButton}" Command="{Binding TodayCommand}" />
+            <Button Content="Вчера" Style="{StaticResource GhostButton}" Command="{Binding YesterdayCommand}" />
+          </StackPanel>
+
+          <TextBlock Text="Комментарий" Style="{StaticResource Caption}" />
+          <TextBox Margin="0,4,0,12" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" />
+
+          <TextBlock Text="{Binding Problem}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,4"
+                     Visibility="{Binding Problem, Converter={StaticResource TextVisible}}" />
+          <TextBlock Text="{Binding SaveError}" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" Margin="0,0,0,4"
+                     Visibility="{Binding SaveError, Converter={StaticResource TextVisible}}" />
+
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="Отмена" Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}" IsCancel="True" />
+            <Button Content="Сохранить" Margin="8,0,0,0" Style="{StaticResource AccentButton}" Command="{Binding SaveCommand}" IsDefault="True"
+                    IsEnabled="{Binding CanSave}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+
+    <!-- New / edit account or envelope form. -->
+    <DataTemplate DataType="{x:Type vm:AccountFormViewModel}">
+      <Border Width="420" Padding="22,18" CornerRadius="12" Background="{StaticResource SurfaceBrush}"
+              BorderBrush="{StaticResource AccentBrush}" BorderThickness="1">
+        <StackPanel>
+          <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14" />
+
+          <TextBlock Text="Название" Style="{StaticResource Caption}" />
+          <Grid Margin="0,4,0,12">
+            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Loaded="OnFocusOnLoad" />
+            <TextBlock Text="{Binding NamePlaceholder}" Style="{StaticResource Caption}" Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                       Visibility="{Binding Name, Converter={StaticResource TextVisible}, ConverterParameter=invert}" />
+          </Grid>
+
+          <Grid Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="110" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="Начальный остаток (необязательно)" Style="{StaticResource Caption}" />
+              <TextBox Margin="0,4,0,0" Text="{Binding OpeningBalanceText, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Валюта" Style="{StaticResource Caption}" />
+              <TextBox Margin="0,4,0,0" Text="{Binding CurrencyText, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsNew}" />
+            </StackPanel>
+          </Grid>
+
+          <StackPanel Visibility="{Binding IsEnvelope, Converter={StaticResource Visible}}" Margin="0,0,0,12">
+            <Button Content="+ Добавить цель" HorizontalAlignment="Left" Style="{StaticResource GhostButton}" Command="{Binding AddGoalCommand}"
+                    Visibility="{Binding HasGoal, Converter={StaticResource Visible}, ConverterParameter=invert}" />
+            <Grid Visibility="{Binding HasGoal, Converter={StaticResource Visible}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="Цель" Style="{StaticResource Caption}" />
+                <TextBox Margin="0,4,0,0" Text="{Binding GoalAmountText, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="К дате (необяз.)" Style="{StaticResource Caption}" />
+                <TextBox Margin="0,4,0,0" Text="{Binding GoalDateText, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <Button Grid.Column="3" Content="✕" Margin="6,18,0,0" Style="{StaticResource GhostButton}" Command="{Binding RemoveGoalCommand}" ToolTip="Убрать цель" />
+            </Grid>
+          </StackPanel>
+
+          <TextBlock Text="{Binding Problem}" Style="{StaticResource Caption}" TextWrapping="Wrap"
+                     Visibility="{Binding Problem, Converter={StaticResource TextVisible}}" />
+          <TextBlock Text="{Binding SaveError}" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap"
+                     Visibility="{Binding SaveError, Converter={StaticResource TextVisible}}" />
+
+          <DockPanel Margin="0,12,0,0" LastChildFill="False">
+            <Button DockPanel.Dock="Left" Command="{Binding ToggleHiddenCommand}"
+                    Visibility="{Binding IsNew, Converter={StaticResource Visible}, ConverterParameter=invert}">
+              <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
+                  <Setter Property="Content" Value="Скрыть" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsHidden}" Value="True">
+                      <Setter Property="Content" Value="Показать снова" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Button.Style>
+            </Button>
+            <Button DockPanel.Dock="Right" Content="Сохранить" Margin="8,0,0,0" Style="{StaticResource AccentButton}" Command="{Binding SaveCommand}"
+                    IsDefault="True" IsEnabled="{Binding CanSave}" />
+            <Button DockPanel.Dock="Right" Content="Отмена" Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}" IsCancel="True" />
+          </DockPanel>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
   </Window.Resources>
 
   <Window.InputBindings>
-    <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
-    <KeyBinding Key="Left" Modifiers="Alt" Command="{Binding PreviousMonthCommand}" />
-    <KeyBinding Key="Right" Modifiers="Alt" Command="{Binding NextMonthCommand}" />
+    <KeyBinding Key="Z" Modifiers="Control" Command="{Binding Operations.UndoCommand}" />
     <KeyBinding Key="F" Modifiers="Control" Command="{x:Static local:MainWindow.FocusSearchCommand}" />
+    <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewExpenseCommand}" />
   </Window.InputBindings>
 
-  <Grid Margin="24,18,24,16">
-    <Grid.RowDefinitions>
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="*" />
-      <RowDefinition Height="Auto" />
-    </Grid.RowDefinitions>
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="290" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
 
-    <!-- Month switcher -->
-    <DockPanel Grid.Row="0" Margin="0,0,0,16" LastChildFill="False">
-      <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Content="◀" Command="{Binding PreviousMonthCommand}"
-              ToolTip="Предыдущий месяц (Alt+←)" />
-      <TextBlock DockPanel.Dock="Left" Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="10,0" VerticalAlignment="Center" />
-      <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Content="▶" Command="{Binding NextMonthCommand}"
-              ToolTip="Следующий месяц (Alt+→)" />
-      <Button DockPanel.Dock="Left" Margin="12,0,0,0" Content="Текущий месяц" Command="{Binding CurrentMonthCommand}" />
-      <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Click="OnQuickEntry"
-              ToolTip="Открыть окно быстрого ввода">
-        <TextBlock>
-          <Run Text="+ Операция" />
-          <Run x:Name="HotKeyHint" Foreground="#DDFFFFFF" FontSize="11.5" />
-        </TextBlock>
-      </Button>
-    </DockPanel>
+    <!-- ===== Sidebar ===== -->
+    <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" Padding="14,18">
+      <DockPanel>
+        <CheckBox DockPanel.Dock="Bottom" Content="Показать скрытые" IsChecked="{Binding ShowHidden}" Foreground="{StaticResource MutedTextBrush}" Margin="4,10,0,0" />
 
-    <!-- Totals -->
-    <ItemsControl Grid.Row="1" ItemsSource="{Binding Cards}" Margin="-6,0,-6,16">
-      <ItemsControl.ItemsPanel>
-        <ItemsPanelTemplate>
-          <UniformGrid Rows="1" />
-        </ItemsPanelTemplate>
-      </ItemsControl.ItemsPanel>
-      <ItemsControl.ItemTemplate>
-        <DataTemplate DataType="vm:TotalCard">
-          <Border Margin="6,0" Padding="16,12" CornerRadius="10" Background="{StaticResource SurfaceBrush}">
+        <StackPanel DockPanel.Dock="Top">
+          <Border Padding="14,12" CornerRadius="10" Background="{StaticResource ControlBrush}">
             <StackPanel>
-              <TextBlock Text="{Binding Title}" Style="{StaticResource Caption}" />
-              <TextBlock Text="{Binding AmountText}" FontSize="22" FontWeight="SemiBold" Margin="0,4,0,2" />
-              <TextBlock Text="{Binding ChangeText}" FontSize="12">
-                <TextBlock.Style>
-                  <Style TargetType="TextBlock">
-                    <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
-                    <Style.Triggers>
-                      <MultiDataTrigger>
-                        <MultiDataTrigger.Conditions>
-                          <Condition Binding="{Binding HasChange}" Value="True" />
-                          <Condition Binding="{Binding ChangeIsGood}" Value="True" />
-                        </MultiDataTrigger.Conditions>
-                        <Setter Property="Foreground" Value="{StaticResource GoodBrush}" />
-                      </MultiDataTrigger>
-                      <MultiDataTrigger>
-                        <MultiDataTrigger.Conditions>
-                          <Condition Binding="{Binding HasChange}" Value="True" />
-                          <Condition Binding="{Binding ChangeIsGood}" Value="False" />
-                        </MultiDataTrigger.Conditions>
-                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
-                      </MultiDataTrigger>
-                    </Style.Triggers>
-                  </Style>
-                </TextBlock.Style>
-              </TextBlock>
+              <TextBlock Text="Всего" Style="{StaticResource Caption}" />
+              <TextBlock Text="{Binding TotalText}" FontSize="24" FontWeight="SemiBold" Margin="0,2,0,2" />
+              <TextBlock Text="{Binding SplitText}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Warning}" Foreground="{StaticResource WarningBrush}" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0"
+                         Visibility="{Binding Warning, Converter={StaticResource TextVisible}}" />
             </StackPanel>
           </Border>
-        </DataTemplate>
-      </ItemsControl.ItemTemplate>
-    </ItemsControl>
 
-    <Grid Grid.Row="2">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="300" />
-        <ColumnDefinition Width="16" />
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
+          <Button Margin="0,12,0,0" Style="{StaticResource SidebarButton}" DataContext="{Binding AllOperations}" Click="OnSidebarClick">
+            <TextBlock Text="☰  Все операции" />
+          </Button>
+          <Button Style="{StaticResource SidebarButton}" DataContext="{Binding SummaryItem}" Click="OnSidebarClick">
+            <TextBlock Text="▤  Итоги" />
+          </Button>
+        </StackPanel>
 
-      <!-- Expenses by category -->
-      <Border Grid.Column="0" Padding="16" CornerRadius="10" Background="{StaticResource SurfaceBrush}">
-        <DockPanel>
-          <TextBlock DockPanel.Dock="Top" Text="Расходы по категориям" FontWeight="SemiBold" Margin="0,0,0,12" />
-          <TextBlock DockPanel.Dock="Top" Text="Расходов в этом месяце нет" Style="{StaticResource Caption}"
-                     Visibility="{Binding CategoryBars.Count, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding CategoryBars}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel>
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="+" Padding="8,0" Margin="0,14,0,0" Style="{StaticResource GhostButton}" Command="{Binding NewAccountCommand}" ToolTip="Новый счёт" />
+              <TextBlock Text="СЧЕТА" Style="{StaticResource SectionHeader}" />
+            </DockPanel>
+            <ItemsControl ItemsSource="{Binding Accounts}">
               <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="vm:CategoryBar">
-                  <StackPanel Margin="0,0,0,12">
+                <DataTemplate DataType="{x:Type vm:SidebarItem}">
+                  <Button Style="{StaticResource SidebarButton}" Click="OnSidebarClick" MouseDoubleClick="OnSidebarDoubleClick" ToolTip="Двойной клик — изменить">
                     <DockPanel>
-                      <TextBlock DockPanel.Dock="Right" Text="{Binding AmountText}" />
-                      <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding BalanceText}" FontWeight="SemiBold" />
+                      <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
                     </DockPanel>
-                    <Grid Height="6" Margin="0,5,0,3">
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="{Binding Share, Converter={StaticResource ShareToStar}}" />
-                        <ColumnDefinition Width="{Binding Share, Converter={StaticResource ShareToStar}, ConverterParameter=rest}" />
-                      </Grid.ColumnDefinitions>
-                      <Border Grid.ColumnSpan="2" CornerRadius="3" Background="{StaticResource ControlBrush}" />
-                      <Border Grid.Column="0" CornerRadius="3" Background="{StaticResource AccentBrush}" />
-                    </Grid>
-                    <DockPanel>
-                      <TextBlock DockPanel.Dock="Right" Text="{Binding ChangeText, StringFormat='{}{0} к прошлому'}" Style="{StaticResource Caption}"
-                                 Visibility="{Binding ChangeText, Converter={StaticResource TextToVisibility}}" />
-                      <TextBlock Text="{Binding ShareText}" Style="{StaticResource Caption}" />
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="+" Padding="8,0" Margin="0,14,0,0" Style="{StaticResource GhostButton}" Command="{Binding NewEnvelopeCommand}" ToolTip="Новый конверт" />
+              <TextBlock Text="КОНВЕРТЫ" Style="{StaticResource SectionHeader}" />
+            </DockPanel>
+            <TextBlock Margin="10,0,0,0" Style="{StaticResource Caption}" TextWrapping="Wrap"
+                       Text="Конверты — деньги, отложенные на цель: «Машина», «Отдых». Нажмите +, чтобы создать."
+                       Visibility="{Binding Envelopes.Count, Converter={StaticResource Visible}, ConverterParameter=invert}" />
+            <ItemsControl ItemsSource="{Binding Envelopes}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:SidebarItem}">
+                  <Button Style="{StaticResource SidebarButton}" Click="OnSidebarClick" MouseDoubleClick="OnSidebarDoubleClick" ToolTip="Двойной клик — изменить">
+                    <StackPanel>
+                      <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding BalanceText}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                      </DockPanel>
+                      <Grid Height="4" Margin="0,6,0,2" Visibility="{Binding HasProgress, Converter={StaticResource Visible}}">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="{Binding Progress, Converter={StaticResource ShareToStar}}" />
+                          <ColumnDefinition Width="{Binding Progress, Converter={StaticResource ShareToStar}, ConverterParameter=rest}" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.ColumnSpan="2" CornerRadius="2" Background="{StaticResource BorderBrush}" />
+                        <Border Grid.Column="0" CornerRadius="2" Background="{StaticResource AccentBrush}" />
+                      </Grid>
+                      <TextBlock Text="{Binding Hint}" Style="{StaticResource Caption}" FontSize="11" TextWrapping="Wrap"
+                                 Visibility="{Binding Hint, Converter={StaticResource TextVisible}}" />
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+
+    <!-- ===== Operations ===== -->
+    <Grid Grid.Column="1" Margin="24,18,24,14" DataContext="{Binding Operations}"
+          Visibility="{Binding DataContext.IsSummary, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}, ConverterParameter=invert}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <DockPanel Grid.Row="0" Margin="0,0,0,14" LastChildFill="False">
+        <StackPanel DockPanel.Dock="Left">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" />
+            <Button Content="Изменить" Margin="12,2,0,0" Padding="8,3" Style="{StaticResource GhostButton}"
+                    Command="{Binding DataContext.EditAccountCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Visibility="{Binding Account, Converter={StaticResource Visible}}" />
+          </StackPanel>
+          <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Caption}" Margin="0,2,0,0" />
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                    DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+          <Button Content="+ Пополнить" Margin="0,0,8,0" Style="{StaticResource AccentButton}" Command="{Binding FillEnvelopeCommand}"
+                  Visibility="{Binding IsEnvelopeSelected, Converter={StaticResource Visible}}" />
+          <Button Content="Взять" Margin="0,0,8,0" Command="{Binding TakeFromEnvelopeCommand}"
+                  Visibility="{Binding IsEnvelopeSelected, Converter={StaticResource Visible}}" />
+          <Button Content="− Расход" Margin="0,0,8,0" Command="{Binding NewExpenseCommand}" ToolTip="Ctrl+N" />
+          <Button Content="+ Доход" Margin="0,0,8,0" Command="{Binding NewIncomeCommand}" />
+          <Button Content="⇄ Перевод" Command="{Binding NewTransferCommand}" />
+        </StackPanel>
+      </DockPanel>
+
+      <Grid Grid.Row="1" Margin="0,0,0,10">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="150" />
+          <ColumnDefinition Width="10" />
+          <ColumnDefinition Width="220" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Orientation="Horizontal">
+          <Button Content="◀" Style="{StaticResource GhostButton}" Command="{Binding PreviousMonthCommand}" ToolTip="Предыдущий месяц" />
+          <TextBlock Text="{Binding MonthTitle}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Margin="6,0" MinWidth="120" TextAlignment="Center" />
+          <Button Content="▶" Style="{StaticResource GhostButton}" Command="{Binding NextMonthCommand}" ToolTip="Следующий месяц" />
+          <Button Content="Сейчас" Margin="6,0,0,0" Style="{StaticResource GhostButton}" Command="{Binding CurrentMonthCommand}" />
+        </StackPanel>
+        <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:OperationsViewModel.TypeChoices}" SelectedItem="{Binding TypeFilter}" />
+        <Grid Grid.Column="4">
+          <TextBox x:Name="SearchBox" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" ToolTip="Поиск по категории и комментарию (Ctrl+F)" />
+          <TextBlock Text="Поиск…" Style="{StaticResource Caption}" Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                     Visibility="{Binding Search, Converter={StaticResource TextVisible}, ConverterParameter=invert}" />
+        </Grid>
+      </Grid>
+
+      <Border Grid.Row="2" CornerRadius="10" Background="{StaticResource SurfaceBrush}" Padding="6">
+        <Grid>
+          <TextBlock Style="{StaticResource Caption}" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                     Text="За этот месяц операций нет.&#10;Нажмите «− Расход», «+ Доход» или горячую клавишу быстрого ввода."
+                     Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}" />
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Days}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:DayGroup}">
+                  <StackPanel Margin="8,6,8,4">
+                    <DockPanel Margin="4,6,4,4">
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding TotalText}" Style="{StaticResource Caption}" />
+                      <TextBlock Text="{Binding Title}" Style="{StaticResource Caption}" FontWeight="SemiBold" />
                     </DockPanel>
+                    <ItemsControl ItemsSource="{Binding Rows}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:OperationRow}">
+                          <Border x:Name="Row" Padding="10,8" CornerRadius="8" Background="Transparent" Cursor="Hand"
+                                  MouseLeftButtonDown="OnRowMouseDown" ToolTip="Двойной клик — изменить, Delete — удалить">
+                            <DockPanel>
+                              <StackPanel DockPanel.Dock="Right" MinWidth="120">
+                                <TextBlock Text="{Binding AmountText}" Style="{StaticResource Amount}" />
+                                <TextBlock Text="{Binding SecondaryAmount}" Style="{StaticResource Caption}" HorizontalAlignment="Right"
+                                           Visibility="{Binding SecondaryAmount, Converter={StaticResource TextVisible}}" />
+                              </StackPanel>
+                              <StackPanel>
+                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis"
+                                           Visibility="{Binding Subtitle, Converter={StaticResource TextVisible}}" />
+                              </StackPanel>
+                            </DockPanel>
+                          </Border>
+                          <DataTemplate.Triggers>
+                            <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                              <Setter TargetName="Row" Property="Background" Value="{StaticResource ControlBrush}" />
+                            </Trigger>
+                            <DataTrigger Value="True">
+                              <DataTrigger.Binding>
+                                <MultiBinding Converter="{StaticResource Equals}">
+                                  <Binding />
+                                  <Binding Path="DataContext.Operations.Selected" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                </MultiBinding>
+                              </DataTrigger.Binding>
+                              <Setter TargetName="Row" Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                            </DataTrigger>
+                          </DataTemplate.Triggers>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                   </StackPanel>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </ScrollViewer>
-        </DockPanel>
+        </Grid>
       </Border>
 
-      <!-- Transactions -->
-      <Border Grid.Column="2" Padding="12" CornerRadius="10" Background="{StaticResource SurfaceBrush}">
-        <DockPanel>
-          <Grid DockPanel.Dock="Top" Margin="4,0,4,10">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="130" />
-              <ColumnDefinition Width="8" />
-              <ColumnDefinition Width="170" />
-              <ColumnDefinition Width="8" />
-              <ColumnDefinition Width="140" />
-              <ColumnDefinition Width="8" />
-              <ColumnDefinition Width="*" MinWidth="120" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <ComboBox Grid.Column="0" ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding TypeFilter}" />
-            <ComboBox Grid.Column="2" ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding CategoryFilter}" />
-            <ComboBox Grid.Column="4" ItemsSource="{Binding AccountOptions}" SelectedItem="{Binding AccountFilter}" />
-            <Grid Grid.Column="6">
-              <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Поиск по комментарию и категории (Ctrl+F)" />
-              <TextBlock Text="Поиск…" Style="{StaticResource Caption}" Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
-                         Visibility="{Binding SearchText, Converter={StaticResource TextToVisibility}, ConverterParameter=invert}"
-                         x:Name="SearchPlaceholder" />
-            </Grid>
-            <Button Grid.Column="7" Margin="8,0,0,0" Style="{StaticResource GhostButton}" Content="Сбросить" Command="{Binding ResetFiltersCommand}" />
-          </Grid>
-
-          <DockPanel DockPanel.Dock="Bottom" Margin="4,8,4,0">
-            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}"
-                       Text="Двойной клик — изменить · Delete — удалить · Ctrl+Z — отменить" />
-            <TextBlock Text="{Binding RowsSummary}" Style="{StaticResource Caption}" />
-          </DockPanel>
-
-          <Grid>
-            <TextBlock Text="Операций нет. Нажмите «+ Операция» или горячую клавишу быстрого ввода."
-                       Style="{StaticResource Caption}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
-            <ListBox x:Name="RowsList" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
-                     Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource RowItem}"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                     MouseDoubleClick="OnRowDoubleClick" KeyDown="OnRowsKeyDown">
-              <ListBox.ItemTemplate>
-                <DataTemplate DataType="vm:TransactionRow">
-                  <Grid>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="110" />
-                      <ColumnDefinition Width="150" />
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="120" />
-                      <ColumnDefinition Width="130" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="{Binding DateText}" Foreground="{StaticResource MutedTextBrush}" />
-                    <TextBlock Grid.Column="1" Text="{Binding CategoryName}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Grid.Column="2" Text="{Binding Note}" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
-                    <TextBlock Grid.Column="3" Text="{Binding AccountName}" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" />
-                    <StackPanel Grid.Column="4" HorizontalAlignment="Right">
-                      <TextBlock Text="{Binding AmountText}" HorizontalAlignment="Right" FontWeight="SemiBold">
-                        <TextBlock.Style>
-                          <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-                            <Style.Triggers>
-                              <DataTrigger Binding="{Binding Type}" Value="Income">
-                                <Setter Property="Foreground" Value="{StaticResource IncomeBrush}" />
-                              </DataTrigger>
-                              <DataTrigger Binding="{Binding Type}" Value="Saving">
-                                <Setter Property="Foreground" Value="{StaticResource SavingBrush}" />
-                              </DataTrigger>
-                            </Style.Triggers>
-                          </Style>
-                        </TextBlock.Style>
-                      </TextBlock>
-                      <TextBlock Text="{Binding OriginalAmountText}" HorizontalAlignment="Right" Style="{StaticResource Caption}"
-                                 Visibility="{Binding OriginalAmountText, Converter={StaticResource TextToVisibility}}" />
-                    </StackPanel>
-                  </Grid>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </Grid>
-        </DockPanel>
-      </Border>
-
-      <!-- Edit panel -->
-      <Border Grid.Column="3" Width="300" Margin="16,0,0,0" Padding="16" CornerRadius="10"
-              Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1"
-              Visibility="{Binding DataContext.IsEditing, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
-              DataContext="{Binding Editor}" d:DataContext="{d:DesignInstance vm:TransactionEditorViewModel}">
-        <StackPanel>
-          <TextBlock Text="Изменить операцию" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,14" />
-
-          <TextBlock Text="Дата (дд.мм.гггг)" Style="{StaticResource Caption}" />
-          <TextBox Margin="0,4,0,10" Text="{Binding Date, StringFormat=dd.MM.yyyy, ConverterCulture=ru-RU, UpdateSourceTrigger=PropertyChanged}" />
-
-          <TextBlock Text="Тип" Style="{StaticResource Caption}" />
-          <ComboBox Margin="0,4,0,10" ItemsSource="{Binding Types}" SelectedItem="{Binding Type}">
-            <ComboBox.ItemTemplate>
-              <DataTemplate>
-                <TextBlock Text="{Binding Converter={StaticResource TypeName}}" />
-              </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-
-          <TextBlock Text="Сумма (в валюте счёта)" Style="{StaticResource Caption}" />
-          <TextBox Margin="0,4,0,10" Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}" />
-
-          <TextBlock Text="Категория" Style="{StaticResource Caption}" />
-          <ComboBox Margin="0,4,0,10" ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}" DisplayMemberPath="Name" />
-
-          <TextBlock Text="Счёт" Style="{StaticResource Caption}" />
-          <ComboBox Margin="0,4,0,10" ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" DisplayMemberPath="Name" />
-
-          <TextBlock Text="Комментарий" Style="{StaticResource Caption}" />
-          <TextBox Margin="0,4,0,10" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" />
-
-          <TextBlock Text="{Binding Problem}" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,10"
-                     Visibility="{Binding Problem, Converter={StaticResource TextToVisibility}}" />
-
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Отмена" Style="{StaticResource GhostButton}"
-                    Command="{Binding DataContext.CancelEditCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
-            <Button Content="Сохранить" Margin="8,0,0,0" Style="{StaticResource AccentButton}"
-                    Command="{Binding DataContext.SaveEditCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+      <StackPanel Grid.Row="3" Margin="0,10,0,0">
+        <Border HorizontalAlignment="Center" Padding="16,8" CornerRadius="8" Background="{StaticResource ControlBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                Visibility="{Binding CanUndo, Converter={StaticResource Visible}}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="{Binding UndoText}" VerticalAlignment="Center" Margin="0,0,16,0" />
+            <Button Content="Отменить (Ctrl+Z)" Style="{StaticResource AccentButton}" Command="{Binding UndoCommand}" />
+            <Button Content="✕" Margin="6,0,0,0" Style="{StaticResource GhostButton}" Command="{Binding DismissUndoCommand}" ToolTip="Скрыть" />
           </StackPanel>
-        </StackPanel>
-      </Border>
+        </Border>
+        <TextBlock Text="{Binding Status}" Foreground="{StaticResource WarningBrush}" HorizontalAlignment="Center" Margin="0,6,0,0"
+                   Visibility="{Binding Status, Converter={StaticResource TextVisible}}" />
+      </StackPanel>
     </Grid>
 
-    <!-- Undo bar and status -->
-    <StackPanel Grid.Row="3" Margin="0,12,0,0">
-      <Border HorizontalAlignment="Center" Padding="16,8" CornerRadius="8" Background="{StaticResource ControlBrush}"
-              BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-              Visibility="{Binding CanUndo, Converter={StaticResource BoolToVisibility}}">
-        <StackPanel Orientation="Horizontal">
-          <TextBlock Text="{Binding UndoText}" VerticalAlignment="Center" Margin="0,0,16,0" />
-          <Button Content="Отменить (Ctrl+Z)" Style="{StaticResource AccentButton}" Command="{Binding UndoCommand}" />
-          <Button Content="✕" Margin="6,0,0,0" Style="{StaticResource GhostButton}" Command="{Binding DismissUndoCommand}" ToolTip="Скрыть" />
+    <!-- ===== Summary ===== -->
+    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" DataContext="{Binding Summary}"
+                  Visibility="{Binding DataContext.IsSummary, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}">
+      <StackPanel Margin="24,18,24,14">
+        <DockPanel Margin="0,0,0,14" LastChildFill="False">
+          <ListBox DockPanel.Dock="Left" ItemsSource="{x:Static vm:SummaryViewModel.Choices}" SelectedItem="{Binding Choice}"
+                   Background="Transparent" BorderThickness="0">
+            <ListBox.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" />
+              </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemContainerStyle>
+              <Style TargetType="ListBoxItem">
+                <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                <Setter Property="Template">
+                  <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                      <Border x:Name="Root" Padding="12,6" Margin="0,0,4,0" CornerRadius="8" Background="Transparent">
+                        <ContentPresenter />
+                      </Border>
+                      <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                          <Setter TargetName="Root" Property="Background" Value="{StaticResource ControlBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                          <Setter TargetName="Root" Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                          <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                        </Trigger>
+                      </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                  </Setter.Value>
+                </Setter>
+              </Style>
+            </ListBox.ItemContainerStyle>
+          </ListBox>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+            <Button Content="◀" Style="{StaticResource GhostButton}" Command="{Binding PreviousCommand}" />
+            <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Margin="6,0" />
+            <Button Content="▶" Style="{StaticResource GhostButton}" Command="{Binding NextCommand}" />
+          </StackPanel>
+        </DockPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Visibility="{Binding IsCustom, Converter={StaticResource Visible}}">
+          <TextBlock Text="с" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <TextBox Width="110" Text="{Binding CustomFrom, UpdateSourceTrigger=PropertyChanged}" />
+          <TextBlock Text="по" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="10,0,6,0" />
+          <TextBox Width="110" Text="{Binding CustomTo, UpdateSourceTrigger=PropertyChanged}" />
+          <Button Content="Показать" Margin="10,0,0,0" Command="{Binding ApplyCustomCommand}" />
         </StackPanel>
-      </Border>
-      <TextBlock Text="{Binding Status}" Foreground="{StaticResource WarningBrush}" HorizontalAlignment="Center" Margin="0,6,0,0"
-                 Visibility="{Binding Status, Converter={StaticResource TextToVisibility}}" />
-    </StackPanel>
+
+        <ItemsControl ItemsSource="{Binding Cards}" Margin="-6,0,-6,8">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Rows="1" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:SummaryCard}">
+              <Border Margin="6,0" Padding="16,12" CornerRadius="10" Background="{StaticResource SurfaceBrush}">
+                <StackPanel>
+                  <TextBlock Text="{Binding Title}" Style="{StaticResource Caption}" />
+                  <TextBlock Text="{Binding AmountText}" FontSize="21" FontWeight="SemiBold" Margin="0,4,0,2" />
+                  <TextBlock Text="{Binding ChangeText}" FontSize="12" Visibility="{Binding HasChange, Converter={StaticResource Visible}}">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding ChangeIsGood}" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource GoodBrush}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="{Binding AverageDailyText}" Style="{StaticResource Caption}" Margin="2,0,0,14" />
+
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="14" />
+            <ColumnDefinition Width="2*" />
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0" Padding="16" CornerRadius="10" Background="{StaticResource SurfaceBrush}"
+                  Visibility="{Binding HasMonths, Converter={StaticResource Visible}}">
+            <StackPanel>
+              <DockPanel Margin="0,0,0,12">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                  <Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource IncomeBrush}" Margin="0,0,4,0" />
+                  <TextBlock Text="доходы" Style="{StaticResource Caption}" Margin="0,0,12,0" />
+                  <Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource AccentBrush}" Margin="0,0,4,0" />
+                  <TextBlock Text="расходы" Style="{StaticResource Caption}" />
+                </StackPanel>
+                <TextBlock Text="Доходы и расходы по месяцам" FontWeight="SemiBold" />
+              </DockPanel>
+              <ItemsControl ItemsSource="{Binding Months}" Height="170">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <UniformGrid Rows="1" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type vm:MonthBarItem}">
+                    <DockPanel Margin="3,0" ToolTip="{Binding Tooltip}" Background="Transparent">
+                      <TextBlock DockPanel.Dock="Bottom" Text="{Binding Label}" Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
+                        <Border Width="10" CornerRadius="2,2,0,0" Background="{StaticResource IncomeBrush}" Opacity="0.75" VerticalAlignment="Bottom"
+                                Height="{Binding IncomeHeight, Converter={StaticResource Scale}, ConverterParameter=140}" Margin="0,0,2,0" />
+                        <Border Width="10" CornerRadius="2,2,0,0" Background="{StaticResource AccentBrush}" VerticalAlignment="Bottom"
+                                Height="{Binding ExpenseHeight, Converter={StaticResource Scale}, ConverterParameter=140}" />
+                      </StackPanel>
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Column="2" Padding="16" CornerRadius="10" Background="{StaticResource SurfaceBrush}">
+            <StackPanel>
+              <TextBlock Text="Расходы по категориям" FontWeight="SemiBold" Margin="0,0,0,12" />
+              <TextBlock Text="Расходов за период нет" Style="{StaticResource Caption}"
+                         Visibility="{Binding HasCategories, Converter={StaticResource Visible}, ConverterParameter=invert}" />
+              <ItemsControl ItemsSource="{Binding Categories}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type vm:CategoryBarItem}">
+                    <StackPanel Margin="0,0,0,10">
+                      <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding AmountText}" />
+                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                      </DockPanel>
+                      <Grid Height="5" Margin="0,5,0,2">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="{Binding Share, Converter={StaticResource ShareToStar}}" />
+                          <ColumnDefinition Width="{Binding Share, Converter={StaticResource ShareToStar}, ConverterParameter=rest}" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.ColumnSpan="2" CornerRadius="2" Background="{StaticResource ControlBrush}" />
+                        <Border Grid.Column="0" CornerRadius="2" Background="{StaticResource AccentBrush}" />
+                      </Grid>
+                      <TextBlock Text="{Binding ShareText}" Style="{StaticResource Caption}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <TextBlock Text="{Binding Status}" Foreground="{StaticResource WarningBrush}" Margin="0,10,0,0"
+                   Visibility="{Binding Status, Converter={StaticResource TextVisible}}" />
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- ===== Forms over a dimmed window ===== -->
+    <Grid Grid.ColumnSpan="2" Background="#B3000000" Visibility="{Binding HasForm, Converter={StaticResource Visible}}">
+      <ContentControl Content="{Binding Form}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      <ContentControl Content="{Binding AccountForm}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Grid>
   </Grid>
 </Window>

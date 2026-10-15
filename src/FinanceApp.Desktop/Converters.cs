@@ -18,12 +18,32 @@ internal sealed class ShareToStarConverter : IValueConverter
         throw new NotSupportedException();
 }
 
-/// <summary><c>true</c> or a positive count → Visible, otherwise Collapsed; parameter «invert» flips it.</summary>
+/// <summary>A 0..1 value times the pixel size given as the parameter (chart column heights).</summary>
+internal sealed class ScaleConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var size = double.Parse((string)parameter!, CultureInfo.InvariantCulture);
+        var share = value is double d ? Math.Clamp(d, 0, 1) : 0;
+        return Math.Max(share * size, share > 0 ? 2 : 0);
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+/// <summary><c>true</c>, a non-null object or a positive count → Visible; parameter «invert» flips it.</summary>
 internal sealed class BoolToVisibilityConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var visible = value is true || value is int count && count > 0;
+        var visible = value switch
+        {
+            bool b => b,
+            int count => count > 0,
+            null => false,
+            _ => true,
+        };
         if (Equals(parameter, "invert"))
         {
             visible = !visible;
@@ -46,12 +66,12 @@ internal sealed class TextToVisibilityConverter : IValueConverter
         throw new NotSupportedException();
 }
 
-/// <summary>Transaction type → its Russian name for the type dropdown of the edit panel.</summary>
-internal sealed class TransactionTypeNameConverter : IValueConverter
+/// <summary>True when both values are equal — highlights the selected sidebar item.</summary>
+internal sealed class EqualsConverter : IMultiValueConverter
 {
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        value is Domain.TransactionType type ? Presentation.QuickEntry.QuickEntryFormatter.Type(type) : string.Empty;
+    public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture) =>
+        values.Length == 2 && Equals(values[0], values[1]);
 
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+    public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 }

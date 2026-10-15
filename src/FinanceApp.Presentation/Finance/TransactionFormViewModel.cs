@@ -130,11 +130,14 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(catalog);
         var form = new TransactionFormViewModel(backend, catalog, today, null) { Kind = kind };
-        form.Account = account ?? catalog.DefaultAccount(kind);
-        form.ToAccount = toAccount;
+
+        // Presets may come from another load (the sidebar's balances): match by id, so the dropdowns show them.
+        Account? FromList(Account? a) => a is null ? null : form.Accounts.FirstOrDefault(x => x.Id == a.Id);
+        form.Account = FromList(account) ?? FromList(catalog.DefaultAccount(kind));
+        form.ToAccount = FromList(toAccount);
         if (kind == TransactionType.Transfer && form.ToAccount?.Id == form.Account?.Id)
         {
-            form.Account = catalog.DefaultAccount(kind);
+            form.Account = form.Accounts.FirstOrDefault(a => !a.IsHidden && !a.IsEnvelope && a.Id != form.ToAccount?.Id);
         }
 
         form.RebuildTiles();
