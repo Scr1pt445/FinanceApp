@@ -221,7 +221,9 @@ public sealed partial class ShellViewModel : ObservableObject
     private async Task ChangeTotalsCurrencyAsync(CurrencyCode currency)
     {
         await _backend.SetTotalsCurrencyAsync(currency);
-        await RefreshBalancesAsync();
+
+        // The summary shows its amounts in the same currency.
+        await RefreshAsync();
     }
 
     partial void OnShowHiddenChanged(bool value) => _ = RefreshBalancesAsync();

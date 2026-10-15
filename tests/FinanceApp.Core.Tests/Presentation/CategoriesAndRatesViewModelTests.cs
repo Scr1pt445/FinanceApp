@@ -232,6 +232,25 @@ public class TotalsCurrencyTests : FinanceViewModelTestBase
     }
 
     [Fact]
+    public async Task Summary_FollowsTheTotalsCurrency()
+    {
+        Backend.Earn("2026-10-01", 90_000m);
+        Backend.Spend("2026-10-05", 9_000m, "Еда");
+        var shell = new ShellViewModel(Backend, Time);
+        await shell.RefreshAsync(Ct);
+        shell.Selected = shell.SummaryItem;
+        await shell.RefreshAsync(Ct);
+        shell.Summary.Cards[1].ValueText.ShouldBe("9 000 ₽");
+
+        shell.TotalsCurrency = CurrencyCode.Usd;
+        await shell.RefreshAsync(Ct);
+
+        shell.Summary.IncomeText.ShouldBe("Доход 1 000 $");
+        shell.Summary.Cards[1].ValueText.ShouldBe("100 $");
+        shell.Summary.Categories.ShouldHaveSingleItem().AmountText.ShouldBe("100 $");
+    }
+
+    [Fact]
     public async Task EnvelopePage_And_CategoriesPage()
     {
         var shell = new ShellViewModel(Backend, Time);

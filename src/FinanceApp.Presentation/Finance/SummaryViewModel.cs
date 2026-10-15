@@ -63,6 +63,10 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
 {
     private const decimal DaysPerMonth = 30.44m;
 
+    // Amounts come in the base currency and are shown in the currency of the «Всего» totals.
+    private CurrencyCode _currency = CurrencyCode.Rub;
+    private decimal _rate = 1m;
+
     public static IReadOnlyList<PeriodChoice> Choices { get; } =
     [
         new("Неделя", PeriodKind.Week),
@@ -246,7 +250,7 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
 
     private void Apply(PeriodOverview overview, BalancesOverview balances)
     {
-        var currency = overview.BaseCurrency;
+        (_currency, _rate) = (balances.DisplayCurrency, balances.DisplayRate);
         var summary = overview.Summary;
         var insights = overview.Insights;
         var totals = summary.Current;
@@ -254,15 +258,15 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
         IsEmpty = overview.Transactions.Count == 0;
         ProgressText = insights.IsOngoing ? $"{insights.ElapsedDays} из {Period.Days} {DaysWord(Period.Days)}" : string.Empty;
 
-        ApplyFlow(totals, insights, currency);
-        ApplyCards(summary, insights, currency);
-        ApplyPace(insights, currency);
-        ApplyCategories(summary, insights.PreviousCumulative.Count > 0, currency);
-        ApplyLists(overview, currency);
+        ApplyFlow(totals, insights);
+        ApplyCards(summary, insights);
+        ApplyPace(insights);
+        ApplyCategories(summary, insights.PreviousCumulative.Count > 0);
+        ApplyLists(overview);
         ApplyEnvelopes(insights, balances);
     }
 
-    private void ApplyFlow(PeriodTotals totals, PeriodInsights insights, CurrencyCode currency)
+    private void ApplyFlow(PeriodTotals totals, PeriodInsights insights)
     {
         FlowSegments.Clear();
         var spent = totals.Expense - totals.ExpenseFromEnvelopes;
@@ -275,30 +279,30 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
         var tones = new[] { FlowTone.First, FlowTone.Second };
         for (var i = 0; i < top.Count; i++)
         {
-            FlowSegments.Add(new FlowSegment(top[i].CategoryName, Format.Money(top[i].Amount, currency), (double)top[i].Amount, tones[i]));
+            FlowSegments.Add(new FlowSegment(top[i].CategoryName, Money(top[i].Amount), (double)top[i].Amount, tones[i]));
         }
 
         var other = spent - top.Sum(c => c.Amount);
         if (other > 0)
         {
-            FlowSegments.Add(new FlowSegment("остальное", Format.Money(other, currency), (double)other, FlowTone.Other));
+            FlowSegments.Add(new FlowSegment("остальное", Money(other), (double)other, FlowTone.Other));
         }
 
         if (intoEnvelopes > 0)
         {
-            FlowSegments.Add(new FlowSegment("в конверты", Format.Money(intoEnvelopes, currency), (double)intoEnvelopes, FlowTone.Envelopes));
+            FlowSegments.Add(new FlowSegment("в конверты", Money(intoEnvelopes), (double)intoEnvelopes, FlowTone.Envelopes));
         }
 
         if (free > 0)
         {
-            FlowSegments.Add(new FlowSegment("осталось", Format.Money(free, currency), (double)free, FlowTone.Free));
+            FlowSegments.Add(new FlowSegment("осталось", Money(free), (double)free, FlowTone.Free));
         }
 
         // The lower bar is outflow plus what is left, so it is never shorter than income.
         var lower = outflow + free;
         var longest = Math.Max(totals.Income, lower);
-        IncomeText = $"Доход {Format.Money(totals.Income, currency)}";
-        OutflowText = $"Потрачено {Format.Money(spent, currency)}" + (intoEnvelopes > 0 ? $" · в конверты {Format.Money(intoEnvelopes, currency)}" : string.Empty);
+        IncomeText = $"Доход {Money(totals.Income)}";
+        OutflowText = $"Потрачено {Money(spent)}" + (intoEnvelopes > 0 ? $" · в конверты {Money(intoEnvelopes)}" : string.Empty);
         IncomeShare = longest == 0 ? 0 : (double)(totals.Income / longest);
         OutflowShare = longest == 0 ? 0 : (double)(lower / longest);
 
@@ -307,28 +311,28 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
         if (totals.Balance < 0)
         {
             notes.Add(totals.Income == 0
-                ? $"Дохода не было — {Format.Money(-totals.Balance, currency)} взято из остатков на счетах"
-                : $"Потрачено и отложено на {Format.Money(-totals.Balance, currency)} больше дохода — взято из остатков на счетах");
+                ? $"Дохода не было — {Money(-totals.Balance)} взято из остатков на счетах"
+                : $"Потрачено и отложено на {Money(-totals.Balance)} больше дохода — взято из остатков на счетах");
         }
         else if (totals.Income > 0)
         {
-            notes.Add($"Свободными осталось {Format.Money(totals.Balance, currency)}");
+            notes.Add($"Свободными осталось {Money(totals.Balance)}");
         }
 
         if (totals.ExpenseFromEnvelopes > 0)
         {
-            notes.Add($"ещё {Format.Money(totals.ExpenseFromEnvelopes, currency)} потрачено из конвертов");
+            notes.Add($"ещё {Money(totals.ExpenseFromEnvelopes)} потрачено из конвертов");
         }
 
         if (totals.IntoEnvelopes < 0)
         {
-            notes.Add($"из конвертов взято {Format.Money(-totals.IntoEnvelopes, currency)}");
+            notes.Add($"из конвертов взято {Money(-totals.IntoEnvelopes)}");
         }
 
         FlowNote = string.Join("; ", notes);
     }
 
-    private void ApplyCards(PeriodSummary summary, PeriodInsights insights, CurrencyCode currency)
+    private void ApplyCards(PeriodSummary summary, PeriodInsights insights)
     {
         var totals = summary.Current;
 
@@ -340,7 +344,7 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
         Cards.Add(new InsightCard(
             "Отложено",
             totals.Income > 0 ? saved.ToString("P0", Format.Russian) : "—",
-            totals.IntoEnvelopes > 0 ? $"дохода · {Format.Money(totals.IntoEnvelopes, currency)} в конверты" : "в конверты ничего",
+            totals.IntoEnvelopes > 0 ? $"дохода · {Money(totals.IntoEnvelopes)} в конверты" : "в конверты ничего",
             NoteTone.Muted));
 
         // An ongoing period is compared with the same day of the previous one, a finished one with all of it.
@@ -355,15 +359,15 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
             (note, tone) = Change(totals.Expense, previous.Expense, ToPrevious);
         }
 
-        Cards.Add(new InsightCard("Расходы", Format.Money(totals.Expense, currency), note, tone));
+        Cards.Add(new InsightCard("Расходы", Money(totals.Expense), note, tone));
 
         var dailyNote = string.Empty;
         if (previous is not null && Period.Previous is { } prior)
         {
-            dailyNote = $"{InPrevious} {Format.Money(decimal.Round(previous.Expense / prior.Days, 0, MidpointRounding.AwayFromZero), currency)}";
+            dailyNote = $"{InPrevious} {Money(decimal.Round(previous.Expense / prior.Days, 0, MidpointRounding.AwayFromZero))}";
         }
 
-        Cards.Add(new InsightCard("В среднем в день", Format.Money(decimal.Round(summary.AverageDailyExpense, 0, MidpointRounding.AwayFromZero), currency), dailyNote, NoteTone.Muted));
+        Cards.Add(new InsightCard("В среднем в день", Money(decimal.Round(summary.AverageDailyExpense, 0, MidpointRounding.AwayFromZero)), dailyNote, NoteTone.Muted));
 
         if (insights.Forecast is { } forecast)
         {
@@ -376,7 +380,7 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
                     PeriodKind.Year => "К концу года",
                     _ => "К концу периода",
                 },
-                $"≈ {Format.Money(RoundForecast(forecast), currency)}",
+                $"≈ {Money(RoundForecast(forecast))}",
                 insights.PreviousToSamePoint is > 0 ? $"если дальше как {InPrevious}" : "при таком темпе",
                 NoteTone.Muted));
         }
@@ -384,13 +388,13 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
         {
             Cards.Add(new InsightCard(
                 "Свободный остаток",
-                Format.Balance(totals.Balance, currency),
+                Balance(totals.Balance),
                 "доход − расходы − конверты",
                 totals.Balance < 0 ? NoteTone.Bad : NoteTone.Muted));
         }
     }
 
-    private void ApplyPace(PeriodInsights insights, CurrencyCode currency)
+    private void ApplyPace(PeriodInsights insights)
     {
         var buckets = insights.Buckets;
         PaceTitle = insights.BucketSize switch
@@ -421,17 +425,17 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
 
         var spent = insights.Cumulative.DefaultIfEmpty(0).Last();
         var caption = insights.IsOngoing && Period.Kind != PeriodKind.AllTime
-            ? $"{Format.Money(spent, currency)} к {Today.ToString("d MMMM", Format.Russian)}"
-            : $"{Format.Money(spent, currency)} за период";
+            ? $"{Money(spent)} к {Today.ToString("d MMMM", Format.Russian)}"
+            : $"{Money(spent)} за период";
         if (insights.IsOngoing && insights.PreviousToSamePoint is { } samePoint && HasPreviousPace)
         {
-            caption += $" · {InPrevious} к этому дню {Format.Money(samePoint, currency)}";
+            caption += $" · {InPrevious} к этому дню {Money(samePoint)}";
         }
 
         PaceCaption = caption;
     }
 
-    private void ApplyCategories(PeriodSummary summary, bool hasHistory, CurrencyCode currency)
+    private void ApplyCategories(PeriodSummary summary, bool hasHistory)
     {
         Categories.Clear();
         var spent = summary.ExpensesByCategory.Where(c => c.Amount > 0).ToList();
@@ -443,14 +447,14 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
                 : Percent(category.Amount, category.PreviousAmount);
             Categories.Add(new CategoryRow(
                 category.CategoryName,
-                Format.Money(category.Amount, currency),
+                Money(category.Amount),
                 text,
                 tone,
                 biggest == 0 ? 0 : (double)(category.Amount / biggest)));
         }
     }
 
-    private void ApplyLists(PeriodOverview overview, CurrencyCode currency)
+    private void ApplyLists(PeriodOverview overview)
     {
         var names = overview.Categories.ToDictionary(c => c.Id, c => c.Name);
         var accounts = overview.Accounts.ToDictionary(a => a.Id);
@@ -461,14 +465,14 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
             var title = string.IsNullOrWhiteSpace(t.Note) ? category : Capitalize(t.Note);
             var subtitle = Short(t.Date) + (title == category ? string.Empty : $" · {category}")
                 + (accounts.TryGetValue(t.AccountId, out var account) && account.IsEnvelope ? $" · из «{account.Name}»" : string.Empty);
-            TopExpenses.Add(new AmountRow(title, subtitle, Format.Money(t.BaseAmount, currency)));
+            TopExpenses.Add(new AmountRow(title, subtitle, Money(t.BaseAmount)));
         }
 
         Incomes.Clear();
         var income = overview.Summary.Current.Income;
         foreach (var source in overview.Insights.IncomeByCategory)
         {
-            Incomes.Add(new AmountRow(source.CategoryName, income == 0 ? string.Empty : (source.Amount / income).ToString("P0", Format.Russian), Format.Money(source.Amount, currency)));
+            Incomes.Add(new AmountRow(source.CategoryName, income == 0 ? string.Empty : (source.Amount / income).ToString("P0", Format.Russian), Money(source.Amount)));
         }
     }
 
@@ -522,6 +526,22 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
             Envelopes.Add(new EnvelopeRow(account.Name, (double)(balance.GoalProgress ?? 0), account.GoalAmount is not null, string.Join(" · ", parts), tone));
         }
     }
+
+    /// <summary>A base-currency amount in the totals currency; converted ones lose kopecks above 100.</summary>
+    private decimal InDisplay(decimal baseAmount)
+    {
+        if (_rate == 1m)
+        {
+            return baseAmount;
+        }
+
+        var value = baseAmount * _rate;
+        return decimal.Round(value, Math.Abs(value) >= 100 ? 0 : 2, MidpointRounding.AwayFromZero);
+    }
+
+    private string Money(decimal baseAmount) => Format.Money(InDisplay(baseAmount), _currency);
+
+    private string Balance(decimal baseAmount) => Format.Balance(InDisplay(baseAmount), _currency);
 
     private static int MonthsToGoal(decimal left, decimal perMonth) => (int)Math.Ceiling(left / perMonth);
 
