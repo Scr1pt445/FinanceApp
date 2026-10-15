@@ -13,6 +13,7 @@ public class MainViewModelTests
     private static readonly Account Card = new(Guid.NewGuid(), "Карта", CurrencyCode.Rub, 0);
     private static readonly Account Cash = new(Guid.NewGuid(), "Наличные", CurrencyCode.Rub, 1);
     private static readonly Account Usd = new(Guid.NewGuid(), "Карта USD", CurrencyCode.Usd, 2);
+    private static readonly Account PiggyBank = new(Guid.NewGuid(), "Копилка", CurrencyCode.Rub, 3, AccountKind.Envelope);
 
     private readonly FakeBackend _backend = new();
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 10, 15, 12, 0, 0, TimeSpan.Zero));
@@ -42,19 +43,19 @@ public class MainViewModelTests
     {
         Add("2026-10-01", TransactionType.Income, 50_000m, "Зарплата");
         Add("2026-10-07", TransactionType.Expense, 350m, "Еда", note: "кофе");
-        Add("2026-10-08", TransactionType.Saving, 10_000m, "Копилка");
+        _backend.Stored.Add(Transaction.CreateTransfer(new DateOnly(2026, 10, 8), 10_000m, 1m, Card, PiggyBank, null, null, new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc).AddMinutes(_backend.Stored.Count)));
         Add("2026-09-20", TransactionType.Expense, 1_000m, "Еда");
 
         var viewModel = await OpenAsync();
 
         viewModel.Title.ShouldBe("Октябрь 2026");
-        viewModel.Cards.Select(c => c.Title).ShouldBe(["Доходы", "Расходы", "Отложено", "Остаток"]);
+        viewModel.Cards.Select(c => c.Title).ShouldBe(["Доходы", "Расходы", "В конверты", "Остаток"]);
         viewModel.Cards[1].AmountText.ShouldBe("350 ₽");
         viewModel.Cards[1].ChangeText.ShouldBe("−650 ₽ к прошлому месяцу");
         viewModel.Cards[1].ChangeIsGood.ShouldBeTrue();
         viewModel.Cards[3].AmountText.ShouldBe("39 650 ₽");
         viewModel.Rows.Count.ShouldBe(3);
-        viewModel.Rows[0].Note.ShouldBeNull(); // newest first: the saving of 8 Oct
+        viewModel.Rows[0].Note.ShouldBeNull(); // newest first: the transfer into the envelope on 8 Oct
         viewModel.RowsSummary.ShouldBe("Операций: 3");
     }
 
@@ -217,12 +218,14 @@ public class MainViewModelTests
 
         public Exception? Failure { get; set; }
 
-        public Task<MonthOverview> LoadMonthAsync(YearMonth month, CancellationToken cancellationToken = default)
+        public Task<PeriodOverview> LoadMonthAsync(YearMonth month, CancellationToken cancellationToken = default)
         {
             LoadedMonths.Add(month);
-            var summary = SummaryCalculator.ForMonth(Stored, month, Categories.ToDictionary(c => c.Id));
+            var period = Period.Of(month);
+            var summary = SummaryCalculator.For(
+                Stored, period, Categories.ToDictionary(c => c.Id), new[] { Card, Cash, Usd, PiggyBank }.ToDictionary(a => a.Id), new DateOnly(2026, 10, 15));
             var ofMonth = Stored.Where(t => month.Contains(t.Date)).OrderByDescending(t => t.Date).ThenByDescending(t => t.CreatedAt).ToList();
-            return Task.FromResult(new MonthOverview(month, ofMonth, summary, Categories, [Card, Cash, Usd], CurrencyCode.Rub));
+            return Task.FromResult(new PeriodOverview(period, ofMonth, summary, Categories, [Card, Cash, Usd, PiggyBank], CurrencyCode.Rub));
         }
 
         public Task<SavedTransaction> UpdateAsync(Guid id, TransactionInput input, CancellationToken cancellationToken = default)

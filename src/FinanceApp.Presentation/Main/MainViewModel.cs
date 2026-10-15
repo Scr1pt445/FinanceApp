@@ -18,7 +18,7 @@ public sealed partial class MainViewModel(IMainBackend backend, TimeProvider tim
     private static readonly FilterOption<TransactionType?> AllTypes = new("Все типы", null);
 
     private readonly Stack<(Transaction Deleted, string Description)> _undo = new();
-    private MonthOverview? _overview;
+    private PeriodOverview? _overview;
     private List<TransactionRow> _allRows = [];
 
     [ObservableProperty]
@@ -231,18 +231,19 @@ public sealed partial class MainViewModel(IMainBackend backend, TimeProvider tim
         }
     }
 
-    private void Apply(MonthOverview overview)
+    private void Apply(PeriodOverview overview)
     {
         _overview = overview;
         var currency = overview.BaseCurrency;
         var summary = overview.Summary;
+        var previous = summary.Previous ?? PeriodTotals.Empty;
 
         Replace(Cards,
         [
-            TotalCard.Create("Доходы", summary.Current.Income, summary.Previous.Income, moreIsGood: true, currency),
-            TotalCard.Create("Расходы", summary.Current.Expense, summary.Previous.Expense, moreIsGood: false, currency),
-            TotalCard.Create("Отложено", summary.Current.Saving, summary.Previous.Saving, moreIsGood: true, currency),
-            TotalCard.Create("Остаток", summary.Current.Balance, summary.Previous.Balance, moreIsGood: true, currency),
+            TotalCard.Create("Доходы", summary.Current.Income, previous.Income, moreIsGood: true, currency),
+            TotalCard.Create("Расходы", summary.Current.Expense, previous.Expense, moreIsGood: false, currency),
+            TotalCard.Create("В конверты", summary.Current.IntoEnvelopes, previous.IntoEnvelopes, moreIsGood: true, currency),
+            TotalCard.Create("Остаток", summary.Current.Balance, previous.Balance, moreIsGood: true, currency),
         ]);
         Replace(CategoryBars, CategoryBar.Create(summary, currency));
 

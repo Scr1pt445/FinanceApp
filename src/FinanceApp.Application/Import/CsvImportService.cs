@@ -18,7 +18,7 @@ public sealed record ImportReport(
     IReadOnlyList<string> CreatedCategories,
     IReadOnlyList<string> CreatedAccounts,
     IReadOnlyList<CsvRowError> Errors,
-    IReadOnlyDictionary<YearMonth, MonthTotals> FileTotals,
+    IReadOnlyDictionary<YearMonth, PeriodTotals> FileTotals,
     bool DryRun)
 {
     public bool Succeeded => Errors.Count == 0;
@@ -47,7 +47,11 @@ public sealed class CsvImportService(
         ArgumentNullException.ThrowIfNull(options);
 
         var read = TransactionCsvReader.ReadText(csvText);
-        var fileTotals = SummaryCalculator.ByMonth(read.Rows);
+        var envelopeNames = (await accounts.ListAsync(cancellationToken))
+            .Where(a => a.IsEnvelope)
+            .Select(a => a.Name)
+            .ToHashSet(StringComparer.CurrentCultureIgnoreCase);
+        var fileTotals = SummaryCalculator.ByMonth(read.Rows, name => name is not null && envelopeNames.Contains(name));
         if (read.HasErrors)
         {
             return Failed(read.Rows.Count, read.Errors, fileTotals, options);
@@ -89,7 +93,7 @@ public sealed class CsvImportService(
             options.DryRun);
     }
 
-    private static ImportReport Failed(int rows, IReadOnlyList<CsvRowError> errors, IReadOnlyDictionary<YearMonth, MonthTotals> totals, ImportOptions options) =>
+    private static ImportReport Failed(int rows, IReadOnlyList<CsvRowError> errors, IReadOnlyDictionary<YearMonth, PeriodTotals> totals, ImportOptions options) =>
         new(rows, 0, 0, 0, [], [], errors, totals, options.DryRun);
 
     private async Task<ImportPlan> PlanAsync(IReadOnlyList<TransactionCsvRow> rows, ImportOptions options, CancellationToken cancellationToken)

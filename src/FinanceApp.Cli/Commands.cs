@@ -185,19 +185,36 @@ internal static class Commands
     private static Command Summary(Option<string?> dataDir)
     {
         var month = new Option<string?>("--month", "-m") { Description = "Месяц ГГГГ-ММ (по умолчанию текущий)" };
-        var command = new Command("summary", "Итоги месяца") { month };
+        var kind = new Option<string>("--period", "-p") { Description = "week | month | quarter | year | all", DefaultValueFactory = _ => "month" };
+        var command = new Command("summary", "Итоги за период") { month, kind };
         command.SetAction(async (parse, ct) =>
         {
             await using var host = await CliHost.StartAsync(parse.GetValue(dataDir), null, ct);
-            var period = ParseMonth(parse.GetValue(month));
-            var summary = await host.InScopeAsync(async sp => SummaryCalculator.ForMonth(
-                await sp.GetRequiredService<ITransactionRepository>().ListAsync(period.Previous.FirstDay, period.LastDay, ct),
-                period,
-                (await sp.GetRequiredService<ICategoryRepository>().ListAsync(ct)).ToDictionary(c => c.Id)));
+            var anchor = ParseMonth(parse.GetValue(month)).FirstDay;
+            if (parse.GetValue(month) is null)
+            {
+                anchor = DateOnly.FromDateTime(DateTime.Now);
+            }
+
+            var period = parse.GetValue(kind)!.ToLowerInvariant() switch
+            {
+                "week" => Period.WeekOf(anchor),
+                "month" => Period.MonthOf(anchor),
+                "quarter" => Period.QuarterOf(anchor),
+                "year" => Period.YearOf(anchor),
+                "all" => Period.AllTime,
+                var other => throw new DomainException($"Период «{other}» не распознан: week, month, quarter, year или all."),
+            };
+            var summary = (await host.InScopeAsync(sp => sp.GetRequiredService<PeriodOverviewService>().LoadAsync(period, ct))).Summary;
 
             var currency = host.Settings.BaseCurrency;
-            Output.Totals($"Итоги {period}:", summary.Current, currency);
-            Console.WriteLine($"  Прошлый месяц: остаток {Output.Money(summary.Previous.Balance, currency)}, расходы {Output.Money(summary.Previous.Expense, currency)}");
+            var title = period.Kind == PeriodKind.AllTime ? "Итоги за всё время:" : $"Итоги {period.Start:yyyy-MM-dd} — {period.End:yyyy-MM-dd}:";
+            Output.Totals(title, summary.Current, currency);
+            Console.WriteLine($"  В среднем тратится в день: {Output.Money(summary.AverageDailyExpense, currency)}");
+            if (summary.Previous is { } previous)
+            {
+                Console.WriteLine($"  Прошлый период: остаток {Output.Money(previous.Balance, currency)}, расходы {Output.Money(previous.Expense, currency)}");
+            }
             if (summary.ExpensesByCategory.Count > 0)
             {
                 Console.WriteLine("Расходы по категориям:");
@@ -272,16 +289,17 @@ internal static class Commands
     {
         var months = report.FileTotals.Keys.ToList();
         var stored = await host.InScopeAsync(async sp => SummaryCalculator.ByMonth(
-            await sp.GetRequiredService<ITransactionRepository>().ListAsync(months[0].FirstDay, months[^1].LastDay, ct)));
+            await sp.GetRequiredService<ITransactionRepository>().ListAsync(months[0].FirstDay, months[^1].LastDay, ct),
+            (await sp.GetRequiredService<IAccountRepository>().ListAsync(ct)).ToDictionary(a => a.Id)));
 
         Console.WriteLine("Сверка по месяцам (файл → база):");
         var allMatch = true;
         foreach (var (month, fileTotals) in report.FileTotals)
         {
-            var dbTotals = stored.GetValueOrDefault(month, MonthTotals.Empty);
+            var dbTotals = stored.GetValueOrDefault(month, PeriodTotals.Empty);
             var match = dbTotals == fileTotals;
             allMatch &= match;
-            Console.WriteLine($"  {month}  доходы {Output.Money(fileTotals.Income),12}  расходы {Output.Money(fileTotals.Expense),12}  отложено {Output.Money(fileTotals.Saving),12}  {(match ? "✓" : $"✗ в базе: {Output.Money(dbTotals.Income)} / {Output.Money(dbTotals.Expense)} / {Output.Money(dbTotals.Saving)}")}");
+            Console.WriteLine($"  {month}  доходы {Output.Money(fileTotals.Income),12}  расходы {Output.Money(fileTotals.Expense),12}  в конверты {Output.Money(fileTotals.IntoEnvelopes),12}  {(match ? "✓" : $"✗ в базе: {Output.Money(dbTotals.Income)} / {Output.Money(dbTotals.Expense)} / {Output.Money(dbTotals.IntoEnvelopes)}")}");
         }
 
         Console.WriteLine(allMatch

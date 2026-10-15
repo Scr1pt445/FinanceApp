@@ -3,38 +3,76 @@ using FinanceApp.Domain;
 
 namespace FinanceApp.Application.Summaries;
 
-/// <summary>Income, expense and saving for a period, in the base currency.</summary>
-public sealed record MonthTotals(decimal Income, decimal Expense, decimal Saving)
+/// <summary>Money flows of a period in the base currency (ADR 0010).</summary>
+/// <param name="Expense">All spending, including spending paid from envelopes.</param>
+/// <param name="IntoEnvelopes">Net transfers from regular accounts into envelopes (taken back = minus).</param>
+/// <param name="ExpenseFromEnvelopes">The part of <paramref name="Expense"/> paid from envelopes.</param>
+public sealed record PeriodTotals(decimal Income, decimal Expense, decimal IntoEnvelopes, decimal ExpenseFromEnvelopes = 0)
 {
-    public static MonthTotals Empty { get; } = new(0, 0, 0);
+    public static PeriodTotals Empty { get; } = new(0, 0, 0);
 
-    /// <summary>What is left: income − expense − saving (same formula as the Obsidian page).</summary>
-    public decimal Balance => Income - Expense - Saving;
+    /// <summary>
+    /// How much free money grew: income − spending from regular accounts − money put into envelopes.
+    /// Spending from an envelope does not count twice: that money was put aside earlier.
+    /// </summary>
+    public decimal Balance => Income - (Expense - ExpenseFromEnvelopes) - IntoEnvelopes;
 
-    public MonthTotals Add(TransactionType type, decimal amount) =>
-        type switch
+    internal PeriodTotals Add(Transaction t, IReadOnlyDictionary<Guid, Account> accounts)
+    {
+        var amount = t.BaseAmount;
+        return t.Type switch
         {
             TransactionType.Income => this with { Income = Income + amount },
+            TransactionType.Expense when IsEnvelope(t.AccountId, accounts) =>
+                this with { Expense = Expense + amount, ExpenseFromEnvelopes = ExpenseFromEnvelopes + amount },
             TransactionType.Expense => this with { Expense = Expense + amount },
-            TransactionType.Saving => this with { Saving = Saving + amount },
-            TransactionType.Transfer => this, // interim: envelope semantics come with period summaries
-            _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
+            TransactionType.Saving => this with { IntoEnvelopes = IntoEnvelopes + amount }, // legacy rows
+            TransactionType.Transfer => this with
+            {
+                IntoEnvelopes = IntoEnvelopes + (IsEnvelope(t.ToAccountId, accounts) == IsEnvelope(t.AccountId, accounts)
+                    ? 0
+                    : IsEnvelope(t.ToAccountId, accounts) ? amount : -amount),
+            },
+            _ => this,
         };
+    }
+
+    internal PeriodTotals Add(TransactionCsvRow row, Func<string?, bool> isEnvelope) =>
+        row.Type switch
+        {
+            TransactionType.Income => this with { Income = Income + row.Amount },
+            TransactionType.Expense when isEnvelope(row.Account) =>
+                this with { Expense = Expense + row.Amount, ExpenseFromEnvelopes = ExpenseFromEnvelopes + row.Amount },
+            TransactionType.Expense => this with { Expense = Expense + row.Amount },
+            TransactionType.Saving => this with { IntoEnvelopes = IntoEnvelopes + row.Amount },
+            TransactionType.Transfer => this with
+            {
+                IntoEnvelopes = IntoEnvelopes + (isEnvelope(row.ToAccount) == isEnvelope(row.Account)
+                    ? 0
+                    : isEnvelope(row.ToAccount) ? row.Amount : -row.Amount),
+            },
+            _ => this,
+        };
+
+    private static bool IsEnvelope(Guid? accountId, IReadOnlyDictionary<Guid, Account> accounts) =>
+        accountId is { } id && accounts.TryGetValue(id, out var account) && account.IsEnvelope;
 }
 
-/// <summary>Expenses of one category in the month and in the previous month.</summary>
+/// <summary>Expenses of one category in the period and in the previous one.</summary>
 public sealed record CategoryTotal(Guid CategoryId, string CategoryName, decimal Amount, decimal PreviousAmount)
 {
     public decimal Change => Amount - PreviousAmount;
 }
 
-public sealed record MonthSummary(
-    YearMonth Month,
-    MonthTotals Current,
-    MonthTotals Previous,
-    IReadOnlyList<CategoryTotal> ExpensesByCategory)
+public sealed record PeriodSummary(
+    Period Period,
+    PeriodTotals Current,
+    PeriodTotals? Previous,
+    IReadOnlyList<CategoryTotal> ExpensesByCategory,
+    IReadOnlyList<(YearMonth Month, PeriodTotals Totals)> ByMonth,
+    decimal AverageDailyExpense)
 {
-    /// <summary>Share of the category in the month's expenses, 0..1.</summary>
+    /// <summary>Share of the category in the period's expenses, 0..1.</summary>
     public decimal ShareOf(CategoryTotal category) =>
         Current.Expense == 0 ? 0 : category.Amount / Current.Expense;
 }
@@ -45,44 +83,54 @@ public sealed record MonthSummary(
 /// </summary>
 public static class SummaryCalculator
 {
-    public static MonthSummary ForMonth(
+    /// <param name="transactions">Must cover the period and the previous one.</param>
+    /// <param name="today">Ongoing periods average spending over the days already passed.</param>
+    public static PeriodSummary For(
         IEnumerable<Transaction> transactions,
-        YearMonth month,
-        IReadOnlyDictionary<Guid, Category> categories)
+        Period period,
+        IReadOnlyDictionary<Guid, Category> categories,
+        IReadOnlyDictionary<Guid, Account> accounts,
+        DateOnly today)
     {
         ArgumentNullException.ThrowIfNull(transactions);
+        ArgumentNullException.ThrowIfNull(period);
         ArgumentNullException.ThrowIfNull(categories);
+        ArgumentNullException.ThrowIfNull(accounts);
 
-        var previousMonth = month.Previous;
-        var current = MonthTotals.Empty;
-        var previous = MonthTotals.Empty;
+        var previousPeriod = period.Previous;
+        var current = PeriodTotals.Empty;
+        var previous = PeriodTotals.Empty;
         var byCategory = new Dictionary<Guid, (decimal Current, decimal Previous)>();
+        var byMonth = new SortedDictionary<YearMonth, PeriodTotals>();
+        DateOnly? first = null;
 
         foreach (var transaction in transactions)
         {
-            var isCurrent = month.Contains(transaction.Date);
-            var isPrevious = !isCurrent && previousMonth.Contains(transaction.Date);
+            var isCurrent = period.Contains(transaction.Date);
+            var isPrevious = !isCurrent && previousPeriod?.Contains(transaction.Date) == true;
             if (!isCurrent && !isPrevious)
             {
                 continue;
             }
 
-            var amount = transaction.BaseAmount;
             if (isCurrent)
             {
-                current = current.Add(transaction.Type, amount);
+                current = current.Add(transaction, accounts);
+                var month = YearMonth.Of(transaction.Date);
+                byMonth[month] = byMonth.GetValueOrDefault(month, PeriodTotals.Empty).Add(transaction, accounts);
+                first = first is null || transaction.Date < first ? transaction.Date : first;
             }
             else
             {
-                previous = previous.Add(transaction.Type, amount);
+                previous = previous.Add(transaction, accounts);
             }
 
             if (transaction is { Type: TransactionType.Expense, CategoryId: { } categoryId })
             {
                 var totals = byCategory.GetValueOrDefault(categoryId);
                 byCategory[categoryId] = isCurrent
-                    ? (totals.Current + amount, totals.Previous)
-                    : (totals.Current, totals.Previous + amount);
+                    ? (totals.Current + transaction.BaseAmount, totals.Previous)
+                    : (totals.Current, totals.Previous + transaction.BaseAmount);
             }
         }
 
@@ -97,23 +145,50 @@ public static class SummaryCalculator
             .ThenBy(c => c.CategoryName, StringComparer.CurrentCulture)
             .ToList();
 
-        return new MonthSummary(month, current, previous, expensesByCategory);
+        // Months without transactions are shown as zeros, so a chart has no gaps.
+        var months = period.Kind == PeriodKind.AllTime
+            ? (first is { } start ? period.Months(start, today) : [])
+            : period.Months(clampEnd: today >= period.Start ? today : period.End);
+        var monthly = months.Select(m => (m, byMonth.GetValueOrDefault(m, PeriodTotals.Empty))).ToList();
+
+        var daysStart = period.Kind == PeriodKind.AllTime ? first ?? today : period.Start;
+        var daysEnd = period.End < today ? period.End : today;
+        var days = Math.Max(daysEnd.DayNumber - daysStart.DayNumber + 1, 1);
+        var averageDaily = daysEnd < daysStart ? 0 : decimal.Round(current.Expense / days, 2, MidpointRounding.AwayFromZero);
+
+        return new PeriodSummary(
+            period,
+            current,
+            previousPeriod is null ? null : previous,
+            expensesByCategory,
+            monthly,
+            averageDaily);
     }
 
-    public static SortedDictionary<YearMonth, MonthTotals> ByMonth(IEnumerable<Transaction> transactions) =>
-        ByMonth(transactions.Select(t => (t.Date, t.Type, t.BaseAmount)));
-
-    public static SortedDictionary<YearMonth, MonthTotals> ByMonth(IEnumerable<TransactionCsvRow> rows) =>
-        ByMonth(rows.Select(r => (r.Date, r.Type, r.Amount)));
-
-    private static SortedDictionary<YearMonth, MonthTotals> ByMonth(
-        IEnumerable<(DateOnly Date, TransactionType Type, decimal Amount)> flows)
+    public static SortedDictionary<YearMonth, PeriodTotals> ByMonth(
+        IEnumerable<Transaction> transactions,
+        IReadOnlyDictionary<Guid, Account> accounts)
     {
-        var result = new SortedDictionary<YearMonth, MonthTotals>();
-        foreach (var (date, type, amount) in flows)
+        var result = new SortedDictionary<YearMonth, PeriodTotals>();
+        foreach (var t in transactions)
         {
-            var month = YearMonth.Of(date);
-            result[month] = result.GetValueOrDefault(month, MonthTotals.Empty).Add(type, amount);
+            var month = YearMonth.Of(t.Date);
+            result[month] = result.GetValueOrDefault(month, PeriodTotals.Empty).Add(t, accounts);
+        }
+
+        return result;
+    }
+
+    /// <param name="isEnvelope">Whether an account name from the file is an envelope (for transfer rows).</param>
+    public static SortedDictionary<YearMonth, PeriodTotals> ByMonth(
+        IEnumerable<TransactionCsvRow> rows,
+        Func<string?, bool> isEnvelope)
+    {
+        var result = new SortedDictionary<YearMonth, PeriodTotals>();
+        foreach (var row in rows)
+        {
+            var month = YearMonth.Of(row.Date);
+            result[month] = result.GetValueOrDefault(month, PeriodTotals.Empty).Add(row, isEnvelope);
         }
 
         return result;

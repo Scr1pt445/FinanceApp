@@ -38,7 +38,11 @@ public class CsvImportTests
         report.Added.ShouldBe(6);
         report.SkippedDuplicates.ShouldBe(0);
         var stored = await AllTransactionsAsync(app);
-        SummaryCalculator.ByMonth(stored).ShouldBe(report.FileTotals);
+        await using (var scope = app.Scope())
+        {
+            var accounts = (await scope.Get<IAccountRepository>().ListAsync(Ct)).ToDictionary(a => a.Id);
+            SummaryCalculator.ByMonth(stored, accounts).ShouldBe(report.FileTotals);
+        }
         report.FileTotals[new YearMonth(2025, 10)].Balance.ShouldBe(35006m + 2485.56m - 56638m - 981m - 839m);
     }
 

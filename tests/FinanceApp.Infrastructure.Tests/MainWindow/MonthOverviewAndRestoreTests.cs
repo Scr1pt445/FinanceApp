@@ -28,11 +28,11 @@ public class MonthOverviewAndRestoreTests
         await QuickAsync(app, "999 еда 01.11.2026");
 
         await using var scope = app.Scope();
-        var overview = await scope.Get<MonthOverviewService>().LoadAsync(new YearMonth(2026, 10), Ct);
+        var overview = await scope.Get<PeriodOverviewService>().LoadAsync(Period.Of(new YearMonth(2026, 10)), Ct);
 
         overview.Transactions.Select(t => t.Note ?? t.Type.ToString()).ShouldBe(["ужин", "Income", "завтрак"]);
-        overview.Summary.Current.ShouldBe(new MonthTotals(1000m, 400m, 0m));
-        overview.Summary.Previous.Expense.ShouldBe(50m);
+        overview.Summary.Current.ShouldBe(new PeriodTotals(1000m, 400m, 0m));
+        overview.Summary.Previous!.Expense.ShouldBe(50m);
         overview.Categories.ShouldNotBeEmpty();
         overview.Accounts.ShouldNotBeEmpty();
         overview.BaseCurrency.ShouldBe(CurrencyCode.Rub);

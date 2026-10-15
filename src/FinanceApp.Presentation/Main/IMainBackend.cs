@@ -7,7 +7,7 @@ namespace FinanceApp.Presentation.Main;
 /// <summary>What the main window needs from the core; one unit of work per call.</summary>
 public interface IMainBackend
 {
-    Task<MonthOverview> LoadMonthAsync(YearMonth month, CancellationToken cancellationToken = default);
+    Task<PeriodOverview> LoadMonthAsync(YearMonth month, CancellationToken cancellationToken = default);
 
     Task<SavedTransaction> UpdateAsync(Guid id, TransactionInput input, CancellationToken cancellationToken = default);
 

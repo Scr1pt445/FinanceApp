@@ -9,8 +9,8 @@ namespace FinanceApp.Desktop;
 /// <summary>Each call is one unit of work: a fresh DI scope and database context.</summary>
 internal sealed class ScopedMainBackend(IServiceScopeFactory scopes) : IMainBackend
 {
-    public Task<MonthOverview> LoadMonthAsync(YearMonth month, CancellationToken cancellationToken = default) =>
-        InScopeAsync<MonthOverviewService, MonthOverview>(s => s.LoadAsync(month, cancellationToken));
+    public Task<PeriodOverview> LoadMonthAsync(YearMonth month, CancellationToken cancellationToken = default) =>
+        InScopeAsync<PeriodOverviewService, PeriodOverview>(s => s.LoadAsync(Period.Of(month), cancellationToken));
 
     public Task<SavedTransaction> UpdateAsync(Guid id, TransactionInput input, CancellationToken cancellationToken = default) =>
         InScopeAsync<TransactionService, SavedTransaction>(s => s.UpdateAsync(id, input, cancellationToken));

@@ -62,7 +62,7 @@ public sealed record TotalCard(string Title, string AmountText, string ChangeTex
 /// <summary>A horizontal bar of the «expenses by category» chart; <see cref="Share"/> is 0..1 of the biggest category.</summary>
 public sealed record CategoryBar(string Name, string AmountText, string ShareText, double Share, string? ChangeText)
 {
-    public static IReadOnlyList<CategoryBar> Create(MonthSummary summary, CurrencyCode currency)
+    public static IReadOnlyList<CategoryBar> Create(PeriodSummary summary, CurrencyCode currency)
     {
         ArgumentNullException.ThrowIfNull(summary);
         var current = summary.ExpensesByCategory.Where(c => c.Amount > 0).ToList();
