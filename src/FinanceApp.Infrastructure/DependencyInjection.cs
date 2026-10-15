@@ -1,4 +1,5 @@
 using FinanceApp.Application.Abstractions;
+using FinanceApp.Application.Accounts;
 using FinanceApp.Application.Export;
 using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Import;
@@ -50,6 +51,8 @@ public static class DependencyInjection
         services.AddScoped<CsvImportService>();
         services.AddScoped<QuickEntryService>();
         services.AddScoped<PeriodOverviewService>();
+        services.AddScoped<AccountService>();
+        services.AddScoped<AccountBalancesService>();
         services.AddScoped<CsvExportService>();
 
         services.AddSingleton(exportOptions ?? new CsvExportOptions());
