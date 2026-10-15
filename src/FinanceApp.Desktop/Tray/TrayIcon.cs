@@ -10,17 +10,20 @@ namespace FinanceApp.Desktop.Tray;
 internal sealed partial class TrayIcon : IDisposable
 {
     private readonly WinForms.NotifyIcon _icon;
+    private readonly WinForms.ToolStripMenuItem _quickEntryItem;
     private readonly Icon _image;
 
-    public TrayIcon(string hotKeyName, Action openQuickEntry, Action openDataFolder, Action exit)
+    public TrayIcon(Action openQuickEntry, Action openHotKeySettings, Action openDataFolder, Action exit)
     {
         _image = CreateIcon();
-        var menu = new WinForms.ContextMenuStrip();
-        menu.Items.Add(new WinForms.ToolStripMenuItem("Быстрый ввод", null, (_, _) => openQuickEntry())
+        _quickEntryItem = new WinForms.ToolStripMenuItem("Быстрый ввод", null, (_, _) => openQuickEntry())
         {
-            ShortcutKeyDisplayString = hotKeyName,
             Font = new Font(WinForms.Control.DefaultFont, System.Drawing.FontStyle.Bold),
-        });
+        };
+
+        var menu = new WinForms.ContextMenuStrip();
+        menu.Items.Add(_quickEntryItem);
+        menu.Items.Add("Горячая клавиша…", null, (_, _) => openHotKeySettings());
         menu.Items.Add("Открыть папку с данными", null, (_, _) => openDataFolder());
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add("Выход", null, (_, _) => exit());
@@ -28,7 +31,7 @@ internal sealed partial class TrayIcon : IDisposable
         _icon = new WinForms.NotifyIcon
         {
             Icon = _image,
-            Text = $"FinanceApp — {hotKeyName}",
+            Text = "FinanceApp",
             ContextMenuStrip = menu,
             Visible = true,
         };
@@ -39,6 +42,15 @@ internal sealed partial class TrayIcon : IDisposable
                 openQuickEntry();
             }
         };
+    }
+
+    /// <summary>Shows the working hotkey in the menu and tooltip, or that there is none.</summary>
+    public void SetHotKey(string? hotKey)
+    {
+        _quickEntryItem.ShortcutKeyDisplayString = hotKey ?? string.Empty;
+        SetStatus(hotKey is null
+            ? "FinanceApp — горячая клавиша не работает, клик для ввода"
+            : $"FinanceApp — быстрый ввод: {hotKey}");
     }
 
     /// <summary>Tooltip is limited to 127 characters by Windows.</summary>

@@ -1,7 +1,5 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
-using System.Windows.Input;
 using FinanceApp.Application.Export;
 using FinanceApp.Application.Settings;
 using FinanceApp.Desktop.Interop;
@@ -9,6 +7,7 @@ using FinanceApp.Desktop.Tray;
 using FinanceApp.Infrastructure;
 using FinanceApp.Infrastructure.Persistence;
 using FinanceApp.Presentation.QuickEntry;
+using FinanceApp.Presentation.Settings;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FinanceApp.Desktop;
@@ -19,14 +18,12 @@ namespace FinanceApp.Desktop;
 /// </summary>
 public partial class App
 {
-    public const ModifierKeys HotKeyModifiers = ModifierKeys.Control | ModifierKeys.Alt;
-    public const Key HotKeyKey = Key.M;
-
     private SingleInstance? _singleInstance;
     private ServiceProvider? _services;
-    private GlobalHotKey? _hotKey;
+    private HotKeyService? _hotKeys;
     private TrayIcon? _tray;
     private QuickEntryWindow? _quickEntry;
+    private HotKeyWindow? _hotKeyWindow;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -53,26 +50,34 @@ public partial class App
                 .AddSingleton<IQuickEntryBackend, ScopedQuickEntryBackend>()
                 .AddSingleton<QuickEntryViewModel>()
                 .AddSingleton<QuickEntryWindow>()
+                .AddSingleton<HotKeyService>()
+                .AddSingleton<IHotKeyRegistrar>(sp => sp.GetRequiredService<HotKeyService>())
+                .AddTransient<HotKeySettingsViewModel>()
                 .BuildServiceProvider(validateScopes: true);
 
+            var settings = _services.GetRequiredService<ISettingsStore>();
             await using (var scope = _services.CreateAsyncScope())
             {
-                var settings = _services.GetRequiredService<ISettingsStore>().Load();
-                await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync(settings.BaseCurrency);
+                await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync(settings.Load().BaseCurrency);
             }
 
             _quickEntry = _services.GetRequiredService<QuickEntryWindow>();
-            var viewModel = _services.GetRequiredService<QuickEntryViewModel>();
-            viewModel.Saved += (_, saved) => _tray?.SetStatus(
-                "Сохранено: " + QuickEntryFormatter.Saved(saved, _services.GetRequiredService<ISettingsStore>().Load().BaseCurrency));
+            _services.GetRequiredService<QuickEntryViewModel>().Saved += (_, saved) =>
+                _tray?.SetStatus("Сохранено: " + QuickEntryFormatter.Saved(saved, settings.Load().BaseCurrency));
 
-            var hotKeyName = RegisterHotKey();
-            _tray = new TrayIcon(hotKeyName, OpenQuickEntry, () => OpenDataFolder(paths), Shutdown);
+            _tray = new TrayIcon(OpenQuickEntry, () => OpenHotKeySettings(null), () => OpenDataFolder(paths), Shutdown);
             WatchCsvExport();
 
-            if (_hotKey is null)
+            _hotKeys = _services.GetRequiredService<HotKeyService>();
+            _hotKeys.Pressed += (_, _) => OpenQuickEntry();
+            _hotKeys.Changed += (_, _) => _tray.SetHotKey(_hotKeys.Current?.ToString());
+
+            var startupError = RegisterHotKeyFromSettings(settings.Load());
+            _tray.SetHotKey(_hotKeys.Current?.ToString());
+            if (startupError is not null)
             {
-                _tray.Notify("Горячая клавиша занята", $"{hotKeyName} уже использует другое приложение. Быстрый ввод — по клику на значок в трее.", isWarning: true);
+                // Without a hotkey the app is easy to lose in the tray: ask for another combination right away.
+                OpenHotKeySettings(startupError);
             }
         }
 #pragma warning disable CA1031 // Startup failure: tell the user and quit instead of crashing silently.
@@ -86,30 +91,48 @@ public partial class App
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _hotKey?.Dispose();
         _tray?.Dispose();
 
-        // Flushes a pending CSV export before the process ends.
+        // Disposes the hotkey and flushes a pending CSV export before the process ends.
         _services?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         _singleInstance?.Dispose();
         base.OnExit(e);
     }
 
-    private string RegisterHotKey()
+    /// <returns>Why the configured hotkey does not work, or <c>null</c> if it was registered.</returns>
+    private string? RegisterHotKeyFromSettings(AppSettings settings)
     {
-        try
+        if (!HotKeyGesture.TryParse(settings.QuickEntryHotKey, out var gesture))
         {
-            _hotKey = GlobalHotKey.Register(HotKeyModifiers, HotKeyKey);
-            _hotKey.Pressed += (_, _) => OpenQuickEntry();
-            return _hotKey.DisplayName;
+            HotKeyGesture.TryParse(AppSettings.DefaultQuickEntryHotKey, out gesture);
         }
-        catch (Win32Exception)
+
+        return _hotKeys!.TryRegister(gesture!, out var error) ? null : error;
+    }
+
+    private void OpenQuickEntry()
+    {
+        if (_hotKeyWindow is null)
         {
-            return "Ctrl+Alt+M";
+            _quickEntry?.ShowAndFocus();
         }
     }
 
-    private void OpenQuickEntry() => _quickEntry?.ShowAndFocus();
+    private void OpenHotKeySettings(string? startupError)
+    {
+        if (_hotKeyWindow is not null)
+        {
+            _hotKeyWindow.Activate();
+            return;
+        }
+
+        _quickEntry?.Hide();
+        _hotKeyWindow = new HotKeyWindow(
+            _services!.GetRequiredService<HotKeySettingsViewModel>(), _hotKeys!, startupError);
+        _hotKeyWindow.Closed += (_, _) => _hotKeyWindow = null;
+        _hotKeyWindow.Show();
+        _hotKeyWindow.Activate();
+    }
 
     private void WatchCsvExport()
     {
