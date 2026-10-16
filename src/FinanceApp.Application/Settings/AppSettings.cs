@@ -17,6 +17,21 @@ public sealed record AppSettings
 
     /// <summary>Currency the «Всего» totals are shown in, at today's rate; <c>null</c> — the base currency.</summary>
     public CurrencyCode? TotalsCurrency { get; init; }
+
+    public BackupSettings Backups { get; init; } = new();
+}
+
+/// <summary>Daily copies of the database (ADR 0012). On by default: losing the only file loses everything.</summary>
+public sealed record BackupSettings
+{
+    public const int DefaultKeep = 14;
+
+    public const int MaxKeep = 365;
+
+    public bool Enabled { get; init; } = true;
+
+    /// <summary>How many latest copies to keep; older ones are deleted.</summary>
+    public int Keep { get; init; } = DefaultKeep;
 }
 
 /// <summary>Optional CSV export (e.g. for the Obsidian «Финансы» page, ADR 0004). Off by default.</summary>

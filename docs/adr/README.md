@@ -15,3 +15,4 @@ Short records of decisions that are expensive to reverse. Format: context → de
 | [0009](0009-quick-entry-syntax.md) | Quick-entry syntax | Accepted |
 | [0010](0010-accounts-envelopes-transfers.md) | Accounts, envelopes and transfers | Accepted |
 | [0011](0011-csv-export-v2.md) | CSV export v2: transfers and an accounts file | Accepted |
+| [0012](0012-database-backups.md) | Daily database backups with `VACUUM INTO` | Accepted |
