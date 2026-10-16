@@ -8,7 +8,7 @@
 
 A Windows desktop app for personal finance tracking, built around one idea: **recording a transaction should take five seconds.** A global hotkey opens a one-line entry box; a banking-style main window keeps accounts, envelopes for savings goals, transfers and summaries for any period.
 
-> **Status:** milestones 1–2 of 4 are done and the main window (milestone 3) is in progress — 344 automated tests. See the [roadmap](#roadmap).
+> **Status:** milestones 1–3 of 4 are done, polish (milestone 4) is in progress — 378 automated tests. See the [roadmap](#roadmap).
 
 ## Features
 
@@ -17,6 +17,7 @@ A Windows desktop app for personal finance tracking, built around one idea: **re
 - **Main window.** Accounts and envelopes with balances on the left, operations grouped by day on the right; forms with category tiles instead of syntax; totals in a currency of your choice, split into accounts and savings; your own categories.
 - **Multi-currency accounts.** Each account has a currency; amounts are converted to a base currency at the Central Bank of Russia rate **fixed on the transaction date**, so past months never drift.
 - **Offline first.** Local SQLite database; exchange rates are cached and the latest known rate is used (and flagged) when there is no network.
+- **Daily backups.** A consistent copy of the database is made once a day on start; the latest 14 are kept ([ADR 0012](docs/adr/0012-database-backups.md)).
 - **Summaries for any period.** Week, month, quarter, year, a custom range or all time: income, expenses, money put into envelopes, balance, a month chart, expenses by category and comparison with the previous period.
 - **Transfers between currencies.** Enter what was sent and either what arrived or the rate; the result is shown before saving.
 - **Open data.** Optional CSV export rewritten atomically after every change — readable by spreadsheets and note-taking apps such as Obsidian.
@@ -81,9 +82,13 @@ dotnet run --project src/FinanceApp.Desktop -- --main
 dotnet run --project src/FinanceApp.Cli -- --help
 ```
 
-Or double-click `run-app.cmd` in the repository root. `--main` opens the main window at once; without it the desktop app starts in the tray: press the hotkey (Ctrl+Alt+M) or click the tray icon to enter a transaction. If the hotkey is taken by another program, the app asks for another combination; it can be changed later from the tray menu.
+Or double-click `run-app.cmd` in the repository root. `--main` opens the main window at once; without it the desktop app starts in the tray: press the hotkey (Ctrl+Alt+M) or click the tray icon to enter a transaction. If the hotkey is taken by another program, the app asks for another combination; it can be changed later in the settings (tray menu → «Настройки…», or ⚙ in the main window), together with start with Windows, the CSV export file and backups.
 
-Data is stored in `%LocalAppData%\FinanceApp` (`finance.db`, `settings.json`). Override it with `--data-dir <path>` or the `FINANCEAPP_DATA_DIR` environment variable.
+Data is stored in `%LocalAppData%\FinanceApp` (`finance.db`, `settings.json`, `backups\`). Override it with `--data-dir <path>` or the `FINANCEAPP_DATA_DIR` environment variable.
+
+### Install
+
+`install.cmd` builds a single self-contained `FinanceApp.exe` (about 70 MB, no .NET needed to run it) and installs it for the current user into `%LocalAppData%\Programs\FinanceApp` with a Start menu shortcut — no admin rights. A running copy is closed first (`FinanceApp.exe --exit`). `install.cmd -Uninstall` removes the program and its autostart entry; the data stays. `publish.cmd` only builds the exe into `artifacts\FinanceApp` for a portable copy.
 
 ### CLI examples
 
@@ -112,7 +117,7 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 
 ## Testing
 
-344 tests on xUnit v3 and Microsoft Testing Platform:
+378 tests on xUnit v3 and Microsoft Testing Platform:
 
 - **Core tests** — domain invariants, the quick-entry parser (amounts, prefixes, dates, accounts, ambiguities), category hints, CSV writer/reader (byte-level checks for BOM, quoting and culture independence), summaries, exchange-rate fallback logic, export coordinator (debounce, retries, failure status), view models of the main window (operations, forms, summaries, categories, totals currency), the quick-entry and hotkey windows.
 - **Infrastructure tests** — run against a real SQLite file and the real file system: migrations and seeding, decimal/date round-trips, atomic replace with a locked target, CBR parsing with a fake HTTP handler, end-to-end add → edit → delete → CSV, import idempotency and export → import round-trip.
@@ -123,8 +128,8 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 |---|---|:-:|
 | 1. Core | Domain, SQLite, exchange rates, CSV export/import, CLI, tests | ✅ |
 | 2. Quick entry | Tray icon, global hotkey, one-line entry window, input parser | ✅ |
-| 3. Main window | Accounts, envelopes, transfers, operations, forms, summaries, categories | ⏳ |
-| 4. Polish | Catalog management, settings, autostart, backups, screenshots | |
+| 3. Main window | Accounts, envelopes, transfers, operations, forms, summaries, categories | ✅ |
+| 4. Polish | Settings window, autostart, backups, single-file build and install, app icon ✅; screenshots | ⏳ |
 
 Details: [product requirements](docs/requirements.md).
 

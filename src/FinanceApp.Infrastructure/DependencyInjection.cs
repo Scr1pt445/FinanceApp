@@ -1,5 +1,6 @@
 using FinanceApp.Application.Abstractions;
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.Backups;
 using FinanceApp.Application.Export;
 using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Import;
@@ -7,6 +8,7 @@ using FinanceApp.Application.QuickEntry;
 using FinanceApp.Application.Settings;
 using FinanceApp.Application.Summaries;
 using FinanceApp.Application.Transactions;
+using FinanceApp.Infrastructure.Backups;
 using FinanceApp.Infrastructure.ExchangeRates;
 using FinanceApp.Infrastructure.Files;
 using FinanceApp.Infrastructure.Persistence;
@@ -30,6 +32,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IFileWriter, AtomicFileWriter>();
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
+        services.AddSingleton<IDatabaseBackup, SqliteDatabaseBackup>();
 
         services.AddDbContext<FinanceDbContext>(options => options.UseSqlite(paths.ConnectionString));
         services.AddScoped<ITransactionRepository, EfTransactionRepository>();

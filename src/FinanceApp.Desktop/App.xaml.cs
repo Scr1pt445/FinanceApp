@@ -1,5 +1,6 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
+using FinanceApp.Application.Backups;
 using FinanceApp.Application.Export;
 using FinanceApp.Application.Settings;
 using FinanceApp.Desktop.Interop;
@@ -14,8 +15,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace FinanceApp.Desktop;
 
 /// <summary>
-/// Composition root of the desktop app. No main window yet (milestone 3): the app lives in the tray
-/// and opens the quick-entry window on the global hotkey.
+/// Composition root of the desktop app. The app lives in the tray: the global hotkey opens quick entry,
+/// the tray menu the main window and the settings.
 /// </summary>
 public partial class App
 {
@@ -26,6 +27,7 @@ public partial class App
     private QuickEntryWindow? _quickEntry;
     private MainWindow? _main;
     private HotKeyWindow? _hotKeyWindow;
+    private SettingsWindow? _settingsWindow;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -36,7 +38,24 @@ public partial class App
             MessageBox.Show(args.Exception.Message, "FinanceApp — ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
         };
 
-        _singleInstance = SingleInstance.TryAcquire(() => Dispatcher.BeginInvoke(OpenQuickEntry));
+        var request = e.Args.Contains("--exit", StringComparer.OrdinalIgnoreCase) ? InstanceRequest.Exit
+            : e.Args.Contains("--main", StringComparer.OrdinalIgnoreCase) ? InstanceRequest.Main
+            : InstanceRequest.QuickEntry;
+        _singleInstance = SingleInstance.TryAcquire(request, other => Dispatcher.BeginInvoke(() =>
+        {
+            switch (other)
+            {
+                case InstanceRequest.Exit:
+                    ExitApp();
+                    break;
+                case InstanceRequest.Main:
+                    OpenMain();
+                    break;
+                default:
+                    OpenQuickEntry();
+                    break;
+            }
+        }));
         if (_singleInstance is null)
         {
             Shutdown();
@@ -55,6 +74,9 @@ public partial class App
                 .AddSingleton<HotKeyService>()
                 .AddSingleton<IHotKeyRegistrar>(sp => sp.GetRequiredService<HotKeyService>())
                 .AddTransient<HotKeySettingsViewModel>()
+                .AddSingleton<ISettingsBackend, DesktopSettingsBackend>()
+                .AddSingleton<IAutostart, RegistryAutostart>()
+                .AddTransient<SettingsViewModel>()
                 .AddSingleton<IFinanceBackend, ScopedFinanceBackend>()
                 .AddSingleton<ShellViewModel>()
                 .AddSingleton<MainWindow>()
@@ -68,14 +90,16 @@ public partial class App
 
             _quickEntry = _services.GetRequiredService<QuickEntryWindow>();
             _main = _services.GetRequiredService<MainWindow>();
+            _main.SettingsRequested += (_, _) => OpenSettings();
             _services.GetRequiredService<QuickEntryViewModel>().Saved += (_, saved) =>
             {
                 _tray?.SetStatus("Сохранено: " + QuickEntryFormatter.Saved(saved, settings.Load().BaseCurrency));
                 _main.RefreshIfVisible();
             };
 
-            _tray = new TrayIcon(OpenMain, OpenQuickEntry, () => OpenHotKeySettings(null), () => OpenDataFolder(paths), ExitApp);
+            _tray = new TrayIcon(OpenMain, OpenQuickEntry, OpenSettings, () => OpenFolder(paths.DataDirectory), ExitApp);
             WatchCsvExport();
+            _ = MakeDailyBackupAsync();
 
             _hotKeys = _services.GetRequiredService<HotKeyService>();
             _hotKeys.Pressed += (_, _) => OpenQuickEntry();
@@ -107,8 +131,14 @@ public partial class App
     {
         _tray?.Dispose();
 
-        // Disposes the hotkey and flushes a pending CSV export before the process ends.
-        _services?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        // The hotkey belongs to a window of this thread, so it is released here. Everything else is disposed off
+        // the UI thread: blocking it on async disposal deadlocks when a continuation wants to come back to it.
+        _hotKeys?.Dispose();
+        if (_services is { } services)
+        {
+            Task.Run(async () => await services.DisposeAsync()).Wait(TimeSpan.FromSeconds(10));
+        }
+
         _singleInstance?.Dispose();
         base.OnExit(e);
     }
@@ -160,7 +190,11 @@ public partial class App
         _quickEntry?.Hide();
         _hotKeyWindow = new HotKeyWindow(
             _services!.GetRequiredService<HotKeySettingsViewModel>(), _hotKeys!, startupError);
-        _hotKeyWindow.Closed += (_, _) => _hotKeyWindow = null;
+        _hotKeyWindow.Closed += (_, _) =>
+        {
+            _hotKeyWindow = null;
+            _settingsWindow?.ViewModel.RefreshHotKey();
+        };
         _hotKeyWindow.Show();
         _hotKeyWindow.Activate();
     }
@@ -177,6 +211,43 @@ public partial class App
         };
     }
 
-    private static void OpenDataFolder(FinancePaths paths) =>
-        Process.Start(new ProcessStartInfo(paths.DataDirectory) { UseShellExecute = true })?.Dispose();
+    private void OpenSettings()
+    {
+        if (_settingsWindow is not null)
+        {
+            if (_settingsWindow.WindowState == WindowState.Minimized)
+            {
+                _settingsWindow.WindowState = WindowState.Normal;
+            }
+
+            _settingsWindow.Activate();
+            return;
+        }
+
+        var viewModel = _services!.GetRequiredService<SettingsViewModel>();
+        viewModel.ChangeHotKeyRequested += (_, _) => OpenHotKeySettings(null);
+        viewModel.OpenFolderRequested += (_, folder) => OpenFolder(folder);
+        _settingsWindow = new SettingsWindow(viewModel);
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Show();
+        _settingsWindow.Activate();
+    }
+
+    /// <summary>Today's copy of the database (ADR 0012), in the background: startup does not wait for it.</summary>
+    private async Task MakeDailyBackupAsync()
+    {
+        try
+        {
+            await _services!.GetRequiredService<IDatabaseBackup>().EnsureDailyAsync();
+        }
+#pragma warning disable CA1031 // A failed backup must not break the app; the user is told.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            _tray?.Notify("Резервная копия не сделана", ex.Message, isWarning: true);
+        }
+    }
+
+    private static void OpenFolder(string folder) =>
+        Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true })?.Dispose();
 }

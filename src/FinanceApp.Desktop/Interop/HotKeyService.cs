@@ -60,7 +60,12 @@ internal sealed class HotKeyService : IHotKeyRegistrar, IDisposable
         return true;
     }
 
-    public void Dispose() => _registration?.Dispose();
+    /// <summary>Idempotent: the app releases the hotkey on the UI thread before DI disposes the rest.</summary>
+    public void Dispose()
+    {
+        _registration?.Dispose();
+        _registration = null;
+    }
 
     private void OnPressed(object? sender, EventArgs e)
     {

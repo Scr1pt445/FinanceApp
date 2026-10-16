@@ -1,0 +1,174 @@
+<Window x:Class="FinanceApp.Desktop.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FinanceApp.Desktop"
+        xmlns:vm="clr-namespace:FinanceApp.Presentation.Settings;assembly=FinanceApp.Presentation"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance vm:SettingsViewModel}"
+        x:ClassModifier="internal"
+        Title="FinanceApp — настройки"
+        Width="620" Height="760" MinWidth="520" MinHeight="420"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}"
+        FontFamily="{StaticResource UiFont}" FontSize="13.5">
+  <Window.Resources>
+    <local:BoolToVisibilityConverter x:Key="Visible" />
+    <local:TextToVisibilityConverter x:Key="TextVisible" />
+
+    <Style TargetType="Button" BasedOn="{StaticResource FlatButton}" />
+    <Style TargetType="TextBox" BasedOn="{StaticResource DarkTextBox}" />
+
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="Caption" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style x:Key="Card" TargetType="Border">
+      <Setter Property="Padding" Value="18,16" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+    </Style>
+
+    <Style x:Key="CardTitle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,4" />
+    </Style>
+
+    <!-- A status line: orange when something failed. -->
+    <Style x:Key="Status" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+      <Setter Property="Margin" Value="0,8,0,0" />
+      <Setter Property="FontSize" Value="12.5" />
+    </Style>
+  </Window.Resources>
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="22,20,22,10">
+      <TextBlock Text="Настройки" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+      <!-- Quick entry -->
+      <Border Style="{StaticResource Card}">
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Content="Изменить…" VerticalAlignment="Center" Command="{Binding ChangeHotKeyCommand}" />
+          <StackPanel>
+            <TextBlock Text="Быстрый ввод" Style="{StaticResource CardTitle}" />
+            <TextBlock Style="{StaticResource Caption}">
+              <Run Text="Горячая клавиша:" /> <Run Text="{Binding HotKeyText, Mode=OneWay}" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" />
+            </TextBlock>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+
+      <!-- Start with Windows -->
+      <Border Style="{StaticResource Card}">
+        <StackPanel>
+          <TextBlock Text="Запуск" Style="{StaticResource CardTitle}" />
+          <CheckBox Content="Запускать вместе с Windows" IsChecked="{Binding StartWithWindows}" Margin="0,6,0,0" />
+          <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0"
+                     Text="Приложение тихо стартует в трее — быстрый ввод сразу работает по горячей клавише." />
+        </StackPanel>
+      </Border>
+
+      <!-- CSV export -->
+      <Border Style="{StaticResource Card}">
+        <StackPanel>
+          <TextBlock Text="Экспорт в CSV" Style="{StaticResource CardTitle}" />
+          <TextBlock Style="{StaticResource Caption}"
+                     Text="Файл со всеми операциями переписывается после каждого изменения — его читают Obsidian, Excel и другие программы. Рядом появится accounts.csv со счетами." />
+          <CheckBox Content="Вести файл" IsChecked="{Binding ExportEnabled}" Margin="0,10,0,0" />
+          <Grid Margin="0,8,0,0" Visibility="{Binding ExportEnabled, Converter={StaticResource Visible}}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox Text="{Binding ExportPath, UpdateSourceTrigger=PropertyChanged}" ToolTip="Полный путь к файлу .csv" />
+            <TextBlock Text="C:\Notes\Finance\transactions.csv" Foreground="{StaticResource MutedTextBrush}" FontSize="12.5"
+                       Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                       Visibility="{Binding ExportPath, Converter={StaticResource TextVisible}, ConverterParameter=invert}" />
+            <Button Grid.Column="1" Content="Обзор…" Margin="8,0,0,0" Click="OnBrowseExport" />
+            <Button Grid.Column="2" Content="Применить" Margin="8,0,0,0" Style="{StaticResource AccentButton}"
+                    Command="{Binding ApplyExportCommand}" IsEnabled="{Binding CanApplyExport}" />
+          </Grid>
+          <TextBlock Text="{Binding ExportProblem}" Foreground="{StaticResource WarningBrush}" FontSize="12.5" Margin="0,6,0,0" TextWrapping="Wrap"
+                     Visibility="{Binding ExportProblem, Converter={StaticResource TextVisible}}" />
+          <TextBlock Text="{Binding ExportStatusText}">
+            <TextBlock.Style>
+              <Style TargetType="TextBlock" BasedOn="{StaticResource Status}">
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding ExportFailed}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </TextBlock.Style>
+          </TextBlock>
+        </StackPanel>
+      </Border>
+
+      <!-- Backups -->
+      <Border Style="{StaticResource Card}">
+        <StackPanel>
+          <TextBlock Text="Резервные копии" Style="{StaticResource CardTitle}" />
+          <TextBlock Style="{StaticResource Caption}"
+                     Text="Копия базы делается раз в день при запуске. Чтобы вернуться к копии, закройте приложение и замените ею finance.db в папке с данными." />
+          <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <CheckBox Content="Делать копии, хранить последние" IsChecked="{Binding BackupsEnabled}" />
+            <TextBox Width="56" Margin="8,0,0,0" Padding="6,3" TextAlignment="Center" Text="{Binding KeepText, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <TextBlock Text="{Binding BackupStatus}" Visibility="{Binding BackupStatus, Converter={StaticResource TextVisible}}">
+            <TextBlock.Style>
+              <Style TargetType="TextBlock" BasedOn="{StaticResource Status}">
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding BackupFailed}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </TextBlock.Style>
+          </TextBlock>
+          <ItemsControl ItemsSource="{Binding Backups}" Margin="0,8,0,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="{x:Type vm:BackupRow}">
+                <DockPanel Margin="0,2">
+                  <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" Style="{StaticResource Caption}" />
+                  <TextBlock Text="{Binding Title}" />
+                </DockPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <Button Content="Сделать копию сейчас" Command="{Binding BackupNowCommand}" />
+            <Button Content="Открыть папку с копиями" Margin="8,0,0,0" Style="{StaticResource GhostButton}" Command="{Binding OpenBackupFolderCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Data -->
+      <Border Style="{StaticResource Card}">
+        <StackPanel>
+          <TextBlock Text="Данные" Style="{StaticResource CardTitle}" />
+          <TextBlock Style="{StaticResource Caption}">
+            <Run Text="Папка:" /> <Run Text="{Binding DataDirectory, Mode=OneWay}" Foreground="{StaticResource TextBrush}" />
+          </TextBlock>
+          <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0">
+            <Run Text="Базовая валюта:" /> <Run Text="{Binding BaseCurrencyText, Mode=OneWay}" Foreground="{StaticResource TextBrush}" />
+            <Run Text="— задаётся при создании базы: курсы всех операций записаны к ней. Валюту итогов можно выбрать в главном окне." />
+          </TextBlock>
+          <Button Content="Открыть папку с данными" HorizontalAlignment="Left" Margin="0,10,0,0" Style="{StaticResource GhostButton}"
+                  Command="{Binding OpenDataFolderCommand}" />
+          <TextBlock Text="{Binding VersionText}" Style="{StaticResource Caption}" Margin="0,12,0,0" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

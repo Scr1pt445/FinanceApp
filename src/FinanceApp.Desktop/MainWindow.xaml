@@ -361,7 +361,10 @@
     <!-- ===== Sidebar ===== -->
     <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" Padding="14,18">
       <DockPanel>
-        <CheckBox DockPanel.Dock="Bottom" Content="Показать скрытые" IsChecked="{Binding ShowHidden}" Foreground="{StaticResource MutedTextBrush}" Margin="4,10,0,0" />
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0" LastChildFill="False">
+          <Button DockPanel.Dock="Right" Content="⚙  Настройки" Padding="8,4" Style="{StaticResource GhostButton}" Click="OnSettingsClick" />
+          <CheckBox DockPanel.Dock="Left" Content="Показать скрытые" IsChecked="{Binding ShowHidden}" Foreground="{StaticResource MutedTextBrush}" Margin="4,0,0,0" VerticalAlignment="Center" />
+        </DockPanel>
 
         <StackPanel DockPanel.Dock="Top">
           <Border Padding="14,12" CornerRadius="10" Background="{StaticResource ControlBrush}">
