@@ -1,13 +1,10 @@
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Text;
-using System.Runtime.InteropServices;
 using WinForms = System.Windows.Forms;
 
 namespace FinanceApp.Desktop.Tray;
 
 /// <summary>The app lives here: quick entry on click, a small menu, unobtrusive notifications.</summary>
-internal sealed partial class TrayIcon : IDisposable
+internal sealed class TrayIcon : IDisposable
 {
     private readonly WinForms.NotifyIcon _icon;
     private readonly WinForms.ToolStripMenuItem _quickEntryItem;
@@ -69,42 +66,12 @@ internal sealed partial class TrayIcon : IDisposable
         _image.Dispose();
     }
 
-    /// <summary>A purple rounded square with «₽» — drawn at runtime, no binary assets needed.</summary>
+    /// <summary>The app icon (Assets\FinanceApp.ico) at the tray size for the current DPI.</summary>
     private static Icon CreateIcon()
     {
-        const int size = 32;
-        using var bitmap = new Bitmap(size, size);
-        using (var graphics = Graphics.FromImage(bitmap))
-        {
-            graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            using var path = new GraphicsPath();
-            const int radius = 8;
-            path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
-            path.AddArc(size - radius * 2 - 1, 0, radius * 2, radius * 2, 270, 90);
-            path.AddArc(size - radius * 2 - 1, size - radius * 2 - 1, radius * 2, radius * 2, 0, 90);
-            path.AddArc(0, size - radius * 2 - 1, radius * 2, radius * 2, 90, 90);
-            path.CloseFigure();
-            using var fill = new SolidBrush(Color.FromArgb(0x94, 0x46, 0xF8));
-            graphics.FillPath(fill, path);
-            using var font = new Font("Segoe UI", 18, System.Drawing.FontStyle.Bold, GraphicsUnit.Pixel);
-            using var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-            graphics.DrawString("₽", font, Brushes.White, new RectangleF(0, 1, size, size), format);
-        }
-
-        var handle = bitmap.GetHicon();
-        try
-        {
-            using var temporary = Icon.FromHandle(handle);
-            return (Icon)temporary.Clone();
-        }
-        finally
-        {
-            DestroyIcon(handle);
-        }
+        var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Assets/FinanceApp.ico"))
+            ?? throw new InvalidOperationException("Значок приложения не найден.");
+        using var stream = resource.Stream;
+        return new Icon(stream, WinForms.SystemInformation.SmallIconSize);
     }
-
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool DestroyIcon(IntPtr handle);
 }

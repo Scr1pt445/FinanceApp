@@ -41,6 +41,7 @@ public class SettingsViewModelTests
         viewModel.BackupsEnabled.ShouldBeTrue();
         viewModel.KeepText.ShouldBe("14");
         viewModel.BaseCurrencyText.ShouldBe("RUB");
+        viewModel.VersionText.ShouldBe("FinanceApp 0.4.0");
         viewModel.Backups.Select(b => (b.Title, b.SizeText)).ShouldBe([("Сегодня, 09:30", "1,2 МБ"), ("15 октября 2026, 09:00", "2 КБ")]);
         _backend.Saves.ShouldBe(0); // loading changes nothing
         _autostart.Changes.ShouldBe(0);
@@ -177,6 +178,8 @@ public class SettingsViewModelTests
         public CsvExportStatus ExportResult { get; set; } = new(CsvExportState.Succeeded, new DateTime(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc), 13);
 
         public string DataDirectory => @"C:\data";
+
+        public string Version => "0.4.0";
 
         public CsvExportStatus ExportStatus => CsvExportStatus.Idle;
 

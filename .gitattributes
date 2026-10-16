@@ -1,7 +1,9 @@
 * text=auto eol=lf
 *.sln text eol=crlf
 *.cmd text eol=crlf
+*.ps1 text eol=crlf
 *.png binary
+*.ico binary
 *.db binary
 
 # Test fixtures are compared byte-for-byte (BOM, line endings) — never normalize them.

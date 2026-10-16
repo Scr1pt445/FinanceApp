@@ -8,6 +8,9 @@ public interface ISettingsBackend
 {
     string DataDirectory { get; }
 
+    /// <summary>«0.4.0».</summary>
+    string Version { get; }
+
     AppSettings Load();
 
     Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default);

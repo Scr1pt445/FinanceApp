@@ -65,6 +65,8 @@ public sealed partial class SettingsViewModel(
 
     public string DataDirectory => backend.DataDirectory;
 
+    public string VersionText => $"FinanceApp {backend.Version}";
+
     public string BackupFolder => backups.Folder;
 
     [ObservableProperty]

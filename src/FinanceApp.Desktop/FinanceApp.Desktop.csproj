@@ -10,8 +10,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>FinanceApp</AssemblyName>
     <RootNamespace>FinanceApp.Desktop</RootNamespace>
-    <Description>Windows desktop app: tray icon, global hotkey and the quick-entry window.</Description>
+    <Description>Windows desktop app: tray icon, global hotkey, the main window and settings.</Description>
+    <ApplicationIcon>Assets\FinanceApp.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The same file is the exe icon (above), the window icon and the tray icon (loaded as a WPF resource). -->
+    <Resource Include="Assets\FinanceApp.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- WPF and WinForms share type names (Application, MessageBox…); keep WinForms explicit. -->

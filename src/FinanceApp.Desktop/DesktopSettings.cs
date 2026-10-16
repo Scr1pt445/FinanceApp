@@ -11,6 +11,9 @@ internal sealed class DesktopSettingsBackend(ISettingsStore store, CsvExportCoor
 {
     public string DataDirectory => paths.DataDirectory;
 
+    public string Version { get; } =
+        typeof(DesktopSettingsBackend).Assembly.GetName().Version is { } version ? version.ToString(3) : "?";
+
     public CsvExportStatus ExportStatus => export.Status;
 
     public AppSettings Load() => store.Load();
