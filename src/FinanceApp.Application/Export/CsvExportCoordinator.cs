@@ -95,7 +95,10 @@ public sealed class CsvExportCoordinator : IDataChangedListener, IAsyncDisposabl
         return ExportIfDirtyAsync(cancellationToken);
     }
 
-    /// <remarks>Idempotent: DI may dispose the same instance through several registrations.</remarks>
+    /// <remarks>
+    /// Idempotent: DI may dispose the same instance through several registrations. Never resumes on the
+    /// caller's context: the desktop app disposes on the UI thread and blocks it until disposal ends.
+    /// </remarks>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
@@ -104,10 +107,10 @@ public sealed class CsvExportCoordinator : IDataChangedListener, IAsyncDisposabl
         }
 
         _signals.Writer.TryComplete();
-        await _shutdown.CancelAsync();
+        await _shutdown.CancelAsync().ConfigureAwait(false);
         try
         {
-            await _loop;
+            await _loop.ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

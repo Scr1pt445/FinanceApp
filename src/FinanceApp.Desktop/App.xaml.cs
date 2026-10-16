@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
 using FinanceApp.Application.Backups;
 using FinanceApp.Application.Export;
@@ -38,7 +38,24 @@ public partial class App
             MessageBox.Show(args.Exception.Message, "FinanceApp — ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
         };
 
-        _singleInstance = SingleInstance.TryAcquire(() => Dispatcher.BeginInvoke(OpenQuickEntry));
+        var request = e.Args.Contains("--exit", StringComparer.OrdinalIgnoreCase) ? InstanceRequest.Exit
+            : e.Args.Contains("--main", StringComparer.OrdinalIgnoreCase) ? InstanceRequest.Main
+            : InstanceRequest.QuickEntry;
+        _singleInstance = SingleInstance.TryAcquire(request, other => Dispatcher.BeginInvoke(() =>
+        {
+            switch (other)
+            {
+                case InstanceRequest.Exit:
+                    ExitApp();
+                    break;
+                case InstanceRequest.Main:
+                    OpenMain();
+                    break;
+                default:
+                    OpenQuickEntry();
+                    break;
+            }
+        }));
         if (_singleInstance is null)
         {
             Shutdown();
@@ -114,8 +131,14 @@ public partial class App
     {
         _tray?.Dispose();
 
-        // Disposes the hotkey and flushes a pending CSV export before the process ends.
-        _services?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        // The hotkey belongs to a window of this thread, so it is released here. Everything else is disposed off
+        // the UI thread: blocking it on async disposal deadlocks when a continuation wants to come back to it.
+        _hotKeys?.Dispose();
+        if (_services is { } services)
+        {
+            Task.Run(async () => await services.DisposeAsync()).Wait(TimeSpan.FromSeconds(10));
+        }
+
         _singleInstance?.Dispose();
         base.OnExit(e);
     }
