@@ -84,7 +84,11 @@ dotnet run --project src/FinanceApp.Cli -- --help
 
 Or double-click `run-app.cmd` in the repository root. `--main` opens the main window at once; without it the desktop app starts in the tray: press the hotkey (Ctrl+Alt+M) or click the tray icon to enter a transaction. If the hotkey is taken by another program, the app asks for another combination; it can be changed later in the settings (tray menu → «Настройки…», or ⚙ in the main window), together with start with Windows, the CSV export file and backups.
 
-Data is stored in `%LocalAppData%\FinanceApp` (`finance.db`, `settings.json`). Override it with `--data-dir <path>` or the `FINANCEAPP_DATA_DIR` environment variable.
+Data is stored in `%LocalAppData%\FinanceApp` (`finance.db`, `settings.json`, `backups\`). Override it with `--data-dir <path>` or the `FINANCEAPP_DATA_DIR` environment variable.
+
+### Install
+
+`install.cmd` builds a single self-contained `FinanceApp.exe` (about 70 MB, no .NET needed to run it) and installs it for the current user into `%LocalAppData%\Programs\FinanceApp` with a Start menu shortcut — no admin rights. A running copy is closed first (`FinanceApp.exe --exit`). `install.cmd -Uninstall` removes the program and its autostart entry; the data stays. `publish.cmd` only builds the exe into `artifacts\FinanceApp` for a portable copy.
 
 ### CLI examples
 
@@ -125,7 +129,7 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 | 1. Core | Domain, SQLite, exchange rates, CSV export/import, CLI, tests | ✅ |
 | 2. Quick entry | Tray icon, global hotkey, one-line entry window, input parser | ✅ |
 | 3. Main window | Accounts, envelopes, transfers, operations, forms, summaries, categories | ✅ |
-| 4. Polish | Settings window, autostart, backups ✅; single-file build, screenshots | ⏳ |
+| 4. Polish | Settings window, autostart, backups, single-file build and install ✅; app icon, screenshots | ⏳ |
 
 Details: [product requirements](docs/requirements.md).
 
