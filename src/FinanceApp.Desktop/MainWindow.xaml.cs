@@ -28,6 +28,11 @@ internal sealed partial class MainWindow : Window
 
     public bool IsExiting { get; set; }
 
+    /// <summary>«Настройки» in the sidebar; the app opens the settings window.</summary>
+    public event EventHandler? SettingsRequested;
+
+    private void OnSettingsClick(object sender, RoutedEventArgs e) => SettingsRequested?.Invoke(this, EventArgs.Empty);
+
     public async void ShowAndRefresh()
     {
         if (WindowState == WindowState.Minimized)

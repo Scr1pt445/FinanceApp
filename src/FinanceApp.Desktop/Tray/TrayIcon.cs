@@ -13,7 +13,7 @@ internal sealed partial class TrayIcon : IDisposable
     private readonly WinForms.ToolStripMenuItem _quickEntryItem;
     private readonly Icon _image;
 
-    public TrayIcon(Action openMain, Action openQuickEntry, Action openHotKeySettings, Action openDataFolder, Action exit)
+    public TrayIcon(Action openMain, Action openQuickEntry, Action openSettings, Action openDataFolder, Action exit)
     {
         _image = CreateIcon();
         _quickEntryItem = new WinForms.ToolStripMenuItem("Быстрый ввод", null, (_, _) => openQuickEntry());
@@ -24,7 +24,7 @@ internal sealed partial class TrayIcon : IDisposable
             Font = new Font(WinForms.Control.DefaultFont, System.Drawing.FontStyle.Bold),
         });
         menu.Items.Add(_quickEntryItem);
-        menu.Items.Add("Горячая клавиша…", null, (_, _) => openHotKeySettings());
+        menu.Items.Add("Настройки…", null, (_, _) => openSettings());
         menu.Items.Add("Открыть папку с данными", null, (_, _) => openDataFolder());
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add("Выход", null, (_, _) => exit());
