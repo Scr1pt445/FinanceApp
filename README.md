@@ -129,7 +129,7 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 | 1. Core | Domain, SQLite, exchange rates, CSV export/import, CLI, tests | ✅ |
 | 2. Quick entry | Tray icon, global hotkey, one-line entry window, input parser | ✅ |
 | 3. Main window | Accounts, envelopes, transfers, operations, forms, summaries, categories | ✅ |
-| 4. Polish | Settings window, autostart, backups, single-file build and install ✅; app icon, screenshots | ⏳ |
+| 4. Polish | Settings window, autostart, backups, single-file build and install, app icon ✅; screenshots | ⏳ |
 
 Details: [product requirements](docs/requirements.md).
 
