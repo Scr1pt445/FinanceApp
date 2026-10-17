@@ -8,7 +8,7 @@
 
 A Windows desktop app for personal finance tracking, built around one idea: **recording a transaction should take five seconds.** A global hotkey opens a one-line entry box; a banking-style main window keeps accounts, envelopes for savings goals, transfers and summaries for any period.
 
-> **Status:** milestones 1–3 of 4 are done, polish (milestone 4) is in progress — 378 automated tests. See the [roadmap](#roadmap).
+> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 378 automated tests. Next: a standalone Android app. See the [roadmap](#roadmap).
 
 ## Features
 
@@ -130,6 +130,7 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 | 2. Quick entry | Tray icon, global hotkey, one-line entry window, input parser | ✅ |
 | 3. Main window | Accounts, envelopes, transfers, operations, forms, summaries, categories | ✅ |
 | 4. Polish | Settings window, autostart, backups, single-file build and install, app icon ✅; screenshots | ⏳ |
+| 5. Android | Standalone phone app on .NET MAUI with its own database, sharing the core — [ADR 0013](docs/adr/0013-android-app.md) | 📋 |
 
 Details: [product requirements](docs/requirements.md).
 
