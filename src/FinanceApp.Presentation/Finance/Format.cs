@@ -81,6 +81,20 @@ public static class Format
 
     public static string DateText(DateOnly date) => date.ToString("dd.MM.yyyy", Russian);
 
+    /// <summary>«строка», «строки», «строк» — for «Записано 13 строк».</summary>
+    public static string Rows(int count) => (count % 10, count % 100) switch
+    {
+        (1, not 11) => "строка",
+        (2 or 3 or 4, < 12 or > 14) => "строки",
+        _ => "строк",
+    };
+
+    /// <summary>«1,2 МБ», «2 КБ».</summary>
+    public static string FileSize(long bytes) =>
+        bytes >= 1024 * 1024
+            ? (bytes / 1024d / 1024d).ToString("0.0", Russian) + " МБ"
+            : Math.Max(1, bytes / 1024).ToString(Russian) + " КБ";
+
     private static string Capitalize(string text) =>
         text.Length == 0 ? text : char.ToUpper(text[0], Russian) + text[1..];
 }

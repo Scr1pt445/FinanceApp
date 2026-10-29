@@ -10,7 +10,15 @@ using FinanceApp.Presentation.Finance;
 namespace FinanceApp.Presentation.Settings;
 
 /// <summary>A copy in the «Резервные копии» list: «16 октября 2026, 09:30 · 1,2 МБ».</summary>
-public sealed record BackupRow(string Title, string SizeText, string Path);
+public sealed record BackupRow(string Title, string SizeText, string Path)
+{
+    public static BackupRow From(BackupInfo copy, DateTime today)
+    {
+        ArgumentNullException.ThrowIfNull(copy);
+        var day = copy.CreatedLocal.Date == today ? "Сегодня" : copy.CreatedLocal.ToString("d MMMM yyyy", Format.Russian);
+        return new BackupRow($"{day}, {copy.CreatedLocal.ToString("HH:mm", Format.Russian)}", Format.FileSize(copy.SizeBytes), copy.Path);
+    }
+}
 
 /// <summary>
 /// «Настройки»: quick-entry hotkey, start with Windows, CSV export for Obsidian or spreadsheets, database
@@ -242,7 +250,7 @@ public sealed partial class SettingsViewModel(
             : status.State switch
             {
                 CsvExportState.Succeeded =>
-                    $"Записано {status.Rows} {Rows(status.Rows)} в {status.LastSuccessUtc!.Value.ToLocalTime().ToString("HH:mm", Format.Russian)}; файл обновляется после каждого изменения.",
+                    $"Записано {status.Rows} {Format.Rows(status.Rows)} в {status.LastSuccessUtc!.Value.ToLocalTime().ToString("HH:mm", Format.Russian)}; файл обновляется после каждого изменения.",
                 CsvExportState.Failed => status.Error ?? "Не удалось записать файл.",
                 _ => "Файл обновляется после каждого изменения.",
             };
@@ -254,8 +262,7 @@ public sealed partial class SettingsViewModel(
         var today = timeProvider.GetLocalNow().Date;
         foreach (var copy in backups.List())
         {
-            var day = copy.CreatedLocal.Date == today ? "Сегодня" : copy.CreatedLocal.ToString("d MMMM yyyy", Format.Russian);
-            Backups.Add(new BackupRow($"{day}, {copy.CreatedLocal.ToString("HH:mm", Format.Russian)}", Size(copy.SizeBytes), copy.Path));
+            Backups.Add(BackupRow.From(copy, today));
         }
 
         if (!BackupFailed && BackupStatus.Length == 0)
@@ -270,15 +277,4 @@ public sealed partial class SettingsViewModel(
         return Path.IsPathFullyQualified(trimmed) && trimmed.IndexOfAny(Path.GetInvalidPathChars()) < 0;
     }
 
-    private static string Rows(int count) => (count % 10, count % 100) switch
-    {
-        (1, not 11) => "строка",
-        (2 or 3 or 4, < 12 or > 14) => "строки",
-        _ => "строк",
-    };
-
-    private static string Size(long bytes) =>
-        bytes >= 1024 * 1024
-            ? (bytes / 1024d / 1024d).ToString("0.0", Format.Russian) + " МБ"
-            : Math.Max(1, bytes / 1024).ToString(Format.Russian) + " КБ";
 }
