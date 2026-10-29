@@ -15,6 +15,13 @@ public static class MauiProgram
         var paths = new FinancePaths(FileSystem.AppDataDirectory);
         paths.EnsureDataDirectory();
 
+        if (CrashReport.TakeLast() is { } report)
+        {
+            var crashBuilder = MauiApp.CreateBuilder();
+            crashBuilder.UseMauiApp(_ => new CrashApp(report));
+            return crashBuilder.Build();
+        }
+
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>();
         builder.Services
@@ -28,7 +35,7 @@ public static class MauiProgram
                 ReadyMessage = "Готово — сохранить",
             })
             .AddSingleton<HomeViewModel>()
-            .AddSingleton<HomePage>();
+            .AddTransient<HomePage>();
 
         return builder.Build();
     }
