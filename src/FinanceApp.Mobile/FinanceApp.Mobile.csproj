@@ -17,7 +17,7 @@
     <ApplicationId>io.github.scr1pt445.financeapp</ApplicationId>
     <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
     <!-- Android's integer version code; raise it with every APK that is handed out. -->
-    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationVersion>2</ApplicationVersion>
     <SupportedOSPlatformVersion Condition="'$(TargetFramework)' == 'net10.0-android'">21.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
