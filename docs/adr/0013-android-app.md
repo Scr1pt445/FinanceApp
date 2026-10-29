@@ -1,6 +1,6 @@
 # 0013. A standalone Android app on .NET MAUI
 
-Date: 2026-10-17 · Status: Proposed
+Date: 2026-10-17 · Status: Accepted (2026-10-29, once the first APK built)
 
 ## Context
 
@@ -20,12 +20,12 @@ The app is meant for other people too, so the phone version has to work on its o
 
 ## Plan
 
-| Step | Scope |
-|---|---|
-| 5.1 | MAUI project, the core running on Android: database, starter catalog, rates, the quick-entry line |
-| 5.2 | Accounts and envelopes, operations by day, forms for expense, income and transfer |
-| 5.3 | Summaries and insights, categories, settings, export and backups through sharing |
-| 5.4 | Icon, signed release APK, README with phone screenshots |
+| Step | Scope | Status |
+|---|---|:-:|
+| 5.1 | MAUI project, the core running on Android: database, starter catalog, rates, the quick-entry line | ✅ |
+| 5.2 | Accounts and envelopes, operations by day, forms for expense, income and transfer | |
+| 5.3 | Summaries and insights, categories, settings, export and backups through sharing | |
+| 5.4 | Icon, signed release APK, README with phone screenshots | |
 
 ## Consequences
 

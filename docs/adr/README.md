@@ -16,4 +16,4 @@ Short records of decisions that are expensive to reverse. Format: context → de
 | [0010](0010-accounts-envelopes-transfers.md) | Accounts, envelopes and transfers | Accepted |
 | [0011](0011-csv-export-v2.md) | CSV export v2: transfers and an accounts file | Accepted |
 | [0012](0012-database-backups.md) | Daily database backups with `VACUUM INTO` | Accepted |
-| [0013](0013-android-app.md) | A standalone Android app on .NET MAUI | Proposed |
+| [0013](0013-android-app.md) | A standalone Android app on .NET MAUI | Accepted |
