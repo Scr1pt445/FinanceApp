@@ -19,12 +19,12 @@ public partial class AccountsPage : ContentPage
     }
 
     /// <summary>An account or envelope opens its operations, where it can also be edited, filled or emptied.</summary>
-    private async void OnItemTapped(object? sender, TappedEventArgs e)
+    private void OnItemTapped(object? sender, TappedEventArgs e)
     {
         if ((sender as BindableObject)?.BindingContext is SidebarItem item)
         {
             _shell.Selected = item;
-            await Shell.Current.GoToAsync("//" + AppShell.OperationsRoute);
+            (Shell.Current as AppShell)?.Show(AppShell.OperationsRoute);
         }
     }
 }

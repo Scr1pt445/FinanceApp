@@ -51,6 +51,17 @@ public sealed class PagesTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Shell_SwitchesTabsByRoute()
+    {
+        var shell = _app.Get<AppShell>();
+
+        shell.Show(AppShell.OperationsRoute);
+
+        shell.Items[0].CurrentItem.ShouldBeSameAs(shell[AppShell.OperationsRoute]);
+        shell.Items[0].CurrentItem.CurrentItem.Content.ShouldBeOfType<OperationsPage>();
+    }
+
+    [Fact]
     public async Task Screens_ShowRealData_AfterQuickEntry()
     {
         _app.Get<AppShell>();
