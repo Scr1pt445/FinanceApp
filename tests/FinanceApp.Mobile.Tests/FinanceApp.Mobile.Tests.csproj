@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Needs the maui-android workload like the app itself, so it is not in FinanceApp.slnx; CI runs it in the
+       android job. It uses the app's plain net10.0 target: no device, no emulator. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FinanceApp.Mobile\FinanceApp.Mobile.csproj" />
+  </ItemGroup>
+
+</Project>

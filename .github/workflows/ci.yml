@@ -39,8 +39,12 @@ jobs:
 
       - name: Install the Android SDK packages the project needs
         run: >
-          dotnet build src/FinanceApp.Mobile -t:InstallAndroidDependencies
+          dotnet build src/FinanceApp.Mobile -t:InstallAndroidDependencies -f net10.0-android
           -p:AndroidSdkDirectory="$ANDROID_HOME" -p:AcceptAndroidSDKLicenses=True
+
+      # Every screen is built off the phone, under the app's theme, on a real database.
+      - name: Test the screens
+        run: dotnet test --project tests/FinanceApp.Mobile.Tests
 
       - name: Build the debug APK
         run: tools/build-android.sh
