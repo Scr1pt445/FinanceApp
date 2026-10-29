@@ -23,3 +23,29 @@ jobs:
 
       - name: Test
         run: dotnet test --no-build --configuration Release
+
+  # The Android app (ADR 0013) builds on its own: the desktop job needs neither the MAUI workload nor an Android SDK.
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install the MAUI Android workload
+        run: dotnet workload install maui-android
+
+      - name: Install the Android SDK packages the project needs
+        run: >
+          dotnet build src/FinanceApp.Mobile -t:InstallAndroidDependencies
+          -p:AndroidSdkDirectory="$ANDROID_HOME" -p:AcceptAndroidSDKLicenses=True
+
+      - name: Build the debug APK
+        run: tools/build-android.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FinanceApp-debug-apk
+          path: artifacts/android/FinanceApp-debug.apk

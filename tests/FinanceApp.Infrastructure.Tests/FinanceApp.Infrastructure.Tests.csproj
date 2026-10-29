@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FinanceApp.Infrastructure\FinanceApp.Infrastructure.csproj" />
+    <!-- The scoped backends of the front ends, run against the real service graph. -->
+    <ProjectReference Include="..\..\src\FinanceApp.Presentation\FinanceApp.Presentation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

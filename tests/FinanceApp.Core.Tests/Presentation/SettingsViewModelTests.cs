@@ -15,6 +15,9 @@ public class SettingsViewModelTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    /// <summary>A fully qualified path on the OS running the tests: the view model checks paths with <see cref="Path"/>.</summary>
+    private static string At(params string[] parts) => Path.Combine([OperatingSystem.IsWindows() ? @"C:\" : "/", .. parts]);
+
     private SettingsViewModel Open()
     {
         _time.SetLocalTimeZone(TimeZoneInfo.Utc);
@@ -26,9 +29,9 @@ public class SettingsViewModelTests
     [Fact]
     public void Load_ShowsCurrentState()
     {
-        _backend.Settings = new AppSettings { CsvExport = new CsvExportSettings { Enabled = true, Path = @"C:\Notes\t.csv" } };
-        _backups.Copies.Add(new BackupInfo(@"C:\data\backups\finance-2026-10-16_093000.db", new DateTime(2026, 10, 16, 9, 30, 0), 1_258_291));
-        _backups.Copies.Add(new BackupInfo(@"C:\data\backups\finance-2026-10-15_090000.db", new DateTime(2026, 10, 15, 9, 0, 0), 2_048));
+        _backend.Settings = new AppSettings { CsvExport = new CsvExportSettings { Enabled = true, Path = At("Notes", "t.csv") } };
+        _backups.Copies.Add(new BackupInfo(At("data", "backups", "finance-2026-10-16_093000.db"), new DateTime(2026, 10, 16, 9, 30, 0), 1_258_291));
+        _backups.Copies.Add(new BackupInfo(At("data", "backups", "finance-2026-10-15_090000.db"), new DateTime(2026, 10, 15, 9, 0, 0), 2_048));
         _autostart.IsEnabled = true;
 
         var viewModel = Open();
@@ -36,7 +39,7 @@ public class SettingsViewModelTests
         viewModel.HotKeyText.ShouldBe("Ctrl+Alt+M");
         viewModel.StartWithWindows.ShouldBeTrue();
         viewModel.ExportEnabled.ShouldBeTrue();
-        viewModel.ExportPath.ShouldBe(@"C:\Notes\t.csv");
+        viewModel.ExportPath.ShouldBe(At("Notes", "t.csv"));
         viewModel.ExportStatusText.ShouldBe("Файл обновляется после каждого изменения.");
         viewModel.BackupsEnabled.ShouldBeTrue();
         viewModel.KeepText.ShouldBe("14");
@@ -56,14 +59,14 @@ public class SettingsViewModelTests
 
         viewModel.ExportPath = "notes.csv";
         viewModel.ExportProblem!.ShouldContain("полный путь");
-        viewModel.ExportPath = @"C:\Notes\transactions.txt";
+        viewModel.ExportPath = At("Notes", "transactions.txt");
         viewModel.ExportProblem!.ShouldContain(".csv");
 
-        viewModel.ExportPath = @" C:\Notes\transactions.csv ";
+        viewModel.ExportPath = " " + At("Notes", "transactions.csv") + " ";
         viewModel.CanApplyExport.ShouldBeTrue();
         await viewModel.ApplyExportCommand.ExecuteAsync(null);
 
-        _backend.Settings.CsvExport.ShouldBe(new CsvExportSettings { Enabled = true, Path = @"C:\Notes\transactions.csv" });
+        _backend.Settings.CsvExport.ShouldBe(new CsvExportSettings { Enabled = true, Path = At("Notes", "transactions.csv") });
         _backend.Exports.ShouldBe(1);
         viewModel.ExportStatusText.ShouldStartWith("Записано 13 строк в ");
         viewModel.ExportFailed.ShouldBeFalse();
@@ -75,7 +78,7 @@ public class SettingsViewModelTests
         _backend.ExportResult = new CsvExportStatus(CsvExportState.Failed, Error: "Не удалось записать CSV: диск только для чтения");
         var viewModel = Open();
         viewModel.ExportEnabled = true;
-        viewModel.ExportPath = @"C:\Notes\t.csv";
+        viewModel.ExportPath = At("Notes", "t.csv");
 
         await viewModel.ApplyExportCommand.ExecuteAsync(null);
 
@@ -86,12 +89,12 @@ public class SettingsViewModelTests
     [Fact]
     public void TurningExportOff_AppliesAtOnce_KeepingThePath()
     {
-        _backend.Settings = new AppSettings { CsvExport = new CsvExportSettings { Enabled = true, Path = @"C:\Notes\t.csv" } };
+        _backend.Settings = new AppSettings { CsvExport = new CsvExportSettings { Enabled = true, Path = At("Notes", "t.csv") } };
         var viewModel = Open();
 
         viewModel.ExportEnabled = false;
 
-        _backend.Settings.CsvExport.ShouldBe(new CsvExportSettings { Enabled = false, Path = @"C:\Notes\t.csv" });
+        _backend.Settings.CsvExport.ShouldBe(new CsvExportSettings { Enabled = false, Path = At("Notes", "t.csv") });
         _backend.Exports.ShouldBe(0);
         viewModel.ExportStatusText.ShouldBe("Экспорт выключен.");
     }
@@ -177,7 +180,7 @@ public class SettingsViewModelTests
 
         public CsvExportStatus ExportResult { get; set; } = new(CsvExportState.Succeeded, new DateTime(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc), 13);
 
-        public string DataDirectory => @"C:\data";
+        public string DataDirectory => At("data");
 
         public string Version => "0.4.0";
 
@@ -216,7 +219,7 @@ public class SettingsViewModelTests
                 throw Failure;
             }
 
-            var copy = new BackupInfo(@"C:\data\backups\finance-2026-10-16_120000.db", new DateTime(2026, 10, 16, 12, 0, 0), 4096);
+            var copy = new BackupInfo(At("data", "backups", "finance-2026-10-16_120000.db"), new DateTime(2026, 10, 16, 12, 0, 0), 4096);
             Copies.Add(copy);
             return Task.FromResult(copy);
         }

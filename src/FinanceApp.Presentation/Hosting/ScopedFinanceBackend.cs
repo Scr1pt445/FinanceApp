@@ -6,10 +6,13 @@ using FinanceApp.Domain;
 using FinanceApp.Presentation.Finance;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace FinanceApp.Desktop;
+namespace FinanceApp.Presentation.Hosting;
 
-/// <summary>Each call is one unit of work: a fresh DI scope and database context.</summary>
-internal sealed class ScopedFinanceBackend(IServiceScopeFactory scopes) : IFinanceBackend
+/// <summary>
+/// Each call is one unit of work: a fresh DI scope and database context. Shared by the desktop and the
+/// Android app, whose view models live longer than any one database context should.
+/// </summary>
+public sealed class ScopedFinanceBackend(IServiceScopeFactory scopes) : IFinanceBackend
 {
     public Task<BalancesOverview> LoadBalancesAsync(bool includeHidden = false, CancellationToken cancellationToken = default) =>
         InScopeAsync<AccountBalancesService, BalancesOverview>(s => s.LoadAsync(includeHidden, cancellationToken));

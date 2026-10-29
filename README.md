@@ -1,14 +1,14 @@
 # FinanceApp
 
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
-![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D4)
+![Platform: Windows | Android](https://img.shields.io/badge/platform-Windows%20%7C%20Android-0078D4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 **English** | [Русский](README.ru.md)
 
 A Windows desktop app for personal finance tracking, built around one idea: **recording a transaction should take five seconds.** A global hotkey opens a one-line entry box; a banking-style main window keeps accounts, envelopes for savings goals, transfers and summaries for any period.
 
-> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 378 automated tests. Next: a standalone Android app. See the [roadmap](#roadmap).
+> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 384 automated tests. A standalone Android app is under way: the core and quick entry already run on the phone ([Android](#android)). See the [roadmap](#roadmap).
 
 ## Features
 
@@ -46,6 +46,8 @@ Clean architecture: dependencies point inwards, the core knows nothing about the
 flowchart LR
     Desktop["FinanceApp.Desktop<br/>WPF · tray · hotkey"] --> Presentation["FinanceApp.Presentation<br/>view models (MVVM)"]
     Desktop --> Infra
+    Mobile["FinanceApp.Mobile<br/>.NET MAUI · Android"] --> Presentation
+    Mobile --> Infra
     CLI["FinanceApp.Cli"] --> Infra["FinanceApp.Infrastructure<br/>EF Core · SQLite · CBR rates · files · DI"]
     Presentation --> App
     CLI --> App
@@ -60,6 +62,7 @@ flowchart LR
 | `FinanceApp.Infrastructure` | EF Core + SQLite repositories and migrations, CBR rate source with a local cache, atomic file writer, JSON settings, DI registration shared by all front ends. |
 | `FinanceApp.Presentation` | View models on CommunityToolkit.Mvvm with no WPF dependency — window behaviour is unit-tested. |
 | `FinanceApp.Desktop` | WPF tray app: global hotkey via `RegisterHotKey`, a pre-created quick-entry window (shown instantly), hotkey settings, single instance. |
+| `FinanceApp.Mobile` | Android app on .NET MAUI with its own database on the phone: the home screen with quick entry, the total and recent operations. Built on its own — it needs the MAUI workload. |
 | `FinanceApp.Cli` | `finance` command-line tool built on the same service graph as the desktop app. |
 
 ### Key design decisions
@@ -90,6 +93,24 @@ Data is stored in `%LocalAppData%\FinanceApp` (`finance.db`, `settings.json`, `b
 
 `install.cmd` builds a single self-contained `FinanceApp.exe` (about 70 MB, no .NET needed to run it) and installs it for the current user into `%LocalAppData%\Programs\FinanceApp` with a Start menu shortcut — no admin rights. A running copy is closed first (`FinanceApp.exe --exit`). `install.cmd -Uninstall` removes the program and its autostart entry; the data stays. `publish.cmd` only builds the exe into `artifacts\FinanceApp` for a portable copy.
 
+### Android
+
+The phone app (`src/FinanceApp.Mobile`, [ADR 0013](docs/adr/0013-android-app.md)) is not part of `FinanceApp.slnx` and builds on Windows, Linux or macOS. It needs the .NET 10 SDK, the MAUI Android workload, an Android SDK (platform 36 and build-tools) and JDK 17 or newer:
+
+```bash
+dotnet workload install maui-android
+```
+
+```bash
+dotnet build src/FinanceApp.Mobile -t:InstallAndroidDependencies -p:AndroidSdkDirectory=<sdk folder> -p:AcceptAndroidSDKLicenses=True
+```
+
+```bash
+tools/build-android.sh <sdk folder>
+```
+
+The second command downloads the Android SDK packages the project needs (skip it if Android Studio already installed them); on Windows run `tools\build-android.ps1 -AndroidSdk <sdk folder>` instead of the `.sh`. The result is `artifacts/android/FinanceApp-debug.apk`, signed with the local debug key: copy it to the phone and open it (allow installing apps from this source). The phone keeps its own database — it is not synced with the desktop app. So far the app has one screen: the quick-entry line with its live preview, the total balance and the last 30 days of operations.
+
 ### CLI examples
 
 ```bash
@@ -117,10 +138,10 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 
 ## Testing
 
-378 tests on xUnit v3 and Microsoft Testing Platform:
+384 tests on xUnit v3 and Microsoft Testing Platform (on Linux one Windows-only file-lock test is skipped):
 
-- **Core tests** — domain invariants, the quick-entry parser (amounts, prefixes, dates, accounts, ambiguities), category hints, CSV writer/reader (byte-level checks for BOM, quoting and culture independence), summaries, exchange-rate fallback logic, export coordinator (debounce, retries, failure status), view models of the main window (operations, forms, summaries, categories, totals currency), the quick-entry and hotkey windows.
-- **Infrastructure tests** — run against a real SQLite file and the real file system: migrations and seeding, decimal/date round-trips, atomic replace with a locked target, CBR parsing with a fake HTTP handler, end-to-end add → edit → delete → CSV, import idempotency and export → import round-trip.
+- **Core tests** — domain invariants, the quick-entry parser (amounts, prefixes, dates, accounts, ambiguities), category hints, CSV writer/reader (byte-level checks for BOM, quoting and culture independence), summaries, exchange-rate fallback logic, export coordinator (debounce, retries, failure status), view models of the main window (operations, forms, summaries, categories, totals currency), the quick-entry and hotkey windows and the phone's home screen.
+- **Infrastructure tests** — run against a real SQLite file and the real file system: migrations and seeding, decimal/date round-trips, atomic replace with a locked target, CBR parsing with a fake HTTP handler, end-to-end add → edit → delete → CSV, import idempotency and export → import round-trip, the phone's home screen through the shared scoped backends.
 
 ## Roadmap
 
@@ -130,7 +151,7 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 | 2. Quick entry | Tray icon, global hotkey, one-line entry window, input parser | ✅ |
 | 3. Main window | Accounts, envelopes, transfers, operations, forms, summaries, categories | ✅ |
 | 4. Polish | Settings window, autostart, backups, single-file build and install, app icon ✅; screenshots | ⏳ |
-| 5. Android | Standalone phone app on .NET MAUI with its own database, sharing the core — [ADR 0013](docs/adr/0013-android-app.md) | 📋 |
+| 5. Android | Standalone phone app on .NET MAUI with its own database, sharing the core — [ADR 0013](docs/adr/0013-android-app.md). 5.1 the core and quick entry on the phone ✅; accounts and operations, summaries and settings, release APK | ⏳ |
 
 Details: [product requirements](docs/requirements.md).
 

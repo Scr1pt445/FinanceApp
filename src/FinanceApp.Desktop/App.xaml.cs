@@ -8,6 +8,7 @@ using FinanceApp.Desktop.Tray;
 using FinanceApp.Infrastructure;
 using FinanceApp.Infrastructure.Persistence;
 using FinanceApp.Presentation.Finance;
+using FinanceApp.Presentation.Hosting;
 using FinanceApp.Presentation.QuickEntry;
 using FinanceApp.Presentation.Settings;
 using Microsoft.Extensions.DependencyInjection;

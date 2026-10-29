@@ -59,7 +59,25 @@ public sealed record OperationRow(Transaction Transaction, string Title, string 
 }
 
 /// <summary>«Сегодня · −1 550 ₽» and its operations.</summary>
-public sealed record DayGroup(DateOnly Day, string Title, string TotalText, IReadOnlyList<OperationRow> Rows);
+public sealed record DayGroup(DateOnly Day, string Title, string TotalText, IReadOnlyList<OperationRow> Rows)
+{
+    /// <summary>
+    /// Days newest first. On an account page the day total is its change in the account currency; across all
+    /// accounts it is income minus expenses in the base currency (transfers move money, they do not spend it).
+    /// </summary>
+    public static IReadOnlyList<DayGroup> Build(IEnumerable<OperationRow> rows, Account? viewed, CurrencyCode baseCurrency, DateOnly today) =>
+        rows.GroupBy(r => r.Transaction.Date)
+            .OrderByDescending(g => g.Key)
+            .Select(day => new DayGroup(day.Key, Format.Day(day.Key, today), viewed is { } account
+                ? Format.Signed(day.Sum(r => r.Transaction.EffectOn(account.Id)), account.Currency)
+                : Format.Signed(day.Sum(r => r.Transaction.Type switch
+                {
+                    TransactionType.Income => r.Transaction.BaseAmount,
+                    TransactionType.Expense => -r.Transaction.BaseAmount,
+                    _ => 0m,
+                }), baseCurrency), day.ToList()))
+            .ToList();
+}
 
 /// <summary>
 /// Operations of one account (or all of them) for a month, grouped by day like in a banking app.
@@ -263,17 +281,9 @@ public sealed partial class OperationsViewModel(IFinanceBackend backend, TimePro
             .ToList();
 
         Days.Clear();
-        foreach (var day in rows.GroupBy(r => r.Transaction.Date).OrderByDescending(g => g.Key))
+        foreach (var day in DayGroup.Build(rows, Account, baseCurrency, Today))
         {
-            var total = viewed is { } id
-                ? Format.Signed(day.Sum(r => r.Transaction.EffectOn(id)), Account!.Currency)
-                : Format.Signed(day.Sum(r => r.Transaction.Type switch
-                {
-                    TransactionType.Income => r.Transaction.BaseAmount,
-                    TransactionType.Expense => -r.Transaction.BaseAmount,
-                    _ => 0m,
-                }), baseCurrency);
-            Days.Add(new DayGroup(day.Key, Format.Day(day.Key, Today), total, day.ToList()));
+            Days.Add(day);
         }
 
         IsEmpty = Days.Count == 0;

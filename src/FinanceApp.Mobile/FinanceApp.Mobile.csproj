@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Android only (ADR 0013). It needs the maui-android workload and an Android SDK, so it stays out of
+         FinanceApp.slnx and the desktop build; build it with tools/build-android.ps1 or .sh. -->
+    <TargetFramework>net10.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <RootNamespace>FinanceApp.Mobile</RootNamespace>
+    <Description>Android app: the one-line quick entry, balances and operations, with its own database on the phone.</Description>
+
+    <ApplicationTitle>FinanceApp</ApplicationTitle>
+    <ApplicationId>io.github.scr1pt445.financeapp</ApplicationId>
+    <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
+    <!-- Android's integer version code; raise it with every APK that is handed out. -->
+    <ApplicationVersion>1</ApplicationVersion>
+    <SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#9446F8" />
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0B0B0B" BaseSize="128,128" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FinanceApp.Infrastructure\FinanceApp.Infrastructure.csproj" />
+    <ProjectReference Include="..\FinanceApp.Presentation\FinanceApp.Presentation.csproj" />
+  </ItemGroup>
+
+</Project>

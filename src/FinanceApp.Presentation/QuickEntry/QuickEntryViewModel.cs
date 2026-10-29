@@ -49,11 +49,23 @@ public sealed partial class QuickEntryViewModel(IQuickEntryBackend backend) : Ob
 
     public bool CanSave => !IsBusy && _draft?.IsComplete == true;
 
+    /// <summary>Shown under a complete line. The desktop window speaks of keys; a phone sets its own text.</summary>
+    public string ReadyMessage { get; init; } = "Enter — сохранить, Esc — закрыть";
+
     /// <summary>Called every time the window is shown: clears the line and refreshes the context.</summary>
     public async Task OpenAsync(CancellationToken cancellationToken = default)
     {
         Input = string.Empty;
         UpdatePreview();
+        await ReloadContextAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Fresh catalogs, hints and default accounts without touching the line — for a screen that stays open
+    /// between entries, after something was saved.
+    /// </summary>
+    public async Task ReloadContextAsync(CancellationToken cancellationToken = default)
+    {
         try
         {
             _context = await backend.LoadContextAsync(cancellationToken);
@@ -143,7 +155,7 @@ public sealed partial class QuickEntryViewModel(IQuickEntryBackend backend) : Ob
         }
         else
         {
-            Message = "Enter — сохранить, Esc — закрыть";
+            Message = ReadyMessage;
             HasProblem = false;
         }
 
