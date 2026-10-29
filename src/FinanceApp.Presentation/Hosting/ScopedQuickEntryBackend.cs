@@ -3,10 +3,13 @@ using FinanceApp.Application.Transactions;
 using FinanceApp.Presentation.QuickEntry;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace FinanceApp.Desktop;
+namespace FinanceApp.Presentation.Hosting;
 
-/// <summary>Each call is one unit of work: a fresh DI scope and database context.</summary>
-internal sealed class ScopedQuickEntryBackend(IServiceScopeFactory scopes) : IQuickEntryBackend
+/// <summary>
+/// Each call is one unit of work: a fresh DI scope and database context. Shared by the desktop and the
+/// Android app, whose view models live longer than any one database context should.
+/// </summary>
+public sealed class ScopedQuickEntryBackend(IServiceScopeFactory scopes) : IQuickEntryBackend
 {
     public async Task<QuickEntryContext> LoadContextAsync(CancellationToken cancellationToken = default)
     {
