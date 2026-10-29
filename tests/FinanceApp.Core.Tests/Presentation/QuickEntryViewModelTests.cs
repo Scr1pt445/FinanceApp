@@ -138,6 +138,19 @@ public class QuickEntryViewModelTests
     }
 
     [Fact]
+    public async Task ReloadContext_KeepsTheLineAndItsPreview()
+    {
+        var viewModel = await OpenAsync();
+        viewModel.Input = "350 еда";
+
+        await viewModel.ReloadContextAsync(Ct);
+
+        viewModel.Input.ShouldBe("350 еда");
+        viewModel.Headline.ShouldBe("Расход 350 ₽");
+        viewModel.SaveCommand.CanExecute(null).ShouldBeTrue();
+    }
+
+    [Fact]
     public void Formatter_Money() =>
         QuickEntryFormatter.Money(1234567.5m, CurrencyCode.Usd).ShouldBe("1 234 567,50 $");
 

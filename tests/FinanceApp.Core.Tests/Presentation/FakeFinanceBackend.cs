@@ -31,6 +31,9 @@ public sealed class FakeFinanceBackend : IFinanceBackend
 
     public Exception? Failure { get; set; }
 
+    /// <summary>Makes loading balances fail, as an unreadable database would.</summary>
+    public Exception? LoadFailure { get; set; }
+
     public CurrencyCode? TotalsCurrency { get; private set; }
 
     public int Calls { get; private set; }
@@ -56,6 +59,11 @@ public sealed class FakeFinanceBackend : IFinanceBackend
     public Task<BalancesOverview> LoadBalancesAsync(bool includeHidden = false, CancellationToken cancellationToken = default)
     {
         Calls++;
+        if (LoadFailure is not null)
+        {
+            return Task.FromException<BalancesOverview>(LoadFailure);
+        }
+
         var balances = Accounts.Where(a => includeHidden || !a.IsHidden)
             .Select(a =>
             {
