@@ -1,4 +1,6 @@
 using FinanceApp.Infrastructure;
+using FinanceApp.Mobile.Views;
+using FinanceApp.Presentation.Data;
 using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.Home;
 using FinanceApp.Presentation.Hosting;
@@ -6,7 +8,7 @@ using FinanceApp.Presentation.QuickEntry;
 
 namespace FinanceApp.Mobile;
 
-/// <summary>Composition root of the Android app: the same core and service graph as the desktop app.</summary>
+/// <summary>Composition root of the Android app: the same core and service graph as the desktop app, plus the phone screens.</summary>
 public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
@@ -24,19 +26,34 @@ public static class MauiProgram
 
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>();
-        builder.Services
+        builder.Services.AddMobileApp(paths);
+        return builder.Build();
+    }
+
+    /// <summary>Everything the app is made of, on top of the shared core; the tests build the same graph.</summary>
+    public static IServiceCollection AddMobileApp(this IServiceCollection services, FinancePaths paths) =>
+        services
             .AddFinanceApp(paths)
             .AddSingleton<AppStartup>()
             .AddSingleton<IQuickEntryBackend, ScopedQuickEntryBackend>()
             .AddSingleton<IFinanceBackend, ScopedFinanceBackend>()
+            .AddSingleton<IDataBackend, ScopedDataBackend>()
+            .AddSingleton<IFileSharer, MauiFileSharer>()
             .AddSingleton(sp => new QuickEntryViewModel(sp.GetRequiredService<IQuickEntryBackend>())
             {
                 // There is no Esc on a phone; the keyboard's action key and the button both save.
                 ReadyMessage = "Готово — сохранить",
             })
             .AddSingleton<HomeViewModel>()
-            .AddTransient<HomePage>();
-
-        return builder.Build();
-    }
+            .AddSingleton<ShellViewModel>()
+            .AddSingleton<DataViewModel>()
+            .AddSingleton<FormPresenter>()
+            .AddSingleton<AppShell>()
+            .AddSingleton<HomePage>()
+            .AddSingleton<OperationsPage>()
+            .AddSingleton<AccountsPage>()
+            .AddSingleton<SummaryPage>()
+            .AddSingleton<MorePage>()
+            .AddTransient<CategoriesPage>()
+            .AddSingleton<Func<CategoriesPage>>(sp => sp.GetRequiredService<CategoriesPage>);
 }

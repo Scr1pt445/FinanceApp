@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Everything that is not used every day: categories, data out of the phone, about. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:data="clr-namespace:FinanceApp.Presentation.Data;assembly=FinanceApp.Presentation"
+             x:Class="FinanceApp.Mobile.Views.MorePage"
+             x:DataType="data:DataViewModel"
+             Title="Ещё">
+  <ScrollView>
+    <VerticalStackLayout Spacing="12" Padding="16,16,16,24">
+      <Label Text="Ещё" Style="{StaticResource PageTitle}" />
+
+      <Border Style="{StaticResource Row}" Padding="16,16">
+        <Border.GestureRecognizers>
+          <TapGestureRecognizer Tapped="OnCategories" />
+        </Border.GestureRecognizers>
+        <Grid ColumnDefinitions="*,Auto">
+          <VerticalStackLayout Spacing="2">
+            <Label Text="Категории" FontSize="16" />
+            <Label Text="Добавить, переименовать, скрыть" Style="{StaticResource Muted}" />
+          </VerticalStackLayout>
+          <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+
+      <Border Style="{StaticResource Card}">
+        <VerticalStackLayout Spacing="10">
+          <Label Text="ДАННЫЕ" Style="{StaticResource SectionTitle}" />
+          <Label Text="Всё хранится только на этом телефоне. Чтобы перенести операции на компьютер или сохранить их, отправьте файл через «Поделиться» — в почту, мессенджер или облако."
+                 Style="{StaticResource Muted}" />
+          <Button Text="Выгрузить операции в CSV" Style="{StaticResource Soft}" Command="{Binding ShareCsvCommand}" />
+          <Button Text="Поделиться копией базы" Style="{StaticResource Soft}" Command="{Binding ShareBackupCommand}" />
+          <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" HeightRequest="24" />
+          <Label Text="{Binding Status}" FontSize="13" TextColor="{StaticResource Income}"
+                 IsVisible="{Binding Status, Converter={StaticResource IsNotEmpty}}">
+            <Label.Triggers>
+              <DataTrigger TargetType="Label" Binding="{Binding Failed}" Value="True">
+                <Setter Property="TextColor" Value="{StaticResource Warning}" />
+              </DataTrigger>
+            </Label.Triggers>
+          </Label>
+          <Label Text="{Binding BackupsText}" Style="{StaticResource Muted}" />
+          <Label Text="CSV загружается в программу для Windows командой finance import. Копия базы — это вся история целиком."
+                 Style="{StaticResource Muted}" FontSize="12" />
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource Card}">
+        <VerticalStackLayout Spacing="6">
+          <Label Text="О ПРИЛОЖЕНИИ" Style="{StaticResource SectionTitle}" />
+          <Label x:Name="VersionLabel" FontAttributes="Bold" />
+          <Label Text="Учёт личных финансов: запись операции за пять секунд. Работает без интернета; курсы ЦБ загружаются, когда есть связь."
+                 Style="{StaticResource Muted}" />
+          <Label Text="github.com/Scr1pt445/FinanceApp" TextColor="{StaticResource AccentLight}" FontSize="13" />
+        </VerticalStackLayout>
+      </Border>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

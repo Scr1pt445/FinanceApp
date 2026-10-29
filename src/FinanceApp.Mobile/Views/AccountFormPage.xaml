@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- A new or edited account or envelope: name, currency, opening balance and, for an envelope, a goal. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             x:Class="FinanceApp.Mobile.Views.AccountFormPage"
+             x:DataType="finance:AccountFormViewModel">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <Grid ColumnDefinitions="Auto,*" Padding="8,8,16,0">
+      <Button Text="✕" FontSize="20" Style="{StaticResource Link}" TextColor="{StaticResource MutedText}"
+              Command="{Binding CancelCommand}" />
+      <Label Grid.Column="1" Text="{Binding Title}" FontSize="20" FontAttributes="Bold" VerticalTextAlignment="Center" />
+    </Grid>
+
+    <ScrollView Grid.Row="1">
+      <VerticalStackLayout Spacing="8" Padding="16,8,16,16">
+        <Label Text="Название" Style="{StaticResource FieldLabel}" />
+        <Entry x:Name="NameField" Text="{Binding Name}" Placeholder="{Binding NamePlaceholder}" />
+
+        <Label Text="Валюта" Style="{StaticResource FieldLabel}" />
+        <Entry Text="{Binding CurrencyText}" Placeholder="RUB" MaxLength="3" IsEnabled="{Binding IsNew}" />
+        <Label Text="Валюту существующего счёта не поменять: суммы операций записаны в ней." Style="{StaticResource Muted}"
+               IsVisible="{Binding IsNew, Converter={StaticResource Not}}" />
+
+        <Label Text="Начальный остаток" Style="{StaticResource FieldLabel}" />
+        <Entry Text="{Binding OpeningBalanceText}" Keyboard="Numeric" Placeholder="0" />
+
+        <VerticalStackLayout Spacing="8" IsVisible="{Binding IsEnvelope}">
+          <Button Text="+ Поставить цель" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="2,0"
+                  Command="{Binding AddGoalCommand}" IsVisible="{Binding HasGoal, Converter={StaticResource Not}}" />
+          <VerticalStackLayout Spacing="8" IsVisible="{Binding HasGoal}">
+            <Label Text="Цель" Style="{StaticResource FieldLabel}" />
+            <Entry Text="{Binding GoalAmountText}" Keyboard="Numeric" Placeholder="Сколько накопить" />
+            <Label Text="Срок, дд.мм.гггг" Style="{StaticResource FieldLabel}" />
+            <Entry Text="{Binding GoalDateText}" Keyboard="Numeric" Placeholder="Необязательно" />
+            <Button Text="Убрать цель" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="2,0"
+                    TextColor="{StaticResource MutedText}" Command="{Binding RemoveGoalCommand}" />
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+
+        <Button Text="Скрыть" Style="{StaticResource Soft}" Margin="0,12,0,0" Command="{Binding ToggleHiddenCommand}"
+                IsVisible="{Binding IsNew, Converter={StaticResource Not}}">
+          <Button.Triggers>
+            <DataTrigger TargetType="Button" Binding="{Binding IsHidden}" Value="True">
+              <Setter Property="Text" Value="Показывать снова" />
+            </DataTrigger>
+          </Button.Triggers>
+        </Button>
+        <Label Text="Скрытый счёт не виден в списках и формах, но его история остаётся." Style="{StaticResource Muted}"
+               IsVisible="{Binding IsNew, Converter={StaticResource Not}}" />
+      </VerticalStackLayout>
+    </ScrollView>
+
+    <VerticalStackLayout Grid.Row="2" Spacing="6" Padding="16,6,16,16">
+      <Label Text="{Binding SaveError}" Style="{StaticResource Problem}"
+             IsVisible="{Binding SaveError, Converter={StaticResource IsNotEmpty}}" />
+      <Button Text="Сохранить" Command="{Binding SaveCommand}" HeightRequest="52" />
+    </VerticalStackLayout>
+  </Grid>
+</ContentPage>

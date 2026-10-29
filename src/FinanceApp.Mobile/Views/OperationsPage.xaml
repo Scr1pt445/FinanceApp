@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Operations of a month by day, like a banking app: all accounts or one, filters, search, swipe to delete with undo. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:FinanceApp.Mobile.Views"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             x:Class="FinanceApp.Mobile.Views.OperationsPage"
+             x:DataType="finance:ShellViewModel"
+             Title="Операции">
+
+  <Grid RowDefinitions="Auto,*">
+    <VerticalStackLayout Spacing="10" Padding="16,16,16,4">
+
+      <!-- Which account: tap the title to choose. -->
+      <Grid ColumnDefinitions="*,Auto">
+        <HorizontalStackLayout Spacing="6">
+          <HorizontalStackLayout.GestureRecognizers>
+            <TapGestureRecognizer Tapped="OnChooseAccount" />
+          </HorizontalStackLayout.GestureRecognizers>
+          <Label Text="{Binding Operations.Title}" Style="{StaticResource PageTitle}" LineBreakMode="TailTruncation" />
+          <Label Text="▾" FontSize="20" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </HorizontalStackLayout>
+        <Button Grid.Column="1" Text="Изменить" Style="{StaticResource Link}" Command="{Binding EditAccountCommand}"
+                IsVisible="{Binding SelectedAccount, Converter={StaticResource IsNotEmpty}}" />
+      </Grid>
+      <Label Text="{Binding Operations.Subtitle}" Style="{StaticResource Muted}" Margin="0,-6,0,0" />
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="{Binding IsEnvelopeSelected}">
+        <Button Text="Пополнить" Style="{StaticResource Soft}" Command="{Binding FillEnvelopeCommand}" />
+        <Button Grid.Column="1" Text="Взять" Style="{StaticResource Soft}" Command="{Binding TakeFromEnvelopeCommand}" />
+      </Grid>
+
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Button Text="‹" FontSize="24" Style="{StaticResource Link}" Command="{Binding Operations.PreviousMonthCommand}" />
+        <Label Grid.Column="1" Text="{Binding Operations.MonthTitle}" FontAttributes="Bold" FontSize="17"
+               HorizontalTextAlignment="Center" VerticalTextAlignment="Center">
+          <Label.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding Operations.CurrentMonthCommand}" />
+          </Label.GestureRecognizers>
+        </Label>
+        <Button Grid.Column="2" Text="›" FontSize="24" Style="{StaticResource Link}" Command="{Binding Operations.NextMonthCommand}" />
+      </Grid>
+
+      <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+        <HorizontalStackLayout Spacing="8" x:Name="Filters" BindableLayout.ItemsSource="{x:Static views:OperationsPage.Choices}">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="finance:FilterChoice">
+              <Button Text="{Binding Title}" Style="{StaticResource Chip}" Clicked="OnFilter" />
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </HorizontalStackLayout>
+      </ScrollView>
+
+      <SearchBar Text="{Binding Operations.Search}" Placeholder="Поиск по категории или заметке" />
+      <Label Text="{Binding Operations.Status}" Style="{StaticResource Problem}"
+             IsVisible="{Binding Operations.Status, Converter={StaticResource IsNotEmpty}}" />
+    </VerticalStackLayout>
+
+    <CollectionView Grid.Row="1" ItemsSource="{Binding Operations.Days}" SelectionMode="None" Margin="16,0">
+      <CollectionView.EmptyView>
+        <Label Text="За этот месяц операций нет." Style="{StaticResource Muted}" HorizontalTextAlignment="Center" Margin="0,24" />
+      </CollectionView.EmptyView>
+      <CollectionView.Footer>
+        <BoxView HeightRequest="96" Color="Transparent" />
+      </CollectionView.Footer>
+      <CollectionView.ItemTemplate>
+        <DataTemplate x:DataType="finance:DayGroup">
+          <VerticalStackLayout Spacing="6" Padding="0,10,0,0">
+            <Grid ColumnDefinitions="*,Auto">
+              <Label Text="{Binding Title}" Style="{StaticResource SectionTitle}" />
+              <Label Grid.Column="1" Text="{Binding TotalText}" Style="{StaticResource Muted}" />
+            </Grid>
+            <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding Rows}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="finance:OperationRow">
+                  <SwipeView BackgroundColor="Transparent">
+                    <SwipeView.RightItems>
+                      <SwipeItems Mode="Execute">
+                        <SwipeItem Text="Удалить" BackgroundColor="{StaticResource Warning}" Invoked="OnDelete" />
+                      </SwipeItems>
+                    </SwipeView.RightItems>
+                    <controls:OperationRowView>
+                      <controls:OperationRowView.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnRowTapped" />
+                      </controls:OperationRowView.GestureRecognizers>
+                    </controls:OperationRowView>
+                  </SwipeView>
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+          </VerticalStackLayout>
+        </DataTemplate>
+      </CollectionView.ItemTemplate>
+    </CollectionView>
+
+    <!-- Deleting needs no confirmation: it can be undone from here. -->
+    <Border Grid.Row="1" Style="{StaticResource Card}" Padding="14,6" Margin="12,0,12,12" VerticalOptions="End"
+            BackgroundColor="{StaticResource Control}"
+            IsVisible="{Binding Operations.UndoText, Converter={StaticResource IsNotEmpty}}">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+        <Label Text="{Binding Operations.UndoText}" VerticalTextAlignment="Center" LineBreakMode="TailTruncation" FontSize="14" />
+        <Button Grid.Column="1" Text="Вернуть" Style="{StaticResource Link}" Command="{Binding Operations.UndoCommand}" />
+        <Button Grid.Column="2" Text="✕" Style="{StaticResource Link}" TextColor="{StaticResource MutedText}"
+                Command="{Binding Operations.DismissUndoCommand}" />
+      </Grid>
+    </Border>
+
+    <Button Grid.Row="1" Text="+" Style="{StaticResource Fab}" Command="{Binding NewExpenseCommand}"
+            IsVisible="{Binding Operations.UndoText, Converter={StaticResource IsEmpty}}" />
+  </Grid>
+</ContentPage>

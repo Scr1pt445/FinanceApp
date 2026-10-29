@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- «Итоги» of any period, the desktop's summary in one column: money in and out, insights, pace, categories. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             x:Class="FinanceApp.Mobile.Views.SummaryPage"
+             x:DataType="finance:SummaryViewModel"
+             Title="Итоги">
+  <ScrollView>
+    <VerticalStackLayout Spacing="12" Padding="16,16,16,24">
+
+      <Grid ColumnDefinitions="*,Auto">
+        <Label Text="Итоги" Style="{StaticResource PageTitle}" />
+        <Picker Grid.Column="1" ItemsSource="{x:Static finance:SummaryViewModel.Choices}" SelectedItem="{Binding Choice}"
+                Title="Период" FontSize="14" MinimumHeightRequest="36" WidthRequest="130" HorizontalTextAlignment="Center" />
+      </Grid>
+
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Button Text="‹" FontSize="24" Style="{StaticResource Link}" Command="{Binding PreviousCommand}" />
+        <Label Grid.Column="1" Text="{Binding Title}" FontAttributes="Bold" FontSize="17"
+               HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+        <Button Grid.Column="2" Text="›" FontSize="24" Style="{StaticResource Link}" Command="{Binding NextCommand}" />
+      </Grid>
+
+      <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8" IsVisible="{Binding IsCustom}">
+        <Entry Text="{Binding CustomFrom}" Placeholder="с дд.мм.гггг" Keyboard="Numeric" FontSize="15" />
+        <Entry Grid.Column="1" Text="{Binding CustomTo}" Placeholder="по дд.мм.гггг" Keyboard="Numeric" FontSize="15" />
+        <Button Grid.Column="2" Text="OK" Style="{StaticResource Soft}" Command="{Binding ApplyCustomCommand}" />
+      </Grid>
+
+      <Label Text="{Binding ProgressText}" Style="{StaticResource Muted}" HorizontalTextAlignment="Center"
+             IsVisible="{Binding ProgressText, Converter={StaticResource IsNotEmpty}}" />
+      <Label Text="{Binding Status}" Style="{StaticResource Problem}"
+             IsVisible="{Binding Status, Converter={StaticResource IsNotEmpty}}" />
+      <Label Text="За этот период операций нет." Style="{StaticResource Muted}" HorizontalTextAlignment="Center"
+             Margin="0,24" IsVisible="{Binding IsEmpty}" />
+
+      <!-- Money in and out, and where the income went. -->
+      <Border Style="{StaticResource Card}" IsVisible="{Binding HasFlow}">
+        <VerticalStackLayout Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <Label Text="Пришло" Style="{StaticResource Muted}" />
+            <Label Grid.Column="1" Text="{Binding IncomeText}" FontAttributes="Bold" TextColor="{StaticResource Income}" />
+          </Grid>
+          <ProgressBar Progress="{Binding IncomeShare}" ProgressColor="{StaticResource Income}" />
+          <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+            <Label Text="Ушло" Style="{StaticResource Muted}" />
+            <Label Grid.Column="1" Text="{Binding OutflowText}" FontAttributes="Bold" />
+          </Grid>
+          <ProgressBar Progress="{Binding OutflowShare}" />
+
+          <Label Text="КУДА УШЛИ ДОХОДЫ" Style="{StaticResource SectionTitle}" Margin="0,8,0,0"
+                 IsVisible="{Binding FlowSegments.Count, Converter={StaticResource IsNotEmpty}}" />
+          <controls:FlowBarView Segments="{Binding FlowSegments}"
+                                IsVisible="{Binding FlowSegments.Count, Converter={StaticResource IsNotEmpty}}" />
+          <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding FlowSegments}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="finance:FlowSegment">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                  <BoxView Style="{StaticResource Dot}" Color="{Binding Tone, Converter={StaticResource FlowToneColor}}" />
+                  <Label Grid.Column="1" Text="{Binding Label}" FontSize="14" />
+                  <Label Grid.Column="2" Text="{Binding AmountText}" FontSize="14" />
+                </Grid>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+          <Label Text="{Binding FlowNote}" Style="{StaticResource Muted}"
+                 IsVisible="{Binding FlowNote, Converter={StaticResource IsNotEmpty}}">
+            <Label.Triggers>
+              <DataTrigger TargetType="Label" Binding="{Binding FlowNoteIsWarning}" Value="True">
+                <Setter Property="TextColor" Value="{StaticResource Warning}" />
+              </DataTrigger>
+            </Label.Triggers>
+          </Label>
+        </VerticalStackLayout>
+      </Border>
+
+      <!-- Insights: two cards per row. -->
+      <FlexLayout Wrap="Wrap" JustifyContent="SpaceBetween" BindableLayout.ItemsSource="{Binding Cards}">
+        <BindableLayout.ItemTemplate>
+          <DataTemplate x:DataType="finance:InsightCard">
+            <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,0,8" FlexLayout.Basis="48.5%">
+              <VerticalStackLayout Spacing="3">
+                <Label Text="{Binding Title}" Style="{StaticResource Muted}" />
+                <Label Text="{Binding ValueText}" FontSize="18" FontAttributes="Bold" />
+                <Label Text="{Binding Note}" FontSize="12" TextColor="{Binding Tone, Converter={StaticResource NoteToneColor}}"
+                       IsVisible="{Binding Note, Converter={StaticResource IsNotEmpty}}" />
+              </VerticalStackLayout>
+            </Border>
+          </DataTemplate>
+        </BindableLayout.ItemTemplate>
+      </FlexLayout>
+
+      <!-- The pace of spending against the previous period. -->
+      <Border Style="{StaticResource Card}" IsVisible="{Binding PaceTitle, Converter={StaticResource IsNotEmpty}}">
+        <VerticalStackLayout Spacing="6">
+          <Label Text="{Binding PaceTitle}" FontAttributes="Bold" />
+          <Label Text="{Binding PaceCaption}" Style="{StaticResource Muted}"
+                 IsVisible="{Binding PaceCaption, Converter={StaticResource IsNotEmpty}}" />
+          <controls:PaceChartView Data="{Binding Pace}" HeightRequest="150" Margin="0,6,0,0" />
+          <Grid ColumnDefinitions="*,*">
+            <Label Text="{Binding PaceStartLabel}" Style="{StaticResource Muted}" FontSize="12" />
+            <Label Grid.Column="1" Text="{Binding PaceEndLabel}" Style="{StaticResource Muted}" FontSize="12"
+                   HorizontalTextAlignment="End" />
+          </Grid>
+          <HorizontalStackLayout Spacing="14">
+            <HorizontalStackLayout Spacing="6">
+              <BoxView Color="{StaticResource Accent}" WidthRequest="16" HeightRequest="3" VerticalOptions="Center" />
+              <Label Text="этот период" Style="{StaticResource Muted}" FontSize="12" />
+            </HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="6" IsVisible="{Binding HasPreviousPace}">
+              <BoxView Color="{StaticResource MutedText}" WidthRequest="16" HeightRequest="2" VerticalOptions="Center" />
+              <Label Text="{Binding PreviousLegend}" Style="{StaticResource Muted}" FontSize="12" />
+            </HorizontalStackLayout>
+          </HorizontalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource Card}" IsVisible="{Binding Categories.Count, Converter={StaticResource IsNotEmpty}}">
+        <VerticalStackLayout Spacing="10">
+          <Label Text="РАСХОДЫ ПО КАТЕГОРИЯМ" Style="{StaticResource SectionTitle}" />
+          <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Categories}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="finance:CategoryRow">
+                <VerticalStackLayout Spacing="4">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Label Text="{Binding Name}" LineBreakMode="TailTruncation" />
+                    <Label Grid.Column="1" Text="{Binding AmountText}" FontAttributes="Bold" />
+                  </Grid>
+                  <ProgressBar Progress="{Binding Share}" />
+                  <Label Text="{Binding ChangeText}" FontSize="12"
+                         TextColor="{Binding ChangeTone, Converter={StaticResource NoteToneColor}}"
+                         IsVisible="{Binding ChangeText, Converter={StaticResource IsNotEmpty}}" />
+                </VerticalStackLayout>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource Card}" IsVisible="{Binding TopExpenses.Count, Converter={StaticResource IsNotEmpty}}">
+        <VerticalStackLayout Spacing="10">
+          <Label Text="КРУПНЫЕ ТРАТЫ" Style="{StaticResource SectionTitle}" />
+          <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding TopExpenses}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="finance:AmountRow">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                  <Label Text="{Binding Title}" LineBreakMode="TailTruncation" />
+                  <Label Grid.Row="1" Text="{Binding Subtitle}" Style="{StaticResource Muted}" LineBreakMode="TailTruncation" />
+                  <Label Grid.Column="1" Text="{Binding AmountText}" FontAttributes="Bold" />
+                </Grid>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource Card}" IsVisible="{Binding Incomes.Count, Converter={StaticResource IsNotEmpty}}">
+        <VerticalStackLayout Spacing="10">
+          <Label Text="ДОХОДЫ" Style="{StaticResource SectionTitle}" />
+          <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Incomes}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="finance:AmountRow">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                  <Label Text="{Binding Title}" LineBreakMode="TailTruncation" />
+                  <Label Grid.Row="1" Text="{Binding Subtitle}" Style="{StaticResource Muted}" LineBreakMode="TailTruncation" />
+                  <Label Grid.Column="1" Text="{Binding AmountText}" FontAttributes="Bold" TextColor="{StaticResource Income}" />
+                </Grid>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource Card}" IsVisible="{Binding Envelopes.Count, Converter={StaticResource IsNotEmpty}}">
+        <VerticalStackLayout Spacing="10">
+          <Label Text="КОНВЕРТЫ" Style="{StaticResource SectionTitle}" />
+          <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Envelopes}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="finance:EnvelopeRow">
+                <VerticalStackLayout Spacing="4">
+                  <Label Text="{Binding Name}" />
+                  <ProgressBar Progress="{Binding Progress}" IsVisible="{Binding HasGoal}" />
+                  <Label Text="{Binding Note}" FontSize="12" TextColor="{Binding Tone, Converter={StaticResource NoteToneColor}}" />
+                </VerticalStackLayout>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+          <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding EnvelopeWarnings}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <Label Text="{Binding .}" Style="{StaticResource Problem}" />
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>
