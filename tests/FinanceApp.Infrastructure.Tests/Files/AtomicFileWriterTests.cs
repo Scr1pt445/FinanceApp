@@ -41,6 +41,10 @@ public sealed class AtomicFileWriterTests : IDisposable
     [Fact]
     public async Task LockedTarget_Throws_KeepsOriginalAndCleansUp()
     {
+        // Only Windows refuses to replace an open file. On Linux and Android the rename succeeds and the
+        // reader keeps the old contents, which is just as safe — there is no failure to test.
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "File locks block File.Replace only on Windows.");
+
         await _writer.WriteAtomicallyAsync(Target, Encoding.UTF8.GetBytes("original"), Ct);
 
         await using (new FileStream(Target, FileMode.Open, FileAccess.Read, FileShare.None))
