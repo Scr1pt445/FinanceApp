@@ -57,9 +57,19 @@ public partial class App : Microsoft.Maui.Controls.Application
 
         window.Dispatcher.Dispatch(() =>
         {
-            var shell = _services.GetRequiredService<AppShell>();
-            window.Page = shell;
-            _services.GetRequiredService<FormPresenter>().Attach(shell.Navigation);
+            try
+            {
+                var shell = _services.GetRequiredService<AppShell>();
+                window.Page = shell;
+                _services.GetRequiredService<FormPresenter>().Attach(shell.Navigation);
+            }
+#pragma warning disable CA1031 // A screen that cannot be built is reported in place, not as a silent blank window.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                CrashReport.Save(ex);
+                startup.ShowError($"Не удалось открыть приложение: {ex.Message}");
+            }
         });
     }
 }

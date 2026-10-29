@@ -49,7 +49,7 @@ internal sealed class MobileApp : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        Microsoft.Maui.Controls.Application.Current = null;
+        // Application.Current stays: work a test started may still finish, and it needs the theme.
         await _services.DisposeAsync();
         try
         {

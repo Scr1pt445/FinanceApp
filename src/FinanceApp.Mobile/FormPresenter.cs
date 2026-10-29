@@ -11,6 +11,7 @@ namespace FinanceApp.Mobile;
 /// </summary>
 public sealed class FormPresenter(ShellViewModel shell, HomeViewModel home)
 {
+    private readonly SemaphoreSlim _gate = new(1, 1);
     private INavigation? _navigation;
     private Page? _shown;
 
@@ -22,33 +23,64 @@ public sealed class FormPresenter(ShellViewModel shell, HomeViewModel home)
 
     private async void OnShellChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is not (nameof(ShellViewModel.Form) or nameof(ShellViewModel.AccountForm)) || _navigation is null)
+        if (e.PropertyName is not (nameof(ShellViewModel.Form) or nameof(ShellViewModel.AccountForm)))
         {
             return;
         }
 
-        Page? wanted = shell.Form is { } form ? Reuse<TransactionFormPage>(p => p.Form == form) ?? new TransactionFormPage(form)
-            : shell.AccountForm is { } account ? Reuse<AccountFormPage>(p => p.Form == account) ?? new AccountFormPage(account)
-            : null;
-        if (ReferenceEquals(wanted, _shown))
+        try
+        {
+            await SyncAsync();
+        }
+#pragma warning disable CA1031 // An event handler: a form that cannot open must not take the app down. It is kept for the report.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            CrashReport.Save(ex);
+        }
+    }
+
+    /// <summary>
+    /// One change at a time: opening a form closes the other one first, so two notifications arrive back to
+    /// back, and pushing and popping await. Each pass shows whatever the shell holds by then.
+    /// </summary>
+    private async Task SyncAsync()
+    {
+        if (_navigation is null)
         {
             return;
         }
 
-        if (_shown is not null && _navigation.ModalStack.Contains(_shown))
+        await _gate.WaitAsync();
+        try
         {
-            await _navigation.PopModalAsync();
-        }
+            Page? wanted = shell.Form is { } form ? Reuse<TransactionFormPage>(p => p.Form == form) ?? new TransactionFormPage(form)
+                : shell.AccountForm is { } account ? Reuse<AccountFormPage>(p => p.Form == account) ?? new AccountFormPage(account)
+                : null;
+            if (ReferenceEquals(wanted, _shown))
+            {
+                return;
+            }
 
-        _shown = wanted;
-        if (wanted is not null)
-        {
-            await _navigation.PushModalAsync(wanted);
+            if (_shown is not null && _navigation.ModalStack.Contains(_shown))
+            {
+                await _navigation.PopModalAsync();
+            }
+
+            _shown = wanted;
+            if (wanted is not null)
+            {
+                await _navigation.PushModalAsync(wanted);
+            }
+            else
+            {
+                // A saved form changed the balances; the home screen keeps its own copy of them.
+                await home.RefreshAsync();
+            }
         }
-        else
+        finally
         {
-            // A saved form changed the balances; the home screen keeps its own copy of them.
-            await home.RefreshAsync();
+            _gate.Release();
         }
     }
 
