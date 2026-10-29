@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Status bar and system accents in the app's dark palette. -->
+  <color name="colorPrimary">#9446F8</color>
+  <color name="colorPrimaryDark">#0B0B0B</color>
+  <color name="colorAccent">#9446F8</color>
+</resources>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- The desktop's dark theme (src/FinanceApp.Desktop/Themes/Dark.xaml), sized for a phone. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+  <Color x:Key="Accent">#9446F8</Color>
+  <Color x:Key="AccentSoft">#339446F8</Color>
+  <Color x:Key="Window">#0B0B0B</Color>
+  <Color x:Key="Surface">#141414</Color>
+  <Color x:Key="Control">#1C1C1C</Color>
+  <Color x:Key="Border">#2E2E2E</Color>
+  <Color x:Key="Text">#F2F2F2</Color>
+  <Color x:Key="MutedText">#8C8C8C</Color>
+  <Color x:Key="Warning">#F5A35C</Color>
+  <Color x:Key="Income">#5BC77D</Color>
+  <Color x:Key="Saving">#7FB2FF</Color>
+
+  <Style TargetType="ContentPage" ApplyToDerivedTypes="True">
+    <Setter Property="BackgroundColor" Value="{StaticResource Window}" />
+  </Style>
+
+  <Style TargetType="Label">
+    <Setter Property="TextColor" Value="{StaticResource Text}" />
+    <Setter Property="FontSize" Value="15" />
+  </Style>
+
+  <Style x:Key="Muted" TargetType="Label">
+    <Setter Property="TextColor" Value="{StaticResource MutedText}" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+
+  <Style x:Key="SectionTitle" TargetType="Label">
+    <Setter Property="TextColor" Value="{StaticResource MutedText}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontAttributes" Value="Bold" />
+  </Style>
+
+  <Style TargetType="Entry">
+    <Setter Property="TextColor" Value="{StaticResource Text}" />
+    <Setter Property="PlaceholderColor" Value="{StaticResource MutedText}" />
+    <Setter Property="BackgroundColor" Value="{StaticResource Control}" />
+    <Setter Property="FontSize" Value="18" />
+    <Setter Property="MinimumHeightRequest" Value="48" />
+  </Style>
+
+  <Style TargetType="Button">
+    <Setter Property="TextColor" Value="White" />
+    <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+    <Setter Property="FontAttributes" Value="Bold" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="16,0" />
+    <Setter Property="MinimumHeightRequest" Value="48" />
+    <Setter Property="VisualStateManager.VisualStateGroups">
+      <VisualStateGroupList>
+        <VisualStateGroup x:Name="CommonStates">
+          <VisualState x:Name="Normal" />
+          <VisualState x:Name="Disabled">
+            <VisualState.Setters>
+              <Setter Property="BackgroundColor" Value="{StaticResource AccentSoft}" />
+              <Setter Property="TextColor" Value="{StaticResource MutedText}" />
+            </VisualState.Setters>
+          </VisualState>
+        </VisualStateGroup>
+      </VisualStateGroupList>
+    </Setter>
+  </Style>
+
+  <Style x:Key="Card" TargetType="Border">
+    <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
+    <Setter Property="Stroke" Value="{StaticResource Border}" />
+    <Setter Property="StrokeThickness" Value="1" />
+    <Setter Property="StrokeShape" Value="RoundRectangle 14" />
+    <Setter Property="Padding" Value="14" />
+  </Style>
+
+  <Style x:Key="Row" TargetType="Border">
+    <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
+    <Setter Property="StrokeThickness" Value="0" />
+    <Setter Property="StrokeShape" Value="RoundRectangle 10" />
+    <Setter Property="Padding" Value="12,10" />
+  </Style>
+</ResourceDictionary>

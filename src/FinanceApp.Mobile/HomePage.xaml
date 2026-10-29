@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Phone-first: the total on top, the quick-entry line under it, the latest operations below. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:FinanceApp.Mobile"
+             xmlns:home="clr-namespace:FinanceApp.Presentation.Home;assembly=FinanceApp.Presentation"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             xmlns:quick="clr-namespace:FinanceApp.Presentation.QuickEntry;assembly=FinanceApp.Presentation"
+             x:Class="FinanceApp.Mobile.HomePage"
+             x:DataType="home:HomeViewModel"
+             Title="FinanceApp">
+  <ContentPage.Resources>
+    <local:IsNotEmptyConverter x:Key="IsNotEmpty" />
+  </ContentPage.Resources>
+
+  <Grid RowDefinitions="Auto,Auto,*" RowSpacing="14" Padding="16,16,16,0">
+
+    <VerticalStackLayout Spacing="2">
+      <Label Text="Всего" Style="{StaticResource Muted}" />
+      <Label Text="{Binding TotalText}" FontSize="34" FontAttributes="Bold" />
+      <Label Text="{Binding TotalDetails}" Style="{StaticResource Muted}" />
+      <Label Text="{Binding Warning}" TextColor="{StaticResource Warning}" FontSize="13"
+             IsVisible="{Binding Warning, Converter={StaticResource IsNotEmpty}}" />
+    </VerticalStackLayout>
+
+    <VerticalStackLayout Grid.Row="1" Spacing="6">
+      <Border Style="{StaticResource Card}">
+        <VerticalStackLayout Spacing="8" BindingContext="{Binding QuickEntry}" x:DataType="quick:QuickEntryViewModel">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <!-- Prediction and spell check would "correct" «еда» and the amounts under the user's fingers. -->
+            <Entry x:Name="Line" Text="{Binding Input}" Placeholder="350 еда кофе"
+                   ReturnType="Done" ReturnCommand="{Binding SaveCommand}"
+                   IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
+                   ClearButtonVisibility="WhileEditing" />
+            <Button Grid.Column="1" Text="Сохранить" Command="{Binding SaveCommand}" />
+          </Grid>
+          <Label Text="{Binding Headline}" FontSize="18" FontAttributes="Bold"
+                 IsVisible="{Binding Headline, Converter={StaticResource IsNotEmpty}}" />
+          <Label Text="{Binding Details}"
+                 IsVisible="{Binding Details, Converter={StaticResource IsNotEmpty}}" />
+          <Label Text="{Binding Message}" Style="{StaticResource Muted}">
+            <Label.Triggers>
+              <DataTrigger TargetType="Label" Binding="{Binding HasProblem}" Value="True">
+                <Setter Property="TextColor" Value="{StaticResource Warning}" />
+              </DataTrigger>
+            </Label.Triggers>
+          </Label>
+        </VerticalStackLayout>
+      </Border>
+      <Label Text="{Binding LastSaved}" TextColor="{StaticResource Income}" FontSize="13"
+             IsVisible="{Binding LastSaved, Converter={StaticResource IsNotEmpty}}" />
+    </VerticalStackLayout>
+
+    <CollectionView Grid.Row="2" ItemsSource="{Binding Recent}" SelectionMode="None">
+      <CollectionView.Header>
+        <Label Text="Последние 30 дней" Style="{StaticResource SectionTitle}" />
+      </CollectionView.Header>
+      <CollectionView.EmptyView>
+        <Label Text="Операций пока нет — запишите первую строкой выше." Style="{StaticResource Muted}"
+               HorizontalTextAlignment="Center" Margin="0,24" />
+      </CollectionView.EmptyView>
+      <CollectionView.Footer>
+        <BoxView HeightRequest="16" Color="Transparent" />
+      </CollectionView.Footer>
+      <CollectionView.ItemTemplate>
+        <DataTemplate x:DataType="finance:DayGroup">
+          <VerticalStackLayout Spacing="6" Padding="0,12,0,0">
+            <Grid ColumnDefinitions="*,Auto">
+              <Label Text="{Binding Title}" Style="{StaticResource SectionTitle}" />
+              <Label Grid.Column="1" Text="{Binding TotalText}" Style="{StaticResource Muted}" />
+            </Grid>
+            <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding Rows}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="finance:OperationRow">
+                  <Border Style="{StaticResource Row}">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
+                      <Label Text="{Binding Title}" LineBreakMode="TailTruncation" />
+                      <Label Grid.Row="1" Text="{Binding Subtitle}" Style="{StaticResource Muted}" LineBreakMode="TailTruncation"
+                             IsVisible="{Binding Subtitle, Converter={StaticResource IsNotEmpty}}" />
+                      <Label Grid.Column="1" Text="{Binding AmountText}" FontAttributes="Bold" HorizontalTextAlignment="End">
+                        <Label.Triggers>
+                          <DataTrigger TargetType="Label" Binding="{Binding Tone}" Value="{x:Static finance:AmountTone.Income}">
+                            <Setter Property="TextColor" Value="{StaticResource Income}" />
+                          </DataTrigger>
+                          <DataTrigger TargetType="Label" Binding="{Binding Tone}" Value="{x:Static finance:AmountTone.Envelope}">
+                            <Setter Property="TextColor" Value="{StaticResource Saving}" />
+                          </DataTrigger>
+                        </Label.Triggers>
+                      </Label>
+                      <Label Grid.Row="1" Grid.Column="1" Text="{Binding SecondaryAmount}" Style="{StaticResource Muted}"
+                             HorizontalTextAlignment="End"
+                             IsVisible="{Binding SecondaryAmount, Converter={StaticResource IsNotEmpty}}" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+          </VerticalStackLayout>
+        </DataTemplate>
+      </CollectionView.ItemTemplate>
+    </CollectionView>
+  </Grid>
+</ContentPage>
