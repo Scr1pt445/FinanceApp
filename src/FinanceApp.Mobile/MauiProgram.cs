@@ -24,6 +24,10 @@ public static class MauiProgram
             return crashBuilder.Build();
         }
 
+#if ANDROID
+        InputLook.Apply();
+#endif
+
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>();
         builder.Services.AddMobileApp(paths);

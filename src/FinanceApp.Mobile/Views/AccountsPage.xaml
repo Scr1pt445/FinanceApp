@@ -3,6 +3,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             xmlns:domain="clr-namespace:FinanceApp.Domain;assembly=FinanceApp.Domain"
              x:Class="FinanceApp.Mobile.Views.AccountsPage"
              x:DataType="finance:ShellViewModel"
              Title="Счета">
@@ -12,13 +13,19 @@
 
       <Border Style="{StaticResource Card}">
         <VerticalStackLayout Spacing="4">
-          <Grid ColumnDefinitions="*,Auto">
-            <Label Text="Всего" Style="{StaticResource Muted}" VerticalOptions="Center" />
-            <Picker Grid.Column="1" ItemsSource="{Binding TotalsCurrencies}" SelectedItem="{Binding TotalsCurrency}"
-                    Title="Валюта итогов" FontSize="14" MinimumHeightRequest="36" WidthRequest="84"
-                    HorizontalTextAlignment="Center" />
-          </Grid>
+          <Label Text="Всего" Style="{StaticResource Muted}" />
           <Label Text="{Binding TotalText}" Style="{StaticResource Big}" />
+          <!-- The currency of the totals, at today's CBR rate: one tap per currency. -->
+          <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,4,0,0">
+            <HorizontalStackLayout x:Name="Currencies" Spacing="6" BindableLayout.ItemsSource="{Binding TotalsCurrencies}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="domain:CurrencyCode">
+                  <Button Text="{Binding Value}" Style="{StaticResource Chip}" HeightRequest="32" MinimumHeightRequest="32"
+                          FontSize="13" Padding="12,0" Clicked="OnCurrency" />
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </HorizontalStackLayout>
+          </ScrollView>
           <Grid ColumnDefinitions="*,*" Margin="0,6,0,0">
             <VerticalStackLayout>
               <Label Text="На счетах" Style="{StaticResource Muted}" />

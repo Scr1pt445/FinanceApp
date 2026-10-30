@@ -52,7 +52,13 @@
         </HorizontalStackLayout>
       </ScrollView>
 
-      <SearchBar Text="{Binding Operations.Search}" Placeholder="Поиск по категории или заметке" />
+      <controls:Field>
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+          <Label Text="⌕" FontSize="20" Style="{StaticResource FieldSuffix}" />
+          <Entry Grid.Column="1" Text="{Binding Operations.Search}" Placeholder="Поиск по категории или заметке"
+                 ClearButtonVisibility="WhileEditing" ReturnType="Search" />
+        </Grid>
+      </controls:Field>
       <Label Text="{Binding Operations.Status}" Style="{StaticResource Problem}"
              IsVisible="{Binding Operations.Status, Converter={StaticResource IsNotEmpty}}" />
     </VerticalStackLayout>

@@ -72,13 +72,5 @@ public partial class OperationsPage : ContentPage
         }
     }
 
-    private void HighlightFilter()
-    {
-        foreach (var button in Filters.Children.OfType<Button>())
-        {
-            var selected = ReferenceEquals(button.BindingContext, _shell.Operations.TypeFilter);
-            button.BackgroundColor = selected ? Palette.Accent : Palette.Control;
-            button.TextColor = selected ? Colors.White : Palette.Text;
-        }
-    }
+    private void HighlightFilter() => Controls.Chips.Highlight(Filters, _shell.Operations.TypeFilter);
 }

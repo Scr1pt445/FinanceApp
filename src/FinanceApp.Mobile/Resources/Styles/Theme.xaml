@@ -2,7 +2,8 @@
 <!-- The desktop's dark theme (src/FinanceApp.Desktop/Themes/Dark.xaml), sized for a phone. Colors match Palette.cs. -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-                    xmlns:local="clr-namespace:FinanceApp.Mobile">
+                    xmlns:local="clr-namespace:FinanceApp.Mobile"
+                    xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls">
   <Color x:Key="Accent">#9446F8</Color>
   <Color x:Key="AccentSoft">#339446F8</Color>
   <Color x:Key="AccentLight">#B58CFA</Color>
@@ -66,33 +67,44 @@
     <Setter Property="Margin" Value="2,6,0,0" />
   </Style>
 
-  <!-- Inputs -->
+  <!-- Inputs: transparent, inside a Field plate that draws the background, the corners and the focus. -->
+  <Style TargetType="controls:Field">
+    <Setter Property="BackgroundColor" Value="{StaticResource Control}" />
+    <Setter Property="Stroke" Value="{StaticResource Border}" />
+    <Setter Property="StrokeThickness" Value="1.5" />
+    <Setter Property="StrokeShape" Value="RoundRectangle 14" />
+    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="MinimumHeightRequest" Value="52" />
+  </Style>
   <Style TargetType="Entry">
     <Setter Property="TextColor" Value="{StaticResource Text}" />
     <Setter Property="PlaceholderColor" Value="{StaticResource MutedText}" />
-    <Setter Property="BackgroundColor" Value="{StaticResource Control}" />
+    <Setter Property="BackgroundColor" Value="Transparent" />
     <Setter Property="FontSize" Value="17" />
-    <Setter Property="MinimumHeightRequest" Value="48" />
-  </Style>
-  <Style TargetType="SearchBar">
-    <Setter Property="TextColor" Value="{StaticResource Text}" />
-    <Setter Property="PlaceholderColor" Value="{StaticResource MutedText}" />
-    <Setter Property="CancelButtonColor" Value="{StaticResource MutedText}" />
-    <Setter Property="BackgroundColor" Value="{StaticResource Control}" />
+    <Setter Property="MinimumHeightRequest" Value="50" />
+    <Setter Property="VerticalOptions" Value="Center" />
   </Style>
   <Style TargetType="Picker">
     <Setter Property="TextColor" Value="{StaticResource Text}" />
     <Setter Property="TitleColor" Value="{StaticResource MutedText}" />
-    <Setter Property="BackgroundColor" Value="{StaticResource Control}" />
+    <Setter Property="BackgroundColor" Value="Transparent" />
     <Setter Property="FontSize" Value="17" />
-    <Setter Property="MinimumHeightRequest" Value="48" />
+    <Setter Property="MinimumHeightRequest" Value="50" />
+    <Setter Property="VerticalOptions" Value="Center" />
   </Style>
   <Style TargetType="DatePicker">
     <Setter Property="TextColor" Value="{StaticResource Text}" />
-    <Setter Property="BackgroundColor" Value="{StaticResource Control}" />
+    <Setter Property="BackgroundColor" Value="Transparent" />
     <Setter Property="FontSize" Value="17" />
-    <Setter Property="MinimumHeightRequest" Value="48" />
+    <Setter Property="MinimumHeightRequest" Value="50" />
+    <Setter Property="VerticalOptions" Value="Center" />
     <Setter Property="Format" Value="d MMMM yyyy" />
+  </Style>
+  <!-- A unit or a hint at the right edge of a field: «₽», «USD». -->
+  <Style x:Key="FieldSuffix" TargetType="Label">
+    <Setter Property="TextColor" Value="{StaticResource MutedText}" />
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="VerticalOptions" Value="Center" />
   </Style>
   <Style TargetType="Switch">
     <Setter Property="OnColor" Value="{StaticResource AccentSoft}" />

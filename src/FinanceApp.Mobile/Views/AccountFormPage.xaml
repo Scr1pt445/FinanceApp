@@ -3,6 +3,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
              x:Class="FinanceApp.Mobile.Views.AccountFormPage"
              x:DataType="finance:AccountFormViewModel">
   <Grid RowDefinitions="Auto,*,Auto">
@@ -15,24 +16,34 @@
     <ScrollView Grid.Row="1">
       <VerticalStackLayout Spacing="8" Padding="16,8,16,16">
         <Label Text="Название" Style="{StaticResource FieldLabel}" />
-        <Entry x:Name="NameField" Text="{Binding Name}" Placeholder="{Binding NamePlaceholder}" />
+        <controls:Field>
+          <Entry x:Name="NameField" Text="{Binding Name}" Placeholder="{Binding NamePlaceholder}" />
+        </controls:Field>
 
         <Label Text="Валюта" Style="{StaticResource FieldLabel}" />
-        <Entry Text="{Binding CurrencyText}" Placeholder="RUB" MaxLength="3" IsEnabled="{Binding IsNew}" />
+        <controls:Field>
+          <Entry Text="{Binding CurrencyText}" Placeholder="RUB" MaxLength="3" IsEnabled="{Binding IsNew}" />
+        </controls:Field>
         <Label Text="Валюту существующего счёта не поменять: суммы операций записаны в ней." Style="{StaticResource Muted}"
                IsVisible="{Binding IsNew, Converter={StaticResource Not}}" />
 
         <Label Text="Начальный остаток" Style="{StaticResource FieldLabel}" />
-        <Entry Text="{Binding OpeningBalanceText}" Keyboard="Numeric" Placeholder="0" />
+        <controls:Field>
+          <Entry Text="{Binding OpeningBalanceText}" Keyboard="Numeric" Placeholder="0" />
+        </controls:Field>
 
         <VerticalStackLayout Spacing="8" IsVisible="{Binding IsEnvelope}">
           <Button Text="+ Поставить цель" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="2,0"
                   Command="{Binding AddGoalCommand}" IsVisible="{Binding HasGoal, Converter={StaticResource Not}}" />
           <VerticalStackLayout Spacing="8" IsVisible="{Binding HasGoal}">
             <Label Text="Цель" Style="{StaticResource FieldLabel}" />
-            <Entry Text="{Binding GoalAmountText}" Keyboard="Numeric" Placeholder="Сколько накопить" />
+            <controls:Field>
+              <Entry Text="{Binding GoalAmountText}" Keyboard="Numeric" Placeholder="Сколько накопить" />
+            </controls:Field>
             <Label Text="Срок, дд.мм.гггг" Style="{StaticResource FieldLabel}" />
-            <Entry Text="{Binding GoalDateText}" Keyboard="Numeric" Placeholder="Необязательно" />
+            <controls:Field>
+              <Entry Text="{Binding GoalDateText}" Keyboard="Numeric" Placeholder="Необязательно" />
+            </controls:Field>
             <Button Text="Убрать цель" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="2,0"
                     TextColor="{StaticResource MutedText}" Command="{Binding RemoveGoalCommand}" />
           </VerticalStackLayout>

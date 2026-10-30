@@ -3,6 +3,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:domain="clr-namespace:FinanceApp.Domain;assembly=FinanceApp.Domain"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
              xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
              x:Class="FinanceApp.Mobile.Views.TransactionFormPage"
              x:DataType="finance:TransactionFormViewModel">
@@ -50,12 +51,13 @@
         </HorizontalStackLayout>
 
         <Label Text="Сумма" Style="{StaticResource FieldLabel}" />
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-          <Entry x:Name="Amount" Text="{Binding AmountText}" Keyboard="Numeric" FontSize="28" FontAttributes="Bold"
-                 Placeholder="0" />
-          <Label Grid.Column="1" Text="{Binding AmountCurrency}" FontSize="20" TextColor="{StaticResource MutedText}"
-                 VerticalTextAlignment="Center" />
-        </Grid>
+        <controls:Field MinimumHeightRequest="64">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <Entry x:Name="Amount" Text="{Binding AmountText}" Keyboard="Numeric" FontSize="30" FontAttributes="Bold"
+                   Placeholder="0" />
+            <Label Grid.Column="1" Text="{Binding AmountCurrency}" FontSize="20" Style="{StaticResource FieldSuffix}" />
+          </Grid>
+        </controls:Field>
 
         <!-- Expense and income: categories as tiles, the most used first. -->
         <VerticalStackLayout Spacing="6" IsVisible="{Binding IsTransfer, Converter={StaticResource Not}}">
@@ -81,24 +83,32 @@
           <Button Text="+ Своя категория" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="2,0"
                   Command="{Binding StartAddCategoryCommand}" IsVisible="{Binding IsAddingCategory, Converter={StaticResource Not}}" />
           <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" IsVisible="{Binding IsAddingCategory}">
-            <Entry Text="{Binding NewCategoryName}" Placeholder="Название" ReturnType="Done" ReturnCommand="{Binding AddCategoryCommand}" />
+            <controls:Field>
+              <Entry Text="{Binding NewCategoryName}" Placeholder="Название" ReturnType="Done" ReturnCommand="{Binding AddCategoryCommand}" />
+            </controls:Field>
             <Button Grid.Column="1" Text="OK" Style="{StaticResource Soft}" Command="{Binding AddCategoryCommand}" />
             <Button Grid.Column="2" Text="✕" Style="{StaticResource Link}" TextColor="{StaticResource MutedText}"
                     Command="{Binding CancelAddCategoryCommand}" />
           </Grid>
           <Label Text="Счёт" Style="{StaticResource FieldLabel}" />
-          <Picker ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" Title="Счёт"
-                  ItemDisplayBinding="{Binding Name, x:DataType=domain:Account}" />
+          <controls:Field>
+            <Picker ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" Title="Счёт"
+                    ItemDisplayBinding="{Binding Name, x:DataType=domain:Account}" />
+          </controls:Field>
         </VerticalStackLayout>
 
         <!-- Transfer: from where, to where, and what arrived when the currencies differ. -->
         <VerticalStackLayout Spacing="6" IsVisible="{Binding IsTransfer}">
           <Label Text="Откуда" Style="{StaticResource FieldLabel}" />
-          <Picker ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" Title="Откуда"
-                  ItemDisplayBinding="{Binding Name, x:DataType=domain:Account}" />
+          <controls:Field>
+            <Picker ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" Title="Откуда"
+                    ItemDisplayBinding="{Binding Name, x:DataType=domain:Account}" />
+          </controls:Field>
           <Label Text="Куда" Style="{StaticResource FieldLabel}" />
-          <Picker ItemsSource="{Binding Accounts}" SelectedItem="{Binding ToAccount}" Title="Куда"
-                  ItemDisplayBinding="{Binding Name, x:DataType=domain:Account}" />
+          <controls:Field>
+            <Picker ItemsSource="{Binding Accounts}" SelectedItem="{Binding ToAccount}" Title="Куда"
+                    ItemDisplayBinding="{Binding Name, x:DataType=domain:Account}" />
+          </controls:Field>
           <VerticalStackLayout Spacing="6" IsVisible="{Binding NeedsReceivedAmount}">
             <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
               <Label Text="Указать курс вместо суммы" VerticalOptions="Center" />
@@ -106,12 +116,16 @@
             </Grid>
             <VerticalStackLayout Spacing="6" IsVisible="{Binding UseRate, Converter={StaticResource Not}}">
               <Label Text="{Binding ReceivedCurrency, StringFormat='Зачислено, {0}'}" Style="{StaticResource FieldLabel}" />
-              <Entry Text="{Binding ReceivedText}" Keyboard="Numeric" Placeholder="0" />
+              <controls:Field>
+                <Entry Text="{Binding ReceivedText}" Keyboard="Numeric" Placeholder="0" />
+              </controls:Field>
             </VerticalStackLayout>
             <VerticalStackLayout Spacing="6" IsVisible="{Binding UseRate}">
               <Label Text="{Binding RateLabel}" Style="{StaticResource FieldLabel}" />
               <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <Entry Text="{Binding RateText}" Keyboard="Numeric" Placeholder="0" />
+                <controls:Field>
+                  <Entry Text="{Binding RateText}" Keyboard="Numeric" Placeholder="0" />
+                </controls:Field>
                 <Label Grid.Column="1" Text="{Binding RateUnit}" TextColor="{StaticResource MutedText}" VerticalTextAlignment="Center" />
                 <Button Grid.Column="2" Text="⇅" Style="{StaticResource Soft}" Command="{Binding SwapRateCommand}" />
               </Grid>
@@ -123,13 +137,17 @@
 
         <Label Text="Дата" Style="{StaticResource FieldLabel}" />
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-          <DatePicker Date="{Binding DateText, Converter={StaticResource DateText}}" />
+          <controls:Field>
+            <DatePicker Date="{Binding DateText, Converter={StaticResource DateText}}" />
+          </controls:Field>
           <Button Grid.Column="1" Text="Сегодня" Style="{StaticResource Soft}" Command="{Binding TodayCommand}" />
           <Button Grid.Column="2" Text="Вчера" Style="{StaticResource Soft}" Command="{Binding YesterdayCommand}" />
         </Grid>
 
         <Label Text="Заметка" Style="{StaticResource FieldLabel}" />
-        <Entry Text="{Binding Note}" Placeholder="Необязательно" />
+        <controls:Field>
+          <Entry Text="{Binding Note}" Placeholder="Необязательно" />
+        </controls:Field>
       </VerticalStackLayout>
     </ScrollView>
 

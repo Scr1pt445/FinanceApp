@@ -25,11 +25,14 @@
         <VerticalStackLayout Spacing="6" BindingContext="{Binding QuickEntry}" x:DataType="quick:QuickEntryViewModel">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <!-- Prediction and spell check would "correct" «еда» and the amounts under the user's fingers. -->
-            <Entry x:Name="Line" Text="{Binding Input}" Placeholder="350 еда кофе"
-                   ReturnType="Done" ReturnCommand="{Binding SaveCommand}"
-                   IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
-                   ClearButtonVisibility="WhileEditing" />
-            <Button Grid.Column="1" Text="✓" FontSize="20" WidthRequest="52" Padding="0" Command="{Binding SaveCommand}" />
+            <controls:Field>
+              <Entry x:Name="Line" Text="{Binding Input}" Placeholder="350 еда кофе"
+                     ReturnType="Done" ReturnCommand="{Binding SaveCommand}"
+                     IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
+                     ClearButtonVisibility="WhileEditing" />
+            </controls:Field>
+            <Button Grid.Column="1" Text="✓" FontSize="20" WidthRequest="52" HeightRequest="52" Padding="0"
+                    CornerRadius="14" Command="{Binding SaveCommand}" />
           </Grid>
           <Label Text="{Binding Headline}" FontSize="17" FontAttributes="Bold"
                  IsVisible="{Binding Headline, Converter={StaticResource IsNotEmpty}}" />

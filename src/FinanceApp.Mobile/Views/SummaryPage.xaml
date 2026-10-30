@@ -10,11 +10,18 @@
   <ScrollView>
     <VerticalStackLayout Spacing="12" Padding="16,16,16,24">
 
-      <Grid ColumnDefinitions="*,Auto">
-        <Label Text="Итоги" Style="{StaticResource PageTitle}" />
-        <Picker Grid.Column="1" ItemsSource="{x:Static finance:SummaryViewModel.Choices}" SelectedItem="{Binding Choice}"
-                Title="Период" FontSize="14" MinimumHeightRequest="36" WidthRequest="130" HorizontalTextAlignment="Center" />
-      </Grid>
+      <Label Text="Итоги" Style="{StaticResource PageTitle}" />
+
+      <!-- Periods as chips: a system picker would be one more tap and drops its choice on Android. -->
+      <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+        <HorizontalStackLayout x:Name="Periods" Spacing="8" BindableLayout.ItemsSource="{x:Static finance:SummaryViewModel.Choices}">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="finance:PeriodChoice">
+              <Button Text="{Binding Title}" Style="{StaticResource Chip}" Clicked="OnPeriod" />
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </HorizontalStackLayout>
+      </ScrollView>
 
       <Grid ColumnDefinitions="Auto,*,Auto">
         <Button Text="‹" FontSize="24" Style="{StaticResource Link}" Command="{Binding PreviousCommand}" />
@@ -24,8 +31,12 @@
       </Grid>
 
       <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8" IsVisible="{Binding IsCustom}">
-        <Entry Text="{Binding CustomFrom}" Placeholder="с дд.мм.гггг" Keyboard="Numeric" FontSize="15" />
-        <Entry Grid.Column="1" Text="{Binding CustomTo}" Placeholder="по дд.мм.гггг" Keyboard="Numeric" FontSize="15" />
+        <controls:Field>
+          <Entry Text="{Binding CustomFrom}" Placeholder="с дд.мм.гггг" Keyboard="Numeric" FontSize="15" />
+        </controls:Field>
+        <controls:Field Grid.Column="1">
+          <Entry Text="{Binding CustomTo}" Placeholder="по дд.мм.гггг" Keyboard="Numeric" FontSize="15" />
+        </controls:Field>
         <Button Grid.Column="2" Text="OK" Style="{StaticResource Soft}" Command="{Binding ApplyCustomCommand}" />
       </Grid>
 

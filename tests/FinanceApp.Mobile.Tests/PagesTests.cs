@@ -153,6 +153,37 @@ public sealed class PagesTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CurrencyChips_SwitchTheTotal_AndTheChoiceSurvivesARefresh()
+    {
+        var shell = _app.Get<ShellViewModel>();
+        var page = _app.Get<AccountsPage>();
+        await shell.RefreshAsync(Ct);
+        Button Chip(CurrencyCode code) => Descendants<Button>(page).Single(b => b.BindingContext is CurrencyCode c && c == code);
+
+        ((IButtonController)Chip(CurrencyCode.Usd)).SendClicked();
+        await WaitUntil(() => shell.TotalText.EndsWith('$'));
+        await shell.RefreshAsync(Ct);
+
+        shell.TotalsCurrency.ShouldBe(CurrencyCode.Usd);
+        Chip(CurrencyCode.Usd).BackgroundColor.ShouldBe(Palette.Accent);
+        Chip(CurrencyCode.Rub).BackgroundColor.ShouldBe(Palette.Control);
+        _bindingFailures.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void PeriodChips_ChangeThePeriod()
+    {
+        var page = _app.Get<SummaryPage>();
+        var summary = _app.Get<ShellViewModel>().Summary;
+        var year = Descendants<Button>(page).Single(b => b.BindingContext is PeriodChoice { Kind: PeriodKind.Year });
+
+        ((IButtonController)year).SendClicked();
+
+        summary.Choice.Kind.ShouldBe(PeriodKind.Year);
+        year.BackgroundColor.ShouldBe(Palette.Accent);
+    }
+
+    [Fact]
     public void StartupPage_ShowsAnError() =>
         Should.NotThrow(() => new StartupPage().ShowError("Не удалось открыть базу данных: диск полон"));
 
@@ -185,6 +216,9 @@ public sealed class PagesTests : IAsyncLifetime
 
         condition().ShouldBeTrue();
     }
+
+    private static IEnumerable<T> Descendants<T>(Element root) =>
+        (root is T self ? [self] : Enumerable.Empty<T>()).Concat(((IElementController)root).LogicalChildren.SelectMany(Descendants<T>));
 
     private void OnBindingFailed(object? sender, BindingBaseErrorEventArgs e) => _bindingFailures.Add(e.Message);
 }
