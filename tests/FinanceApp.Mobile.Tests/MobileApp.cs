@@ -54,7 +54,9 @@ internal sealed class MobileApp : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        // Application.Current stays: work a test started may still finish, and it needs the theme.
+        // Application.Current stays: work a test started may still finish, and it needs the theme. Shortcut requests of
+        // later tests must not reach this app once its services are disposed.
+        App.StopListening();
         await _services.DisposeAsync();
         try
         {

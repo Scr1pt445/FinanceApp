@@ -1,8 +1,8 @@
 <Project>
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <!-- One version for every project; shown in the settings window. Milestone 4 → 0.4. -->
-    <Version>0.4.0</Version>
+    <!-- One version for every project; shown in the settings window and as the Android versionName. 1.0 — the first release. -->
+    <Version>1.0.0</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

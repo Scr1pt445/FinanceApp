@@ -17,12 +17,44 @@
     <ApplicationId>io.github.scr1pt445.financeapp</ApplicationId>
     <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
     <!-- Android's integer version code; raise it with every APK that is handed out. -->
-    <ApplicationVersion>10</ApplicationVersion>
+    <ApplicationVersion>11</ApplicationVersion>
     <SupportedOSPlatformVersion Condition="'$(TargetFramework)' == 'net10.0-android'">21.0</SupportedOSPlatformVersion>
     <!-- Debug builds of .NET for Android run interpreted (for hot reload, which this project does not use):
          several times slower, and the APKs handed out for testing are debug builds. Compile with the JIT. -->
     <UseInterpreter>false</UseInterpreter>
   </PropertyGroup>
+
+  <!-- The release APK (tools/build-android-release.sh). Android needs trimming for a release build, so only the
+       trimmable framework assemblies are trimmed (partial); the libraries that work by reflection — EF Core with SQLite,
+       LINQ, System.Text.Json — are kept whole, and the features trimming would switch off stay on: reflection-based
+       JSON (settings.json), nullability info (EF Core's model), readable exception messages. No ahead-of-time
+       compilation: the JIT, as in the tested debug APK. Only 64- and 32-bit ARM: every phone it is meant for. -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-android' and '$(Configuration)' == 'Release'">
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <NullabilityInfoContextSupport>true</NullabilityInfoContextSupport>
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
+    <RuntimeIdentifiers>android-arm64;android-arm</RuntimeIdentifiers>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <!-- The trimmer's notes on reflection are expected here (the libraries above are kept whole for them). -->
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-android' and '$(Configuration)' == 'Release'">
+    <TrimmerRootAssembly Include="Microsoft.EntityFrameworkCore" />
+    <TrimmerRootAssembly Include="Microsoft.EntityFrameworkCore.Relational" />
+    <TrimmerRootAssembly Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <TrimmerRootAssembly Include="Microsoft.Data.Sqlite" />
+    <TrimmerRootAssembly Include="System.Linq" />
+    <TrimmerRootAssembly Include="System.Linq.Queryable" />
+    <TrimmerRootAssembly Include="System.Linq.Expressions" />
+    <TrimmerRootAssembly Include="System.Text.Json" />
+    <TrimmerRootAssembly Include="System.Collections" />
+    <TrimmerRootAssembly Include="System.ComponentModel.Annotations" />
+    <TrimmerRootAssembly Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
 
   <ItemGroup>
     <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#9446F8" />

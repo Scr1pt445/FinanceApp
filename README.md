@@ -8,7 +8,7 @@
 
 A Windows desktop app for personal finance tracking, built around one idea: **recording a transaction should take five seconds.** A global hotkey opens a one-line entry box; a banking-style main window keeps accounts, envelopes for savings goals, transfers and summaries for any period.
 
-> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 454 automated tests. The standalone Android app covers the same ground on the phone: quick entry, operations, accounts and envelopes, summaries ([Android](#android)). See the [roadmap](#roadmap).
+> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 572 automated tests. The Android app 1.0 covers the same ground on the phone and more: quick entry, operations, accounts and envelopes, summaries, recurring operations, limits, debts, a PIN lock and a widget ([Android](#android)). See the [roadmap](#roadmap).
 
 ## Features
 
@@ -125,6 +125,14 @@ The second command downloads the Android SDK packages the project needs (skip it
 - **Итоги** — any period: money in and out, where the income went, insights, the pace of spending against the previous period, categories, the biggest expenses, envelopes.
 - **Ещё** — categories, CSV and a copy of the database through the share sheet (the CSV imports into the desktop app with `finance import`).
 
+#### Release
+
+The signed APK is published in [GitHub Releases](https://github.com/Scr1pt445/FinanceApp/releases): a tag `v1.0.0` runs `.github/workflows/release.yml`, which builds it with `tools/build-android-release.sh` and the key from the repository secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`). The same script builds it locally with the key passed through `FINANCEAPP_KEYSTORE`, `FINANCEAPP_KEY_ALIAS` and `FINANCEAPP_KEYSTORE_PASSWORD`; the key itself never goes into the repository, and every update has to be signed with it.
+
+A debug APK and the release one are signed with different keys, so Android will not install one over the other. To move: «Ещё → Данные → Поделиться копией» in the old app and keep the file, remove the app, install the release and pick «Перенести данные из копии» on its first screen.
+
+The release build is not debuggable and keeps no Android backup (the database and the PIN hash stay on the phone; the app makes its own copies). With the PIN on, wrong tries are counted across restarts and the app's last screen is hidden from the recent apps (Android 13+); a copy with triggers or views is refused on restore.
+
 ### CLI examples
 
 ```bash
@@ -152,7 +160,7 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 
 ## Testing
 
-454 tests on xUnit v3 and Microsoft Testing Platform (on Linux one Windows-only file-lock test is skipped):
+572 tests on xUnit v3 and Microsoft Testing Platform (on Linux one Windows-only file-lock test is skipped):
 
 - **Core tests** — domain invariants, the quick-entry parser (amounts, prefixes, dates, accounts, ambiguities), category hints, CSV writer/reader (byte-level checks for BOM, quoting and culture independence), summaries, exchange-rate fallback logic, export coordinator (debounce, retries, failure status), view models of the main window (operations, forms, summaries, categories, totals currency), the quick-entry and hotkey windows and the phone's home screen.
 - **Infrastructure tests** — run against a real SQLite file and the real file system: migrations and seeding, decimal/date round-trips, atomic replace with a locked target, CBR parsing with a fake HTTP handler, end-to-end add → edit → delete → CSV, import idempotency and export → import round-trip, the phone's home screen and data sharing through the shared scoped backends.
@@ -166,7 +174,7 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 | 2. Quick entry | Tray icon, global hotkey, one-line entry window, input parser | ✅ |
 | 3. Main window | Accounts, envelopes, transfers, operations, forms, summaries, categories | ✅ |
 | 4. Polish | Settings window, autostart, backups, single-file build and install, app icon ✅; screenshots | ⏳ |
-| 5. Android | Standalone phone app on .NET MAUI with its own database, sharing the core — [ADR 0013](docs/adr/0013-android-app.md). 5.1 the core and quick entry ✅, 5.2 accounts and operations ✅, 5.3 summaries, categories, sharing ✅; signed release APK | ⏳ |
+| 5. Android | Standalone phone app on .NET MAUI with its own database, sharing the core — [ADR 0013](docs/adr/0013-android-app.md). 5.1 the core and quick entry ✅, 5.2 accounts and operations ✅, 5.3 summaries, categories, sharing ✅; 5.4 signed release APK ✅ (README screenshots to come) | ✅ |
 
 Details: [product requirements](docs/requirements.md).
 
