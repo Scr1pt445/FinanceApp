@@ -1,0 +1,33 @@
+name: Release notes
+
+# The text of a published release lives in docs/release-notes/v<version>.md. A change to one of those files on main
+# replaces the description of the release with that tag; a release not published yet takes it when it is
+# (release.yml).
+on:
+  push:
+    branches: [main]
+    paths: ['docs/release-notes/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update the descriptions of published releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for file in docs/release-notes/v*.md; do
+            tag="$(basename "$file" .md)"
+            if gh release view "$tag" > /dev/null 2>&1; then
+              gh release edit "$tag" --notes-file "$file"
+              echo "$tag: описание обновлено"
+            else
+              echo "$tag: релиза ещё нет — текст возьмётся при публикации"
+            fi
+          done

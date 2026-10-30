@@ -57,5 +57,8 @@ jobs:
           else
             tag="v$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)"
           fi
+          # The text from docs/release-notes/<tag>.md (Russian and English); GitHub's list of changes without one.
+          notes=(--generate-notes)
+          [ -f "docs/release-notes/$tag.md" ] && notes=(--notes-file "docs/release-notes/$tag.md")
           gh release create "$tag" artifacts/android/FinanceApp-*.apk \
-            --target "$GITHUB_SHA" --title "FinanceApp ${tag#v}" --generate-notes
+            --target "$GITHUB_SHA" --title "FinanceApp ${tag#v}" "${notes[@]}"
