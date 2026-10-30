@@ -30,3 +30,7 @@ The type is never inferred from the category: `50000 зарплата` is an exp
 - Ambiguities are reported, not guessed: an `@` that matches several accounts or a category prefix that matches several categories is shown to the user before saving.
 - Foreign-currency entry needs a dedicated account per currency, which matches how the core stores money.
 - The default account is tracked per type and in the base currency only. A plain "last used account" turned out to be a trap: after `>10000 машина @вклад` the next expense defaulted to the deposit. Envelopes are never the default account, and after `20 еда @карта usd` the next expense would silently be in dollars.
+
+## Amendment (2026-10-30): the receipt's currency
+
+A currency right after the amount — `20 eur`, `20€`, `€20`, `20 евро`, a common ISO code or symbol — is the receipt's, for a card in one currency paying in another abroad. When it differs from the account's, the amount is converted into the account currency on saving, at what the bank charged if the form is told so, otherwise at the CBR rate of the date, and «20 EUR» is added to the note. Only the token right after the amount counts, so three letters elsewhere stay words of the note; a `>` line into an envelope stays in the account currency.

@@ -8,7 +8,7 @@
 
 A Windows desktop app for personal finance tracking, built around one idea: **recording a transaction should take five seconds.** A global hotkey opens a one-line entry box; a banking-style main window keeps accounts, envelopes for savings goals, transfers and summaries for any period.
 
-> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 427 automated tests. The standalone Android app covers the same ground on the phone: quick entry, operations, accounts and envelopes, summaries ([Android](#android)). See the [roadmap](#roadmap).
+> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 450 automated tests. The standalone Android app covers the same ground on the phone: quick entry, operations, accounts and envelopes, summaries ([Android](#android)). See the [roadmap](#roadmap).
 
 ## Features
 
@@ -25,7 +25,7 @@ A Windows desktop app for personal finance tracking, built around one idea: **re
 
 ### Quick-entry syntax
 
-`[+|>]<amount> [category] [note…] [date] [@account]` — see [ADR 0009](docs/adr/0009-quick-entry-syntax.md).
+`[+|>]<amount>[currency] [category] [note…] [date] [@account]` — see [ADR 0009](docs/adr/0009-quick-entry-syntax.md).
 
 | Line | Result |
 |---|---|
@@ -35,6 +35,7 @@ A Windows desktop app for personal finance tracking, built around one idea: **re
 | `>10 000 машина` | into the «Машина» envelope from the default account |
 | `1200 тр такси вчера` | «Транспорт» by prefix, dated yesterday |
 | `20 еда ужин @карта usd` | dollar account, converted at the CBR rate of the day |
+| `20 eur еда ужин` | receipt in euros from the default ruble card: charged at the CBR rate, «20 EUR» kept in the note (also `20€`, `€20`, `20 евро`) |
 
 Categories and accounts match by prefix; ambiguities are shown instead of guessed. The default account is the last base-currency account used for the same type.
 
@@ -144,7 +145,7 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 
 ## Testing
 
-427 tests on xUnit v3 and Microsoft Testing Platform (on Linux one Windows-only file-lock test is skipped):
+450 tests on xUnit v3 and Microsoft Testing Platform (on Linux one Windows-only file-lock test is skipped):
 
 - **Core tests** — domain invariants, the quick-entry parser (amounts, prefixes, dates, accounts, ambiguities), category hints, CSV writer/reader (byte-level checks for BOM, quoting and culture independence), summaries, exchange-rate fallback logic, export coordinator (debounce, retries, failure status), view models of the main window (operations, forms, summaries, categories, totals currency), the quick-entry and hotkey windows and the phone's home screen.
 - **Infrastructure tests** — run against a real SQLite file and the real file system: migrations and seeding, decimal/date round-trips, atomic replace with a locked target, CBR parsing with a fake HTTP handler, end-to-end add → edit → delete → CSV, import idempotency and export → import round-trip, the phone's home screen and data sharing through the shared scoped backends.
