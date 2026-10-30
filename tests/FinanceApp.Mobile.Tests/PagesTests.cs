@@ -189,6 +189,23 @@ public sealed class PagesTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task QuickEntrySwitch_InMore_ShowsTheLineOnHome()
+    {
+        _app.Get<AppShell>();
+        var home = _app.Get<HomeViewModel>();
+        home.QuickEntryOn.ShouldBeFalse();
+        var line = Descendants<Entry>(_app.Get<HomePage>()).First(e => e.Placeholder == "350 еда кофе");
+        var settingsSwitch = Descendants<Switch>(_app.Get<MorePage>()).Single(s => s.BindingContext is Presentation.Settings.PhoneSettingsViewModel);
+
+        settingsSwitch.IsToggled = true;
+
+        home.QuickEntryOn.ShouldBeTrue();
+        line.Parent.ShouldNotBeNull();
+        await WaitUntil(() => _app.Get<Application.Settings.ISettingsStore>().Load().QuickEntryLine);
+        _bindingFailures.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void PeriodChips_ChangeThePeriod()
     {
         var page = _app.Get<SummaryPage>();

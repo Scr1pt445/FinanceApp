@@ -57,6 +57,8 @@ public class SetupViewModelTests
         setup.Balances[0].AmountText = "1 250,50";
         setup.EnvelopeName = " Отпуск ";
         setup.EnvelopeGoalText = "3000";
+        setup.QuickEntryLine.ShouldBeFalse(); // buttons by default; the line is a choice
+        setup.QuickEntryLine = true;
         await setup.NextCommand.ExecuteAsync(null);
 
         completed.ShouldBeTrue();
@@ -65,6 +67,7 @@ public class SetupViewModelTests
         choices.OpeningBalances.ShouldBe(new Dictionary<string, decimal> { ["Карта"] = 1250.50m });
         choices.Envelope.ShouldBe("Отпуск");
         choices.EnvelopeGoal.ShouldBe(3000m);
+        choices.QuickEntryLine.ShouldBeTrue();
     }
 
     [Fact]

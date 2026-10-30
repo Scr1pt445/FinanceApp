@@ -107,6 +107,17 @@
               <Label Grid.Column="1" Text="{Binding CurrencySymbol}" Style="{StaticResource FieldSuffix}" />
             </Grid>
           </controls:Field>
+
+          <Border Style="{StaticResource Row}" Padding="14,12" Margin="0,16,0,0">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <VerticalStackLayout Spacing="2">
+                <Label Text="Быстрый ввод строкой" FontSize="16" />
+                <Label Text="«350 еда кофе» на главной вместо кнопок. Можно включить и потом, в «Ещё»."
+                       Style="{StaticResource Muted}" />
+              </VerticalStackLayout>
+              <Switch Grid.Column="1" IsToggled="{Binding QuickEntryLine}" VerticalOptions="Center" />
+            </Grid>
+          </Border>
         </VerticalStackLayout>
       </Grid>
     </ScrollView>

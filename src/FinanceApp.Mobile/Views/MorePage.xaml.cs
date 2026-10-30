@@ -1,5 +1,6 @@
 using System.Reflection;
 using FinanceApp.Presentation.Data;
+using FinanceApp.Presentation.Settings;
 using FinanceApp.Presentation.Setup;
 
 namespace FinanceApp.Mobile.Views;
@@ -9,10 +10,11 @@ public partial class MorePage : ContentPage
     private readonly DataViewModel _viewModel;
     private readonly Func<CategoriesPage> _categories;
 
-    public MorePage(DataViewModel viewModel, Func<CategoriesPage> categories)
+    public MorePage(DataViewModel viewModel, PhoneSettingsViewModel settings, Func<CategoriesPage> categories)
     {
         InitializeComponent();
         BindingContext = _viewModel = viewModel;
+        SettingsCard.BindingContext = settings;
         _categories = categories;
         var version = typeof(MorePage).Assembly.GetName().Version;
         VersionLabel.Text = version is null ? "FinanceApp" : $"FinanceApp {version.ToString(3)}";

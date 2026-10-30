@@ -21,7 +21,8 @@
              IsVisible="{Binding Warning, Converter={StaticResource IsNotEmpty}}" />
     </VerticalStackLayout>
 
-    <VerticalStackLayout Grid.Row="1" Spacing="6">
+    <!-- The one-line entry, for those who switched it on in «Ещё → Настройки». -->
+    <VerticalStackLayout Grid.Row="1" Spacing="6" IsVisible="{Binding QuickEntryOn}">
       <Border Style="{StaticResource Card}" Padding="14,12">
         <VerticalStackLayout Spacing="6" BindingContext="{Binding QuickEntry}" x:DataType="quick:QuickEntryViewModel">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
@@ -52,11 +53,11 @@
              IsVisible="{Binding LastSaved, Converter={StaticResource IsNotEmpty}}" />
     </VerticalStackLayout>
 
-    <!-- The full forms, for when a line of syntax is not the easiest way. -->
+    <!-- The forms: the main way to record unless the line is on. Expense is the common case, so it stands out. -->
     <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="8">
-      <Button Text="− Расход" Style="{StaticResource Soft}" Clicked="OnNewExpense" />
-      <Button Grid.Column="1" Text="+ Доход" Style="{StaticResource Soft}" Clicked="OnNewIncome" />
-      <Button Grid.Column="2" Text="⇄ Перевод" Style="{StaticResource Soft}" Clicked="OnNewTransfer" />
+      <Button Text="− Расход" HeightRequest="56" Clicked="OnNewExpense" />
+      <Button Grid.Column="1" Text="+ Доход" Style="{StaticResource Soft}" HeightRequest="56" Clicked="OnNewIncome" />
+      <Button Grid.Column="2" Text="⇄ Перевод" Style="{StaticResource Soft}" HeightRequest="56" Clicked="OnNewTransfer" />
     </Grid>
 
     <CollectionView Grid.Row="3" ItemsSource="{Binding Recent}" SelectionMode="None">

@@ -3,6 +3,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:data="clr-namespace:FinanceApp.Presentation.Data;assembly=FinanceApp.Presentation"
+             xmlns:settings="clr-namespace:FinanceApp.Presentation.Settings;assembly=FinanceApp.Presentation"
              x:Class="FinanceApp.Mobile.Views.MorePage"
              x:DataType="data:DataViewModel"
              Title="Ещё">
@@ -21,6 +22,23 @@
           </VerticalStackLayout>
           <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
         </Grid>
+      </Border>
+
+      <Border x:Name="SettingsCard" Style="{StaticResource Card}" x:DataType="settings:PhoneSettingsViewModel">
+        <VerticalStackLayout Spacing="8">
+          <Label Text="НАСТРОЙКИ" Style="{StaticResource SectionTitle}" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="Быстрый ввод строкой" FontSize="16" />
+              <Label Text="Строка на главной: «350 еда кофе» — и готово. Для тех, кому удобнее печатать, чем нажимать кнопки."
+                     Style="{StaticResource Muted}" />
+            </VerticalStackLayout>
+            <Switch Grid.Column="1" IsToggled="{Binding QuickEntryLine}" VerticalOptions="Center" />
+          </Grid>
+          <Label Text="{Binding BaseCurrencyText}" Style="{StaticResource Muted}" />
+          <Label Text="{Binding Status}" Style="{StaticResource Problem}"
+                 IsVisible="{Binding Status, Converter={StaticResource IsNotEmpty}}" />
+        </VerticalStackLayout>
       </Border>
 
       <Border Style="{StaticResource Row}" Padding="16,16">

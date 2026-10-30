@@ -15,7 +15,7 @@ public sealed class SetupBackend(ISettingsStore settings, AppStartup startup, IS
     public async Task CompleteAsync(SetupChoices choices, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(choices);
-        await settings.SaveAsync(settings.Load() with { BaseCurrency = choices.BaseCurrency }, cancellationToken);
+        await settings.SaveAsync(settings.Load() with { BaseCurrency = choices.BaseCurrency, QuickEntryLine = choices.QuickEntryLine }, cancellationToken);
         await startup.EnsureReadyAsync();
 
         await using var scope = scopes.CreateAsyncScope();

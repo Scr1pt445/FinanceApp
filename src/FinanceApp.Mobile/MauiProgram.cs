@@ -5,6 +5,7 @@ using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.Home;
 using FinanceApp.Presentation.Hosting;
 using FinanceApp.Presentation.QuickEntry;
+using FinanceApp.Presentation.Settings;
 using FinanceApp.Presentation.Setup;
 
 namespace FinanceApp.Mobile;
@@ -54,6 +55,7 @@ public static class MauiProgram
             .AddSingleton<HomeViewModel>()
             .AddSingleton<ShellViewModel>()
             .AddSingleton<DataViewModel>()
+            .AddSingleton<PhoneSettingsViewModel>()
             .AddSingleton<FormPresenter>()
             .AddSingleton<AppShell>()
             .AddSingleton<HomePage>()

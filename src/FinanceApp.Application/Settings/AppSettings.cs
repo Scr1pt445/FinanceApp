@@ -19,6 +19,12 @@ public sealed record AppSettings
     public CurrencyCode? TotalsCurrency { get; init; }
 
     public BackupSettings Backups { get; init; } = new();
+
+    /// <summary>
+    /// The phone's home screen shows the one-line quick entry. Off by default: many find buttons and forms
+    /// easier than a syntax. The desktop app always has it, behind the hotkey.
+    /// </summary>
+    public bool QuickEntryLine { get; init; }
 }
 
 /// <summary>Daily copies of the database (ADR 0012). On by default: losing the only file loses everything.</summary>

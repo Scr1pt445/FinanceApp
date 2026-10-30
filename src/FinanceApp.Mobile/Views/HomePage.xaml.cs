@@ -1,5 +1,6 @@
 using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.Home;
+using FinanceApp.Presentation.Settings;
 
 namespace FinanceApp.Mobile.Views;
 
@@ -9,11 +10,15 @@ public partial class HomePage : ContentPage
     private readonly ShellViewModel _shell;
     private bool _opened;
 
-    public HomePage(HomeViewModel viewModel, ShellViewModel shell)
+    public HomePage(HomeViewModel viewModel, ShellViewModel shell, PhoneSettingsViewModel settings)
     {
+        ArgumentNullException.ThrowIfNull(settings);
         InitializeComponent();
         BindingContext = _viewModel = viewModel;
         _shell = shell;
+
+        // Whether the line is shown is known before the screen is: no flash of it for those who turned it off.
+        settings.Load();
     }
 
     protected override async void OnAppearing()
@@ -30,8 +35,11 @@ public partial class HomePage : ContentPage
         _opened = true;
         await _viewModel.OpenAsync();
 
-        // Recording is the point of the app: the keyboard is up as soon as the app is.
-        Line.Focus();
+        // For those who chose the line, recording is the point: the keyboard is up as soon as the app is.
+        if (_viewModel.QuickEntryOn)
+        {
+            Line.Focus();
+        }
     }
 
     private void OnNewExpense(object? sender, EventArgs e) => _shell.NewExpenseCommand.Execute(null);

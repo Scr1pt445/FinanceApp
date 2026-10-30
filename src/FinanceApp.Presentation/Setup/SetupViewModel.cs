@@ -19,11 +19,13 @@ public sealed record CurrencyOption(CurrencyCode Code, string Name);
 /// <summary>What the person chose on the first run.</summary>
 /// <param name="OpeningBalances">Starter account name → what is on it now; zero ones may be left out.</param>
 /// <param name="Envelope">The first envelope, if one was named.</param>
+/// <param name="QuickEntryLine">Show the one-line quick entry on the home screen.</param>
 public sealed record SetupChoices(
     CurrencyCode BaseCurrency,
     IReadOnlyDictionary<string, decimal> OpeningBalances,
     string? Envelope = null,
-    decimal? EnvelopeGoal = null);
+    decimal? EnvelopeGoal = null,
+    bool QuickEntryLine = false);
 
 /// <summary>Applies the first-run choices: the base currency, the starter catalog and the balances.</summary>
 public interface ISetupBackend
@@ -64,7 +66,7 @@ public sealed partial class SetupViewModel : ObservableObject
             "FinanceApp — учёт денег, на который хватает пяти секунд. Всё хранится только на этом телефоне: без регистрации, без облака.",
             []),
         new("⚡", "Запись одной строкой",
-            "Напишите сумму и пару слов на главной — приложение поймёт, что это за операция, и покажет, как поняло, ещё до сохранения.",
+            "Кому удобнее печатать, чем нажимать кнопки: сумма и пара слов — приложение поймёт, что это за операция, и покажет, как поняло, ещё до сохранения. Включается в конце настройки или в «Ещё → Настройки».",
             ["350 еда кофе — расход", "+50000 зарплата — доход", "1200 такси вчера — с датой", ">5000 отпуск — в конверт", "20 кофе @наличные — с другого счёта"]),
         new("💼", "Счета и конверты",
             "Счета — откуда вы платите: карта, наличные. Конверты — отдельные копилки на машину, отпуск, подушку. Поставьте цель, и приложение подскажет, сколько откладывать в месяц.",
@@ -121,6 +123,10 @@ public sealed partial class SetupViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string EnvelopeName { get; set; } = string.Empty;
+
+    /// <summary>Off by default: buttons and forms suit most people; the line is for those who like to type.</summary>
+    [ObservableProperty]
+    public partial bool QuickEntryLine { get; set; }
 
     [ObservableProperty]
     public partial string EnvelopeGoalText { get; set; } = string.Empty;
@@ -221,7 +227,7 @@ public sealed partial class SetupViewModel : ObservableObject
         Problem = string.Empty;
         try
         {
-            await _backend!.CompleteAsync(new SetupChoices(BaseCurrency.Code, balances, envelope.Length > 0 ? envelope : null, envelope.Length > 0 ? goal : null), cancellationToken);
+            await _backend!.CompleteAsync(new SetupChoices(BaseCurrency.Code, balances, envelope.Length > 0 ? envelope : null, envelope.Length > 0 ? goal : null, QuickEntryLine), cancellationToken);
             Completed?.Invoke(this, EventArgs.Empty);
         }
 #pragma warning disable CA1031 // A full disk or a duplicate name is shown on the page; the choices stay for another try.

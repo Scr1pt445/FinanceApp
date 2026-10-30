@@ -35,6 +35,10 @@ public sealed partial class HomeViewModel : ObservableObject
 
     public QuickEntryViewModel QuickEntry { get; }
 
+    /// <summary>The one-line entry is shown; off — the buttons and forms are the way to record (settings).</summary>
+    [ObservableProperty]
+    public partial bool QuickEntryOn { get; set; }
+
     /// <summary>Everything on accounts and in envelopes, e.g. «48 650 ₽».</summary>
     [ObservableProperty]
     public partial string TotalText { get; private set; } = string.Empty;

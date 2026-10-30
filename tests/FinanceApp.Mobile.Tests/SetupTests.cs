@@ -31,12 +31,15 @@ public sealed class SetupTests : IAsyncLifetime
         setup.Balances.Single(b => b.Account == "Карта").AmountText = "1200";
         setup.EnvelopeName = "Отпуск";
         setup.EnvelopeGoalText = "5000";
+        setup.QuickEntryLine = true;
         await setup.NextCommand.ExecuteAsync(null);
 
         setup.Problem.ShouldBeEmpty();
         await WaitUntil(() => window.Page is AppShell);
         _app.Get<AppStartup>().NeedsSetup.ShouldBeFalse();
         _app.Get<ISettingsStore>().Load().BaseCurrency.Value.ShouldBe("BYN");
+        _app.Get<ISettingsStore>().Load().QuickEntryLine.ShouldBeTrue();
+        _app.Get<Presentation.Home.HomeViewModel>().QuickEntryOn.ShouldBeTrue();
 
         await using var scope = _app.Get<IServiceScopeFactory>().CreateAsyncScope();
         var catalog = await scope.ServiceProvider.GetRequiredService<CatalogService>().LoadAsync(Ct);
