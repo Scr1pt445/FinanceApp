@@ -1,4 +1,5 @@
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Setup;
 using FinanceApp.Application.Summaries;
 using FinanceApp.Application.Transactions;
@@ -220,6 +221,14 @@ public sealed class FakeFinanceBackend : IFinanceBackend
 
         return Task.CompletedTask;
     }
+
+    /// <summary>Rubles per unit; a currency missing here has no rate, as offline with an empty cache.</summary>
+    public Dictionary<CurrencyCode, decimal> RubRates { get; } = new() { [CurrencyCode.Rub] = 1m, [CurrencyCode.Usd] = 90m, [CurrencyCode.Eur] = 100m };
+
+    public Task<ExchangeRateQuote> GetRateAsync(CurrencyCode from, CurrencyCode to, DateOnly date, CancellationToken cancellationToken = default) =>
+        RubRates.TryGetValue(from, out var fromRub) && RubRates.TryGetValue(to, out var toRub)
+            ? Task.FromResult(new ExchangeRateQuote(from, to, date, fromRub / toRub, false))
+            : Task.FromException<ExchangeRateQuote>(new ExchangeRateUnavailableException($"Нет курса {from}."));
 
     public Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default)
     {

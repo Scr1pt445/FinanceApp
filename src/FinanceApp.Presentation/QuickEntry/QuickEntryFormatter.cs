@@ -56,6 +56,6 @@ public static class QuickEntryFormatter
             text += $" ≈ {Money(t.BaseAmount, baseCurrency)}";
         }
 
-        return saved.RateIsFallback ? text + " (курс из кэша — нет связи с ЦБ)" : text;
+        return saved.RateIsFallback ? text + " (по последнему известному курсу ЦБ — нет связи)" : text;
     }
 }

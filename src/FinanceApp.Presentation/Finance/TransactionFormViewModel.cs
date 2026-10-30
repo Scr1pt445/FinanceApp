@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Transactions;
 using FinanceApp.Domain;
 
@@ -30,6 +31,7 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     private readonly DateOnly _today;
     private readonly Transaction? _editing;
     private readonly List<Category> _created = [];
+    private int _conversion;
 
     private TransactionFormViewModel(IFinanceBackend backend, Catalog catalog, DateOnly today, Transaction? editing)
     {
@@ -136,7 +138,36 @@ public sealed partial class TransactionFormViewModel : ObservableObject
 
     public bool NeedsReceivedAmount => IsTransfer && Account is not null && ToAccount is not null && Account.Currency != ToAccount.Currency;
 
-    public string AmountCurrency => Account?.Currency.Value ?? _catalog.BaseCurrency.Value;
+    public string AmountCurrency => (IsForeign ? PaidCurrency!.Value : Account?.Currency ?? _catalog.BaseCurrency).Value;
+
+    /// <summary>
+    /// Currencies a receipt may be in: the account's first, then the base one, the usual ones and those of the
+    /// accounts. Another than the account's is converted on saving (TransactionInput.PaidCurrency).
+    /// </summary>
+    public ObservableCollection<CurrencyCode> PaidCurrencies { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsForeign), nameof(AmountCurrency), nameof(ChargedLabel), nameof(Problem), nameof(CanSave))]
+    public partial CurrencyCode? PaidCurrency { get; set; }
+
+    /// <summary>The receipt is in another currency than the account: the amount is converted on saving.</summary>
+    public bool IsForeign => !IsTransfer && Account is not null && PaidCurrency is { } paid && paid != Account.Currency;
+
+    /// <summary>What the bank charged, in the account currency, if known (from its SMS); empty — the CBR rate.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave))]
+    public partial string ChargedText { get; set; } = string.Empty;
+
+    public string ChargedLabel => Account is null ? string.Empty : $"Списано со счёта, {Account.Currency.Value} — если знаете";
+
+    /// <summary>«≈ 1 850 ₽ по курсу ЦБ на 20.10.2026» or why there is no rate.</summary>
+    [ObservableProperty]
+    public partial string ConversionText { get; private set; } = string.Empty;
+
+    /// <summary>No CBR rate (offline, nothing cached): what was charged has to be typed.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave))]
+    public partial bool RateMissing { get; private set; }
 
     public string ReceivedCurrency => ToAccount?.Currency.Value ?? string.Empty;
 
@@ -149,6 +180,8 @@ public sealed partial class TransactionFormViewModel : ObservableObject
         : NeedsReceivedAmount && !UseRate && ReceivedText.Trim().Length > 0 && !TryAmount(ReceivedText, out _) ? "Зачислено — положительное число."
         : NeedsReceivedAmount && UseRate && ReceivedByRate() is null ? "Курс — положительное число."
         : !IsTransfer && Category is null ? "Выберите категорию."
+        : IsForeign && ChargedText.Trim().Length > 0 && !TryAmount(ChargedText, out _) ? "Списано — сумма больше нуля."
+        : IsForeign && RateMissing && ChargedText.Trim().Length == 0 ? $"Нет курса {PaidCurrency} — укажите, сколько списано со счёта."
         : null;
 
     public bool CanSave => Problem is null && !IsBusy;
@@ -297,7 +330,9 @@ public sealed partial class TransactionFormViewModel : ObservableObject
             }
             else
             {
-                var input = new TransactionInput(date, Kind, amount, Category!.Id, Account!.Id, Note);
+                var input = new TransactionInput(date, Kind, amount, Category!.Id, Account!.Id, Note,
+                    PaidCurrency: IsForeign ? PaidCurrency : null,
+                    PaidRate: IsForeign && TryAmount(ChargedText, out var charged) ? decimal.Round(charged / amount, 6) : null);
                 saved = _editing is null
                     ? await _backend.AddAsync(input, cancellationToken)
                     : await _backend.UpdateAsync(_editing.Id, input, cancellationToken);
@@ -317,7 +352,80 @@ public sealed partial class TransactionFormViewModel : ObservableObject
         }
     }
 
-    partial void OnAccountChanged(Account? value) => UpdateRateDirection();
+    partial void OnAccountChanged(Account? value)
+    {
+        UpdateRateDirection();
+        RebuildPaidCurrencies();
+        _ = RefreshConversionAsync();
+    }
+
+    partial void OnPaidCurrencyChanged(CurrencyCode? value) => _ = RefreshConversionAsync();
+
+    partial void OnAmountTextChanged(string value) => _ = RefreshConversionAsync();
+
+    partial void OnDateTextChanged(string value) => _ = RefreshConversionAsync();
+
+    [RelayCommand]
+    private void ChoosePaidCurrency(CurrencyCode currency) => PaidCurrency = currency;
+
+    /// <summary>The receipt keeps its currency when the account changes; a new account's own comes first.</summary>
+    private void RebuildPaidCurrencies()
+    {
+        var choices = new[] { Account?.Currency ?? _catalog.BaseCurrency, _catalog.BaseCurrency, CurrencyCode.Usd, CurrencyCode.Eur }
+            .Concat(Accounts.Select(a => a.Currency))
+            .Concat(PaidCurrency is { } chosen ? [chosen] : [])
+            .Distinct()
+            .ToList();
+        if (!PaidCurrencies.SequenceEqual(choices))
+        {
+            PaidCurrencies.Clear();
+            foreach (var currency in choices)
+            {
+                PaidCurrencies.Add(currency);
+            }
+        }
+
+        PaidCurrency ??= Account?.Currency;
+        OnPropertyChanged(nameof(IsForeign));
+        OnPropertyChanged(nameof(AmountCurrency));
+        OnPropertyChanged(nameof(ChargedLabel));
+    }
+
+    /// <summary>The CBR estimate under the amount, for a receipt in another currency; a stale answer is dropped.</summary>
+    private async Task RefreshConversionAsync()
+    {
+        var version = ++_conversion;
+        if (!IsForeign || !Format.TryParseDate(DateText, out var date))
+        {
+            ConversionText = string.Empty;
+            RateMissing = false;
+            return;
+        }
+
+        var (paid, account) = (PaidCurrency!.Value, Account!.Currency);
+        try
+        {
+            var quote = await _backend.GetRateAsync(paid, account, date);
+            if (version != _conversion)
+            {
+                return;
+            }
+
+            RateMissing = false;
+            var when = quote.IsFallback ? "по последнему известному курсу ЦБ" : $"по курсу ЦБ на {Format.DateText(date)}";
+            ConversionText = TryAmount(AmountText, out var amount)
+                ? $"≈ {Format.Money(decimal.Round(amount * quote.Rate, 2, MidpointRounding.AwayFromZero), account)} {when}"
+                : $"1 {paid} = {quote.Rate.ToString("0.####", Format.Russian)} {account} {when}";
+        }
+        catch (ExchangeRateUnavailableException)
+        {
+            if (version == _conversion)
+            {
+                RateMissing = true;
+                ConversionText = $"Курса {paid} пока нет: нет связи с ЦБ.";
+            }
+        }
+    }
 
     partial void OnToAccountChanged(Account? value) => UpdateRateDirection();
 
@@ -343,6 +451,11 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     {
         IsAddingCategory = false;
         RebuildTiles();
+
+        // A transfer has no receipt currency: its received amount is asked separately.
+        OnPropertyChanged(nameof(IsForeign));
+        OnPropertyChanged(nameof(AmountCurrency));
+        _ = RefreshConversionAsync();
         if (value == TransactionType.Transfer)
         {
             Category = null;

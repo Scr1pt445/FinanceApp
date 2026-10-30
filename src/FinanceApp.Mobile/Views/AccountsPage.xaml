@@ -36,7 +36,7 @@
               <Label Text="{Binding EnvelopesTotalText}" FontAttributes="Bold" TextColor="{StaticResource AccentLight}" />
             </VerticalStackLayout>
           </Grid>
-          <Label Text="{Binding Warning}" Style="{StaticResource Problem}"
+          <Label Text="{Binding Warning, StringFormat='ⓘ {0}'}" Style="{StaticResource Muted}"
                  IsVisible="{Binding Warning, Converter={StaticResource IsNotEmpty}}" />
         </VerticalStackLayout>
       </Border>

@@ -1,4 +1,5 @@
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Settings;
 using FinanceApp.Application.Summaries;
 using FinanceApp.Application.Transactions;
@@ -70,6 +71,9 @@ public sealed class ScopedFinanceBackend(IServiceScopeFactory scopes) : IFinance
             await s.SetHiddenAsync(id, hidden, cancellationToken);
             return true;
         });
+
+    public Task<ExchangeRateQuote> GetRateAsync(CurrencyCode from, CurrencyCode to, DateOnly date, CancellationToken cancellationToken = default) =>
+        InScopeAsync<IExchangeRateService, ExchangeRateQuote>(s => s.GetRateAsync(from, to, date, cancellationToken));
 
     public Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default) =>
         InScopeAsync<ISettingsStore, bool>(async store =>

@@ -1,3 +1,4 @@
+using FinanceApp.Domain;
 using FinanceApp.Presentation.Finance;
 
 namespace FinanceApp.Mobile.Views;
@@ -11,6 +12,15 @@ public partial class TransactionFormPage : ContentPage
     {
         InitializeComponent();
         BindingContext = _form = form;
+        form.PaidCurrencies.CollectionChanged += (_, _) => HighlightPaidCurrency();
+        form.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(TransactionFormViewModel.PaidCurrency))
+            {
+                HighlightPaidCurrency();
+            }
+        };
+        HighlightPaidCurrency();
     }
 
     public TransactionFormViewModel Form => _form;
@@ -30,6 +40,16 @@ public partial class TransactionFormPage : ContentPage
         _form.CancelCommand.Execute(null);
         return true;
     }
+
+    private void OnPaidCurrency(object? sender, EventArgs e)
+    {
+        if ((sender as BindableObject)?.BindingContext is CurrencyCode currency)
+        {
+            _form.ChoosePaidCurrencyCommand.Execute(currency);
+        }
+    }
+
+    private void HighlightPaidCurrency() => Controls.Chips.Highlight(PaidCurrencies, _form.PaidCurrency);
 
     private void OnTileTapped(object? sender, TappedEventArgs e)
     {

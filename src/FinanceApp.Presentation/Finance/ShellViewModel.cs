@@ -289,7 +289,7 @@ public sealed partial class ShellViewModel : ObservableObject
             TotalText = Format.Balance(balances.InDisplay(balances.Total), display);
             AccountsTotalText = Format.Balance(balances.InDisplay(balances.FreeTotal), display);
             EnvelopesTotalText = Format.Balance(balances.InDisplay(balances.EnvelopesTotal), display);
-            Warning = balances.HasMissingRates ? "Для части валют нет курса — итог посчитан без них." : string.Empty;
+            Warning = balances.HasMissingRates ? "Курс ЦБ для части валют ещё не загружен — они пока не в итоге." : string.Empty;
 
             _refreshingTotals = true;
             try

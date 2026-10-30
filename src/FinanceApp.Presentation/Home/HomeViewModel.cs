@@ -90,7 +90,7 @@ public sealed partial class HomeViewModel : ObservableObject
             }
 
             IsEmpty = Recent.Count == 0;
-            Warning = balances.HasMissingRates ? "Для части валют нет курса — итог посчитан без них." : string.Empty;
+            Warning = balances.HasMissingRates ? "Курс ЦБ для части валют ещё не загружен — они пока не в итоге." : string.Empty;
         }
 #pragma warning disable CA1031 // Shown on the screen; quick entry stays usable.
         catch (Exception ex) when (ex is not OperationCanceledException)

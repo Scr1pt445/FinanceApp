@@ -171,6 +171,24 @@ public sealed class PagesTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ExpenseForm_TakesAReceiptInEuros()
+    {
+        var shell = _app.Get<ShellViewModel>();
+        await shell.NewExpenseCommand.ExecuteAsync(null);
+        var page = new TransactionFormPage(shell.Form!);
+        var euro = Descendants<Button>(page).Single(b => b.BindingContext is CurrencyCode c && c == CurrencyCode.Eur);
+
+        page.Form.AmountText = "20";
+        ((IButtonController)euro).SendClicked();
+        await WaitUntil(() => page.Form.ConversionText.Length > 0);
+
+        page.Form.IsForeign.ShouldBeTrue();
+        euro.BackgroundColor.ShouldBe(Palette.Accent);
+        page.Form.RateMissing.ShouldBeTrue(); // the test rates know only USD
+        _bindingFailures.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void PeriodChips_ChangeThePeriod()
     {
         var page = _app.Get<SummaryPage>();

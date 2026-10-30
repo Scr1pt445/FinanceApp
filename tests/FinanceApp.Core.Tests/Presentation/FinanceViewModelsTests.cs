@@ -299,6 +299,68 @@ public class TransactionFormViewModelTests : FinanceViewModelTestBase
     }
 }
 
+/// <summary>A receipt in another currency than the account: converted at the CBR rate or at what the bank charged.</summary>
+public class ReceiptCurrencyTests : FinanceViewModelTestBase
+{
+    private async Task<TransactionFormViewModel> NewExpenseAsync() =>
+        TransactionFormViewModel.ForNew(Backend, await Backend.LoadCatalogAsync(Ct), FakeFinanceBackend.Today, TransactionType.Expense, Backend.Card);
+
+    [Fact]
+    public async Task ByDefault_TheReceiptIsInTheAccountCurrency()
+    {
+        var form = await NewExpenseAsync();
+
+        form.PaidCurrency.ShouldBe(CurrencyCode.Rub);
+        form.PaidCurrencies.Take(3).ShouldBe([CurrencyCode.Rub, CurrencyCode.Usd, CurrencyCode.Eur]);
+        form.IsForeign.ShouldBeFalse();
+        form.ConversionText.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Euros_AreConverted_AtTheCbrRate()
+    {
+        var form = await NewExpenseAsync();
+        form.AmountText = "20";
+        form.ChooseCategoryCommand.Execute(form.Tiles.First(t => t.Name == "Еда"));
+
+        form.ChoosePaidCurrencyCommand.Execute(CurrencyCode.Eur);
+
+        form.IsForeign.ShouldBeTrue();
+        form.AmountCurrency.ShouldBe("EUR");
+        form.ConversionText.ShouldBe("≈ 2\u00a0000 ₽ по курсу ЦБ на 15.10.2026");
+        await form.SaveCommand.ExecuteAsync(null);
+        form.SaveError.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task WithoutARate_WhatWasChargedIsAsked()
+    {
+        Backend.RubRates.Remove(CurrencyCode.Eur);
+        var form = await NewExpenseAsync();
+        form.AmountText = "20";
+        form.ChooseCategoryCommand.Execute(form.Tiles.First(t => t.Name == "Еда"));
+
+        form.ChoosePaidCurrencyCommand.Execute(CurrencyCode.Eur);
+
+        form.RateMissing.ShouldBeTrue();
+        form.Problem.ShouldBe("Нет курса EUR — укажите, сколько списано со счёта.");
+        form.ChargedText = "2150";
+        form.Problem.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Transfers_HaveNoReceiptCurrency()
+    {
+        var form = await NewExpenseAsync();
+        form.ChoosePaidCurrencyCommand.Execute(CurrencyCode.Eur);
+
+        form.ChooseKindCommand.Execute(TransactionType.Transfer);
+
+        form.IsForeign.ShouldBeFalse();
+        form.AmountCurrency.ShouldBe("RUB");
+    }
+}
+
 public class AccountFormViewModelTests : FinanceViewModelTestBase
 {
     [Fact]

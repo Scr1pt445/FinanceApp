@@ -1,4 +1,5 @@
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Summaries;
 using FinanceApp.Application.Transactions;
 using FinanceApp.Domain;
@@ -37,6 +38,10 @@ public interface IFinanceBackend
     Task<Category> RenameCategoryAsync(Guid id, string name, CancellationToken cancellationToken = default);
 
     Task SetCategoryHiddenAsync(Guid id, bool hidden, CancellationToken cancellationToken = default);
+
+    /// <summary>How many <paramref name="to"/> one <paramref name="from"/> is worth on the date (CBR, cached).</summary>
+    /// <exception cref="ExchangeRateUnavailableException">No rate online and none cached.</exception>
+    Task<ExchangeRateQuote> GetRateAsync(CurrencyCode from, CurrencyCode to, DateOnly date, CancellationToken cancellationToken = default);
 
     /// <summary>Remembers the currency of the «Всего» totals; <c>null</c> — the base currency.</summary>
     Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default);

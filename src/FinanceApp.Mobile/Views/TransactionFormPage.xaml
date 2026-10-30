@@ -59,6 +59,28 @@
           </Grid>
         </controls:Field>
 
+        <!-- The receipt's currency: abroad a card in rubles pays euros; the amount is converted on saving. -->
+        <VerticalStackLayout Spacing="6" IsVisible="{Binding IsTransfer, Converter={StaticResource Not}}">
+          <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+            <HorizontalStackLayout x:Name="PaidCurrencies" Spacing="6" BindableLayout.ItemsSource="{Binding PaidCurrencies}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="domain:CurrencyCode">
+                  <Button Text="{Binding Value}" Style="{StaticResource Chip}" HeightRequest="32" MinimumHeightRequest="32"
+                          FontSize="13" Padding="12,0" Clicked="OnPaidCurrency" />
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </HorizontalStackLayout>
+          </ScrollView>
+          <Label Text="{Binding ConversionText}" Style="{StaticResource Muted}"
+                 IsVisible="{Binding ConversionText, Converter={StaticResource IsNotEmpty}}" />
+          <VerticalStackLayout Spacing="6" IsVisible="{Binding IsForeign}">
+            <Label Text="{Binding ChargedLabel}" Style="{StaticResource FieldLabel}" />
+            <controls:Field>
+              <Entry Text="{Binding ChargedText}" Keyboard="Numeric" Placeholder="Из SMS банка — точнее курса ЦБ" />
+            </controls:Field>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+
         <!-- Expense and income: categories as tiles, the most used first. -->
         <VerticalStackLayout Spacing="6" IsVisible="{Binding IsTransfer, Converter={StaticResource Not}}">
           <Label Text="Категория" Style="{StaticResource FieldLabel}" />

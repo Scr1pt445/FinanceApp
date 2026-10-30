@@ -16,7 +16,8 @@
       <Label Text="Всего" Style="{StaticResource Muted}" />
       <Label Text="{Binding TotalText}" Style="{StaticResource Big}" />
       <Label Text="{Binding TotalDetails}" Style="{StaticResource Muted}" />
-      <Label Text="{Binding Warning}" Style="{StaticResource Problem}"
+      <!-- Gray, not orange: missing rates are a note about the total, not an error. -->
+      <Label Text="{Binding Warning, StringFormat='ⓘ {0}'}" Style="{StaticResource Muted}"
              IsVisible="{Binding Warning, Converter={StaticResource IsNotEmpty}}" />
     </VerticalStackLayout>
 
