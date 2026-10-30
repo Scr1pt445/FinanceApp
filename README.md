@@ -127,7 +127,7 @@ The second command downloads the Android SDK packages the project needs (skip it
 
 #### Release
 
-The signed APK is published in [GitHub Releases](https://github.com/Scr1pt445/FinanceApp/releases): a tag `v1.0.0` runs `.github/workflows/release.yml`, which builds it with `tools/build-android-release.sh` and the key from the repository secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`). The same script builds it locally with the key passed through `FINANCEAPP_KEYSTORE`, `FINANCEAPP_KEY_ALIAS` and `FINANCEAPP_KEYSTORE_PASSWORD`; the key itself never goes into the repository, and every update has to be signed with it.
+The signed APK is published in [GitHub Releases](https://github.com/Scr1pt445/FinanceApp/releases): a tag `v1.0.0` (or «Run workflow» on main, which tags the version of the build) runs `.github/workflows/release.yml`, which builds it with `tools/build-android-release.sh` and the key from the repository secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`). The same script builds it locally with the key passed through `FINANCEAPP_KEYSTORE`, `FINANCEAPP_KEY_ALIAS` and `FINANCEAPP_KEYSTORE_PASSWORD`; the key itself never goes into the repository, and every update has to be signed with it.
 
 A debug APK and the release one are signed with different keys, so Android will not install one over the other. To move: «Ещё → Данные → Поделиться копией» in the old app and keep the file, remove the app, install the release and pick «Перенести данные из копии» on its first screen.
 

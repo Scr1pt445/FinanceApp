@@ -1,6 +1,7 @@
 name: Release
 
-# A tag like v1.0.0 builds the signed Android APK and publishes it in GitHub Releases (ADR 0013).
+# A tag like v1.0.0 builds the signed Android APK and publishes it in GitHub Releases (ADR 0013). Run by hand
+# («Run workflow» on main), it does the same for the version in Directory.Build.props and creates its tag.
 # The signing key lives only in the repository secrets:
 #   ANDROID_KEYSTORE_BASE64    the .jks file, base64-encoded (base64 -w0 financeapp-release.jks)
 #   ANDROID_KEYSTORE_PASSWORD  its password (the key has the same one)
@@ -8,6 +9,7 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -45,9 +47,15 @@ jobs:
           tools/build-android-release.sh "$ANDROID_HOME"
           rm -f "$FINANCEAPP_KEYSTORE"
 
+      # A pushed tag names the release; run by hand, the version of the build does, and its tag is made here.
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create "$GITHUB_REF_NAME" artifacts/android/FinanceApp-*.apk
-          --title "FinanceApp ${GITHUB_REF_NAME#v}" --generate-notes
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="v$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)"
+          fi
+          gh release create "$tag" artifacts/android/FinanceApp-*.apk \
+            --target "$GITHUB_SHA" --title "FinanceApp ${tag#v}" --generate-notes
