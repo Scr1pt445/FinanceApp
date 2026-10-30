@@ -232,6 +232,22 @@ public class TotalsCurrencyTests : FinanceViewModelTestBase
     }
 
     [Fact]
+    public async Task Refresh_KeepsTheCurrencyList_WhenItIsTheSame()
+    {
+        var shell = new ShellViewModel(Backend, Time);
+        await shell.RefreshAsync(Ct);
+        var resets = 0;
+        shell.TotalsCurrencies.CollectionChanged += (_, _) => resets++;
+        shell.TotalsCurrency = CurrencyCode.Usd;
+
+        await shell.RefreshAsync(Ct);
+
+        // A picker bound to the list keeps its selection only if the list is left alone.
+        resets.ShouldBe(0);
+        shell.TotalsCurrency.ShouldBe(CurrencyCode.Usd);
+    }
+
+    [Fact]
     public async Task Summary_FollowsTheTotalsCurrency()
     {
         Backend.Earn("2026-10-01", 90_000m);

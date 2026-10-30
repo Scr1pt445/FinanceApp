@@ -294,7 +294,13 @@ public sealed partial class ShellViewModel : ObservableObject
             _refreshingTotals = true;
             try
             {
-                Replace(TotalsCurrencies, balances.DisplayChoices);
+                // Usually the same list: refilling it would make a picker drop and re-pick the selection
+                // on every refresh, which on Android reads as the choice not taking.
+                if (!TotalsCurrencies.SequenceEqual(balances.DisplayChoices))
+                {
+                    Replace(TotalsCurrencies, balances.DisplayChoices);
+                }
+
                 TotalsCurrency = display;
             }
             finally
