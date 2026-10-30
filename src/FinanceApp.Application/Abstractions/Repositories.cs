@@ -46,6 +46,18 @@ public interface IRecurringOperationRepository
     void Remove(RecurringOperation operation);
 }
 
+public interface IDebtRepository
+{
+    /// <summary>All, the open ones first.</summary>
+    Task<IReadOnlyList<Debt>> ListAsync(CancellationToken cancellationToken = default);
+
+    Task<Debt?> FindAsync(Guid id, CancellationToken cancellationToken = default);
+
+    void Add(Debt debt);
+
+    void Remove(Debt debt);
+}
+
 /// <summary>Commits the changes made through the repositories as one unit.</summary>
 public interface IUnitOfWork
 {

@@ -79,6 +79,25 @@ internal sealed class EfRecurringOperationRepository(FinanceDbContext db) : IRec
     public void Remove(RecurringOperation operation) => db.RecurringOperations.Remove(operation);
 }
 
+internal sealed class EfDebtRepository(FinanceDbContext db) : IDebtRepository
+{
+    public async Task<IReadOnlyList<Debt>> ListAsync(CancellationToken cancellationToken = default) =>
+        (await db.Debts.ToListAsync(cancellationToken))
+            .OrderBy(d => d.IsClosed)
+            .ThenBy(d => d.IsClosed ? DateOnly.MaxValue : d.DueDate ?? DateOnly.MaxValue)
+            .ThenByDescending(d => d.ClosedOn)
+            .ThenByDescending(d => d.Date)
+            .ThenByDescending(d => d.CreatedAt)
+            .ToList();
+
+    public Task<Debt?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        db.Debts.FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
+
+    public void Add(Debt debt) => db.Debts.Add(debt);
+
+    public void Remove(Debt debt) => db.Debts.Remove(debt);
+}
+
 internal sealed class EfUnitOfWork(FinanceDbContext db) : IUnitOfWork
 {
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) => db.SaveChangesAsync(cancellationToken);

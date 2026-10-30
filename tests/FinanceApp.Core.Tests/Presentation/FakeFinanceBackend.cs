@@ -1,4 +1,5 @@
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.Debts;
 using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Recurring;
 using FinanceApp.Application.Setup;
@@ -316,6 +317,47 @@ public sealed class FakeFinanceBackend : IFinanceBackend
     public Task SetCategoryLimitAsync(Guid id, decimal? limit, CancellationToken cancellationToken = default)
     {
         Categories.Single(c => c.Id == id).SetLimit(limit);
+        return Task.CompletedTask;
+    }
+
+    public async Task<MonthComparison> LoadComparisonAsync(YearMonth month, YearMonth other, bool samePoint, CancellationToken cancellationToken = default)
+    {
+        var limits = await LoadLimitsAsync(month, cancellationToken);
+        return MonthComparison.For(
+            Transactions, month, other, samePoint, Categories.ToDictionary(c => c.Id), Accounts.ToDictionary(a => a.Id),
+            Recurring, limits, currency => currency == CurrencyCode.Usd ? 90m : 1m, CurrencyCode.Rub, Today);
+    }
+
+    public List<Debt> Debts { get; } = [];
+
+    public Task<IReadOnlyList<Debt>> ListDebtsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Debt>>([.. Debts.OrderBy(d => d.IsClosed).ThenBy(d => d.DueDate ?? DateOnly.MaxValue)]);
+
+    public Task<Debt> AddDebtAsync(DebtInput input, CancellationToken cancellationToken = default)
+    {
+        ThrowIfFailing();
+        var debt = Debt.Create(input.Direction, input.Person, input.Amount, input.Currency, input.Date, input.DueDate, input.Note, Stamp());
+        Debts.Add(debt);
+        return Task.FromResult(debt);
+    }
+
+    public Task<Debt> UpdateDebtAsync(Guid id, DebtInput input, CancellationToken cancellationToken = default)
+    {
+        var debt = Debts.Single(d => d.Id == id);
+        debt.Update(input.Direction, input.Person, input.Amount, input.Currency, input.Date, input.DueDate, input.Note);
+        return Task.FromResult(debt);
+    }
+
+    public Task<Debt> RepayDebtAsync(Guid id, decimal amount, CancellationToken cancellationToken = default)
+    {
+        var debt = Debts.Single(d => d.Id == id);
+        debt.Repay(amount, Today);
+        return Task.FromResult(debt);
+    }
+
+    public Task DeleteDebtAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        Debts.RemoveAll(d => d.Id == id);
         return Task.CompletedTask;
     }
 

@@ -16,6 +16,8 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
 
     public DbSet<RecurringOperation> RecurringOperations => Set<RecurringOperation>();
 
+    public DbSet<Debt> Debts => Set<Debt>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<CurrencyCode>().HaveConversion<CurrencyCodeConverter>().HaveMaxLength(3);
@@ -23,6 +25,7 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
         configurationBuilder.Properties<TransactionType>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<AccountKind>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<RecurrenceFrequency>().HaveConversion<string>().HaveMaxLength(16);
+        configurationBuilder.Properties<DebtDirection>().HaveConversion<string>().HaveMaxLength(16);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -74,6 +77,17 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
             recurring.HasOne<Category>().WithMany().HasForeignKey(r => r.CategoryId).OnDelete(DeleteBehavior.Restrict);
             recurring.HasOne<Account>().WithMany().HasForeignKey(r => r.AccountId).OnDelete(DeleteBehavior.Restrict);
             recurring.HasOne<Account>().WithMany().HasForeignKey(r => r.ToAccountId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Debt>(debt =>
+        {
+            debt.ToTable("Debts");
+            debt.HasKey(d => d.Id);
+            debt.Property(d => d.Id).ValueGeneratedNever();
+            debt.Property(d => d.Person).HasMaxLength(Debt.MaxPersonLength);
+            debt.Property(d => d.Note).HasMaxLength(Transaction.MaxNoteLength);
+            debt.Ignore(d => d.Left);
+            debt.Ignore(d => d.IsClosed);
         });
 
         modelBuilder.Entity<CachedExchangeRate>(rate =>

@@ -1,4 +1,5 @@
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.Debts;
 using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Recurring;
 using FinanceApp.Application.Summaries;
@@ -72,6 +73,21 @@ public interface IFinanceBackend
 
     /// <summary>Sets or removes (<c>null</c>) a category's monthly limit, in the base currency.</summary>
     Task SetCategoryLimitAsync(Guid id, decimal? limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Two months side by side and, for the current one, a forecast (MonthComparisonService).</summary>
+    Task<MonthComparison> LoadComparisonAsync(YearMonth month, YearMonth other, bool samePoint, CancellationToken cancellationToken = default);
+
+    /// <summary>Debts, the open ones first.</summary>
+    Task<IReadOnlyList<Debt>> ListDebtsAsync(CancellationToken cancellationToken = default);
+
+    Task<Debt> AddDebtAsync(DebtInput input, CancellationToken cancellationToken = default);
+
+    Task<Debt> UpdateDebtAsync(Guid id, DebtInput input, CancellationToken cancellationToken = default);
+
+    /// <summary>Part or all of a debt came back today.</summary>
+    Task<Debt> RepayDebtAsync(Guid id, decimal amount, CancellationToken cancellationToken = default);
+
+    Task DeleteDebtAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>Remembers the currency of the «Всего» totals; <c>null</c> — the base currency.</summary>
     Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default);

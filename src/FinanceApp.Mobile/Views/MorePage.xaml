@@ -4,6 +4,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:data="clr-namespace:FinanceApp.Presentation.Data;assembly=FinanceApp.Presentation"
              xmlns:settings="clr-namespace:FinanceApp.Presentation.Settings;assembly=FinanceApp.Presentation"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
              x:Class="FinanceApp.Mobile.Views.MorePage"
              x:DataType="data:DataViewModel"
              Title="Ещё">
@@ -32,6 +33,38 @@
           <VerticalStackLayout Spacing="2">
             <Label Text="Регулярные операции" FontSize="16" />
             <Label Text="Аренда, подписки, зарплата — напомнит записать в нужный день" Style="{StaticResource Muted}" />
+          </VerticalStackLayout>
+          <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+
+      <Border x:Name="DebtsRow" Style="{StaticResource Row}" Padding="16,16" x:DataType="finance:DebtsViewModel">
+        <Border.GestureRecognizers>
+          <TapGestureRecognizer Tapped="OnDebts" />
+        </Border.GestureRecognizers>
+        <Grid ColumnDefinitions="*,Auto">
+          <VerticalStackLayout Spacing="2">
+            <Label Text="Долги" FontSize="16" />
+            <Label Text="{Binding Summary}" Style="{StaticResource Muted}">
+              <Label.Triggers>
+                <DataTrigger TargetType="Label" Binding="{Binding HasOverdue}" Value="True">
+                  <Setter Property="TextColor" Value="{StaticResource Warning}" />
+                </DataTrigger>
+              </Label.Triggers>
+            </Label>
+          </VerticalStackLayout>
+          <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+
+      <Border Style="{StaticResource Row}" Padding="16,16">
+        <Border.GestureRecognizers>
+          <TapGestureRecognizer Tapped="OnCompare" />
+        </Border.GestureRecognizers>
+        <Grid ColumnDefinitions="*,Auto">
+          <VerticalStackLayout Spacing="2">
+            <Label Text="Сравнение месяцев" FontSize="16" />
+            <Label Text="Два месяца рядом, что выросло, и сколько можно тратить до конца месяца" Style="{StaticResource Muted}" />
           </VerticalStackLayout>
           <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
         </Grid>

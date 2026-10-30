@@ -56,6 +56,8 @@ public static class MauiProgram
             .AddSingleton<LockViewModel>()
             .AddTransient<PinSetupViewModel>()
             .AddSingleton<RecurringViewModel>()
+            .AddSingleton<DebtsViewModel>()
+            .AddSingleton<CompareMonthsViewModel>()
             .AddSingleton<Screens>()
             .AddSingleton(sp => new QuickEntryViewModel(sp.GetRequiredService<IQuickEntryBackend>())
             {
@@ -98,5 +100,9 @@ public static class MauiProgram
             .AddTransient<RatesPage>()
             .AddTransient<RecurringPage>()
             .AddSingleton<Func<RecurringPage>>(sp => sp.GetRequiredService<RecurringPage>)
-            .AddSingleton<Func<RatesPage>>(sp => sp.GetRequiredService<RatesPage>);
+            .AddSingleton<Func<RatesPage>>(sp => sp.GetRequiredService<RatesPage>)
+            .AddTransient<DebtsPage>()
+            .AddSingleton<Func<DebtsPage>>(sp => sp.GetRequiredService<DebtsPage>)
+            .AddTransient<CompareMonthsPage>()
+            .AddSingleton<Func<CompareMonthsPage>>(sp => sp.GetRequiredService<CompareMonthsPage>);
 }

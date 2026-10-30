@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<ICategoryRepository, EfCategoryRepository>();
         services.AddScoped<IAccountRepository, EfAccountRepository>();
         services.AddScoped<IRecurringOperationRepository, EfRecurringOperationRepository>();
+        services.AddScoped<IDebtRepository, EfDebtRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<DatabaseInitializer>();
 
@@ -65,6 +66,8 @@ public static class DependencyInjection
         services.AddScoped<CategoryService>();
         services.AddScoped<LimitsService>();
         services.AddScoped<FinanceApp.Application.Recurring.RecurringService>();
+        services.AddScoped<FinanceApp.Application.Debts.DebtService>();
+        services.AddScoped<FinanceApp.Application.Summaries.MonthComparisonService>();
         services.AddScoped<CsvExportService>();
 
         services.AddSingleton(exportOptions ?? new CsvExportOptions());

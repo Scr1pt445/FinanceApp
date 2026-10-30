@@ -1,4 +1,5 @@
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.Debts;
 using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Recurring;
 using FinanceApp.Application.Settings;
@@ -123,6 +124,28 @@ public sealed class ScopedFinanceBackend(IServiceScopeFactory scopes) : IFinance
         InScopeAsync<CategoryService, bool>(async s =>
         {
             await s.SetLimitAsync(id, limit, cancellationToken);
+            return true;
+        });
+
+    public Task<MonthComparison> LoadComparisonAsync(YearMonth month, YearMonth other, bool samePoint, CancellationToken cancellationToken = default) =>
+        InScopeAsync<MonthComparisonService, MonthComparison>(s => s.LoadAsync(month, other, samePoint, cancellationToken));
+
+    public Task<IReadOnlyList<Debt>> ListDebtsAsync(CancellationToken cancellationToken = default) =>
+        InScopeAsync<DebtService, IReadOnlyList<Debt>>(s => s.ListAsync(cancellationToken));
+
+    public Task<Debt> AddDebtAsync(DebtInput input, CancellationToken cancellationToken = default) =>
+        InScopeAsync<DebtService, Debt>(s => s.AddAsync(input, cancellationToken));
+
+    public Task<Debt> UpdateDebtAsync(Guid id, DebtInput input, CancellationToken cancellationToken = default) =>
+        InScopeAsync<DebtService, Debt>(s => s.UpdateAsync(id, input, cancellationToken));
+
+    public Task<Debt> RepayDebtAsync(Guid id, decimal amount, CancellationToken cancellationToken = default) =>
+        InScopeAsync<DebtService, Debt>(s => s.RepayAsync(id, amount, cancellationToken));
+
+    public Task DeleteDebtAsync(Guid id, CancellationToken cancellationToken = default) =>
+        InScopeAsync<DebtService, bool>(async s =>
+        {
+            await s.DeleteAsync(id, cancellationToken);
             return true;
         });
 

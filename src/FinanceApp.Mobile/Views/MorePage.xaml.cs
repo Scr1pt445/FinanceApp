@@ -1,5 +1,6 @@
 using System.Reflection;
 using FinanceApp.Presentation.Data;
+using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.Settings;
 using FinanceApp.Presentation.Setup;
 
@@ -11,6 +12,9 @@ public partial class MorePage : ContentPage
     private readonly Func<CategoriesPage> _categories;
     private readonly Func<RatesPage> _rates;
     private readonly Func<RecurringPage> _recurring;
+    private readonly Func<DebtsPage> _debts;
+    private readonly Func<CompareMonthsPage> _compare;
+    private readonly DebtsViewModel _debtsViewModel;
     private readonly PhoneSettingsViewModel _settings;
     private readonly IServiceProvider _services;
 
@@ -20,6 +24,9 @@ public partial class MorePage : ContentPage
         Func<CategoriesPage> categories,
         Func<RatesPage> rates,
         Func<RecurringPage> recurring,
+        Func<DebtsPage> debts,
+        Func<CompareMonthsPage> compare,
+        DebtsViewModel debtsViewModel,
         IBiometrics biometrics,
         IServiceProvider services)
     {
@@ -27,6 +34,9 @@ public partial class MorePage : ContentPage
         ArgumentNullException.ThrowIfNull(biometrics);
         _rates = rates;
         _recurring = recurring;
+        _debts = debts;
+        _compare = compare;
+        _debtsViewModel = debtsViewModel;
         _settings = settings;
         _services = services;
         settings.BiometricsAvailable = biometrics.IsAvailable;
@@ -34,20 +44,26 @@ public partial class MorePage : ContentPage
         InitializeComponent();
         BindingContext = _viewModel = viewModel;
         SettingsCard.BindingContext = settings;
+        DebtsRow.BindingContext = debtsViewModel;
         _categories = categories;
         var version = typeof(MorePage).Assembly.GetName().Version;
         VersionLabel.Text = version is null ? "FinanceApp" : $"FinanceApp {version.ToString(3)}";
     }
 
-    protected override void OnAppearing()
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
         _viewModel.Load();
+        await _debtsViewModel.LoadAsync();
     }
 
     private async void OnCategories(object? sender, TappedEventArgs e) => await Navigation.PushAsync(_categories());
 
     private async void OnRates(object? sender, TappedEventArgs e) => await Navigation.PushAsync(_rates());
+
+    private async void OnDebts(object? sender, TappedEventArgs e) => await Navigation.PushAsync(_debts());
+
+    private async void OnCompare(object? sender, TappedEventArgs e) => await Navigation.PushAsync(_compare());
 
     private async void OnRecurring(object? sender, TappedEventArgs e) => await Navigation.PushAsync(_recurring());
 
