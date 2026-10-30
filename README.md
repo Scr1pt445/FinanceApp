@@ -8,7 +8,7 @@
 
 A Windows desktop app for personal finance tracking, built around one idea: **recording a transaction should take five seconds.** A global hotkey opens a one-line entry box; a banking-style main window keeps accounts, envelopes for savings goals, transfers and summaries for any period.
 
-> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 450 automated tests. The standalone Android app covers the same ground on the phone: quick entry, operations, accounts and envelopes, summaries ([Android](#android)). See the [roadmap](#roadmap).
+> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 454 automated tests. The standalone Android app covers the same ground on the phone: quick entry, operations, accounts and envelopes, summaries ([Android](#android)). See the [roadmap](#roadmap).
 
 ## Features
 
@@ -110,9 +110,9 @@ dotnet build src/FinanceApp.Mobile -t:InstallAndroidDependencies -f net10.0-andr
 tools/build-android.sh <sdk folder>
 ```
 
-The second command downloads the Android SDK packages the project needs (skip it if Android Studio already installed them); on Windows run `tools\build-android.ps1 -AndroidSdk <sdk folder>` instead of the `.sh`. The result is `artifacts/android/FinanceApp-debug.apk`, signed with the local debug key: copy it to the phone and open it (allow installing apps from this source). The phone keeps its own database — it is not synced with the desktop app. The first start is a short tour of the app, then the base currency (fixed from then on) and what is on the card and in cash now, plus an optional first envelope; the tour can be opened again from «Ещё». Then the app has five tabs:
+The second command downloads the Android SDK packages the project needs (skip it if Android Studio already installed them); on Windows run `tools\build-android.ps1 -AndroidSdk <sdk folder>` instead of the `.sh`. The result is `artifacts/android/FinanceApp-debug.apk`, signed with the local debug key: copy it to the phone and open it (allow installing apps from this source). The phone keeps its own database — it is not synced with the desktop app. The first start is a short tour of the app, then the base currency (fixed from then on) and what is on the card and in cash now, plus an optional first envelope and whether to show the quick-entry line; the tour can be opened again from «Ещё». Then the app has five tabs:
 
-- **Главная** — the quick-entry line with its live preview, buttons for the full expense, income and transfer forms, the total and the last 30 days of operations (tap one to edit it).
+- **Главная** — buttons for the expense, income and transfer forms and, if switched on in «Ещё → Настройки» or at the first run, the quick-entry line with its live preview (off by default: not everyone likes to type a syntax); the total and the last 30 days of operations (tap one to edit it).
 - **Операции** — a month by day for all accounts or one, filters by type, search, swipe left to delete with «Вернуть» to undo; filling and emptying an envelope.
 - **Счета** — accounts and envelopes with balances, goals and progress; totals in any currency; new and hidden accounts.
 - **Итоги** — any period: money in and out, where the income went, insights, the pace of spending against the previous period, categories, the biggest expenses, envelopes.
@@ -145,7 +145,7 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 
 ## Testing
 
-450 tests on xUnit v3 and Microsoft Testing Platform (on Linux one Windows-only file-lock test is skipped):
+454 tests on xUnit v3 and Microsoft Testing Platform (on Linux one Windows-only file-lock test is skipped):
 
 - **Core tests** — domain invariants, the quick-entry parser (amounts, prefixes, dates, accounts, ambiguities), category hints, CSV writer/reader (byte-level checks for BOM, quoting and culture independence), summaries, exchange-rate fallback logic, export coordinator (debounce, retries, failure status), view models of the main window (operations, forms, summaries, categories, totals currency), the quick-entry and hotkey windows and the phone's home screen.
 - **Infrastructure tests** — run against a real SQLite file and the real file system: migrations and seeding, decimal/date round-trips, atomic replace with a locked target, CBR parsing with a fake HTTP handler, end-to-end add → edit → delete → CSV, import idempotency and export → import round-trip, the phone's home screen and data sharing through the shared scoped backends.
