@@ -47,6 +47,10 @@ public sealed partial class HomeViewModel : ObservableObject
     [ObservableProperty]
     public partial string TotalDetails { get; private set; } = string.Empty;
 
+    /// <summary>«Октябрь: расходы 45 000 ₽ · доходы 80 000 ₽» — for the home-screen widget.</summary>
+    [ObservableProperty]
+    public partial string MonthText { get; private set; } = string.Empty;
+
     /// <summary>Missing rates or a failed load; empty when all is well.</summary>
     [ObservableProperty]
     public partial string Warning { get; private set; } = string.Empty;
@@ -57,8 +61,23 @@ public sealed partial class HomeViewModel : ObservableObject
 
     public ObservableCollection<DayGroup> Recent { get; } = [];
 
+    /// <summary>Recurring operations due today or earlier: record or skip.</summary>
+    public ObservableCollection<DueItem> Due { get; } = [];
+
+    /// <summary>Categories at 80 % of their monthly limit or over it.</summary>
+    public ObservableCollection<LimitRow> LimitWarnings { get; } = [];
+
+    [ObservableProperty]
+    public partial bool HasDue { get; private set; }
+
+    [ObservableProperty]
+    public partial bool HasLimitWarnings { get; private set; }
+
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; }
+
+    /// <summary>A due operation was recorded here: the other screens' balances are stale.</summary>
+    public event EventHandler? Changed;
 
     private DateOnly Today => DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime);
 
@@ -95,6 +114,10 @@ public sealed partial class HomeViewModel : ObservableObject
 
             IsEmpty = Recent.Count == 0;
             Warning = balances.HasMissingRates ? ShellViewModel.MissingRatesWarning : string.Empty;
+            var month = (await _backend.LoadPeriodAsync(Period.MonthOf(today), cancellationToken)).Summary.Current;
+            MonthText = $"{Format.MonthName(today.Month)}: расходы {Format.Money(month.Expense, overview.BaseCurrency)} · доходы {Format.Money(month.Income, overview.BaseCurrency)}";
+            await LoadDueAsync(today, cancellationToken);
+            await LoadLimitsAsync(today, cancellationToken);
         }
 #pragma warning disable CA1031 // Shown on the screen; quick entry stays usable.
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -102,6 +125,78 @@ public sealed partial class HomeViewModel : ObservableObject
         {
             Warning = $"Не удалось загрузить данные: {ex.Message}";
         }
+    }
+
+    private async Task LoadDueAsync(DateOnly today, CancellationToken cancellationToken)
+    {
+        var due = (await _backend.ListRecurringAsync(cancellationToken)).Where(r => r.IsDue(today)).ToList();
+        Due.Clear();
+        if (due.Count > 0)
+        {
+            var catalog = await _backend.LoadCatalogAsync(cancellationToken);
+            foreach (var operation in due)
+            {
+                var details = $"{RecurringText.Amount(operation, catalog)} · {RecurringText.When(operation.NextDate, today)}";
+                Due.Add(new DueItem(operation, RecurringText.Title(operation, catalog), details, RecordDueAsync, SkipDueAsync));
+            }
+        }
+
+        HasDue = Due.Count > 0;
+    }
+
+    private async Task LoadLimitsAsync(DateOnly today, CancellationToken cancellationToken)
+    {
+        var limits = await _backend.LoadLimitsAsync(YearMonth.Of(today), cancellationToken);
+        LimitWarnings.Clear();
+        foreach (var line in limits.Lines.Where(l => l.IsNear))
+        {
+            LimitWarnings.Add(LimitRow.From(line, limits.BaseCurrency));
+        }
+
+        HasLimitWarnings = LimitWarnings.Count > 0;
+    }
+
+    private async Task RecordDueAsync(DueItem item)
+    {
+        if (!Format.TryParseAmount(item.AmountText, out var amount) || amount <= 0 || decimal.Round(amount, 2) != amount)
+        {
+            Warning = "Сумма — больше нуля, не больше двух знаков после запятой.";
+            return;
+        }
+
+        item.IsBusy = true;
+        try
+        {
+            var saved = await _backend.RecordRecurringAsync(item.Operation.Id, amount == item.Operation.Amount ? null : amount);
+            LastSaved = "Записано: " + QuickEntryFormatter.Saved(saved, _baseCurrency);
+        }
+#pragma warning disable CA1031 // Shown on the screen; the item stays to try again.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
+        {
+            Warning = $"Не удалось записать: {ex.Message}";
+            item.IsBusy = false;
+            return;
+        }
+
+        await RefreshAsync();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task SkipDueAsync(DueItem item)
+    {
+        try
+        {
+            await _backend.SkipRecurringAsync(item.Operation.Id);
+        }
+#pragma warning disable CA1031 // Shown on the screen.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
+        {
+            Warning = $"Не удалось пропустить: {ex.Message}";
+        }
+
+        await RefreshAsync();
     }
 
     private async Task OnSavedAsync(SavedTransaction saved)

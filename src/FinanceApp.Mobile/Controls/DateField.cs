@@ -13,6 +13,9 @@ public enum DateFieldKind
 
     /// <summary>A start date: «Сегодня», «Завтра».</summary>
     Start,
+
+    /// <summary>When a debt is due: «Через неделю», «Через 2 недели», «Через месяц».</summary>
+    Due,
 }
 
 /// <summary>
@@ -109,11 +112,12 @@ public sealed class DateField : Field
                 new("К концу года", new DateOnly(today.Month == 12 && today.Day == 31 ? today.Year + 1 : today.Year, 12, 31)),
             ],
             DateFieldKind.Start => [new("Сегодня", today), new("Завтра", today.AddDays(1))],
+            DateFieldKind.Due => [new("Через неделю", today.AddDays(7)), new("Через 2 недели", today.AddDays(14)), new("Через месяц", today.AddMonths(1))],
             _ => [new("Сегодня", today), new("Вчера", today.AddDays(-1)), new("Позавчера", today.AddDays(-2))],
         };
         if (allowEmpty)
         {
-            list.Add(new(kind == DateFieldKind.Goal ? "Без срока" : "Без даты", null));
+            list.Add(new(kind is DateFieldKind.Goal or DateFieldKind.Due ? "Без срока" : "Без даты", null));
         }
 
         return list;

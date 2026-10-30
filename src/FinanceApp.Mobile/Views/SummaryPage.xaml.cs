@@ -7,10 +7,12 @@ namespace FinanceApp.Mobile.Views;
 public partial class SummaryPage : ContentPage
 {
     private readonly SummaryViewModel _viewModel;
+    private readonly Func<CompareMonthsPage> _compare;
 
-    public SummaryPage(ShellViewModel shell)
+    public SummaryPage(ShellViewModel shell, Func<CompareMonthsPage> compare)
     {
         ArgumentNullException.ThrowIfNull(shell);
+        _compare = compare;
         InitializeComponent();
         BindingContext = _viewModel = shell.Summary;
         _viewModel.PropertyChanged += OnSummaryChanged;
@@ -22,6 +24,8 @@ public partial class SummaryPage : ContentPage
         base.OnAppearing();
         await _viewModel.LoadAsync();
     }
+
+    private async void OnCompare(object? sender, EventArgs e) => await Navigation.PushAsync(_compare());
 
     private void OnPeriod(object? sender, EventArgs e)
     {

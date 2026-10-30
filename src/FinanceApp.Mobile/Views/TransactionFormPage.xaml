@@ -265,6 +265,23 @@
         <controls:Field>
           <Entry Text="{Binding Note}" Placeholder="Необязательно" />
         </controls:Field>
+
+        <!-- New operations only: rent, a subscription, the salary come round and are offered on their day. -->
+        <VerticalStackLayout Spacing="6" IsVisible="{Binding IsNew}">
+          <Label Text="Повторять" Style="{StaticResource FieldLabel}" />
+          <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+            <HorizontalStackLayout x:Name="RepeatChips" Spacing="6" BindableLayout.ItemsSource="{Binding RepeatChoices}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="finance:RepeatChoice">
+                  <Button Text="{Binding Title}" Style="{StaticResource Chip}" HeightRequest="32" MinimumHeightRequest="32"
+                          FontSize="13" Padding="12,0" Clicked="OnRepeat" />
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </HorizontalStackLayout>
+          </ScrollView>
+          <Label Text="{Binding RepeatHint}" Style="{StaticResource Muted}"
+                 IsVisible="{Binding RepeatHint, Converter={StaticResource IsNotEmpty}}" />
+        </VerticalStackLayout>
       </VerticalStackLayout>
     </ScrollView>
 

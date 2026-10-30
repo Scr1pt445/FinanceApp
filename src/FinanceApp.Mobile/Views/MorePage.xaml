@@ -4,6 +4,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:data="clr-namespace:FinanceApp.Presentation.Data;assembly=FinanceApp.Presentation"
              xmlns:settings="clr-namespace:FinanceApp.Presentation.Settings;assembly=FinanceApp.Presentation"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
              x:Class="FinanceApp.Mobile.Views.MorePage"
              x:DataType="data:DataViewModel"
              Title="Ещё">
@@ -19,6 +20,51 @@
           <VerticalStackLayout Spacing="2">
             <Label Text="Категории" FontSize="16" />
             <Label Text="Добавить, переименовать, скрыть" Style="{StaticResource Muted}" />
+          </VerticalStackLayout>
+          <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+
+      <Border Style="{StaticResource Row}" Padding="16,16">
+        <Border.GestureRecognizers>
+          <TapGestureRecognizer Tapped="OnRecurring" />
+        </Border.GestureRecognizers>
+        <Grid ColumnDefinitions="*,Auto">
+          <VerticalStackLayout Spacing="2">
+            <Label Text="Регулярные операции" FontSize="16" />
+            <Label Text="Аренда, подписки, зарплата — напомнит записать в нужный день" Style="{StaticResource Muted}" />
+          </VerticalStackLayout>
+          <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+
+      <Border x:Name="DebtsRow" Style="{StaticResource Row}" Padding="16,16" x:DataType="finance:DebtsViewModel">
+        <Border.GestureRecognizers>
+          <TapGestureRecognizer Tapped="OnDebts" />
+        </Border.GestureRecognizers>
+        <Grid ColumnDefinitions="*,Auto">
+          <VerticalStackLayout Spacing="2">
+            <Label Text="Долги" FontSize="16" />
+            <Label Text="{Binding Summary}" Style="{StaticResource Muted}">
+              <Label.Triggers>
+                <DataTrigger TargetType="Label" Binding="{Binding HasOverdue}" Value="True">
+                  <Setter Property="TextColor" Value="{StaticResource Warning}" />
+                </DataTrigger>
+              </Label.Triggers>
+            </Label>
+          </VerticalStackLayout>
+          <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+
+      <Border Style="{StaticResource Row}" Padding="16,16">
+        <Border.GestureRecognizers>
+          <TapGestureRecognizer Tapped="OnCompare" />
+        </Border.GestureRecognizers>
+        <Grid ColumnDefinitions="*,Auto">
+          <VerticalStackLayout Spacing="2">
+            <Label Text="Сравнение месяцев" FontSize="16" />
+            <Label Text="Два месяца рядом, что выросло, и сколько можно тратить до конца месяца" Style="{StaticResource Muted}" />
           </VerticalStackLayout>
           <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
         </Grid>
@@ -48,6 +94,32 @@
             </VerticalStackLayout>
             <Switch Grid.Column="1" IsToggled="{Binding QuickEntryLine}" VerticalOptions="Center" />
           </Grid>
+          <BoxView HeightRequest="1" Color="{StaticResource Border}" Margin="0,4" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="Вход по PIN" FontSize="16" />
+              <Label Text="Четыре цифры при каждом открытии." Style="{StaticResource Muted}" />
+            </VerticalStackLayout>
+            <Switch x:Name="LockSwitch" Grid.Column="1" IsToggled="{Binding LockOn, Mode=OneWay}" Toggled="OnLockToggled" VerticalOptions="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding LockOn}">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="Отпечаток пальца" FontSize="16" />
+              <Label Text="Открывать приложение отпечатком вместо PIN" Style="{StaticResource Muted}" />
+            </VerticalStackLayout>
+            <Switch Grid.Column="1" IsToggled="{Binding Biometrics}" IsEnabled="{Binding BiometricsAvailable}" VerticalOptions="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding LockOn}">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="Суммы в виджете" FontSize="16" />
+              <Label Text="Показывать итог на рабочем столе и при включённом PIN. Кнопки виджета работают в любом случае."
+                     Style="{StaticResource Muted}" />
+            </VerticalStackLayout>
+            <Switch Grid.Column="1" IsToggled="{Binding WidgetAmounts}" VerticalOptions="Center" />
+          </Grid>
+          <Label Text="На телефоне не настроен отпечаток — добавьте его в настройках Android." Style="{StaticResource Muted}" FontSize="12"
+                 IsVisible="{Binding BiometricsMissing}" />
+          <BoxView HeightRequest="1" Color="{StaticResource Border}" Margin="0,4" />
           <Label Text="{Binding BaseCurrencyText}" Style="{StaticResource Muted}" />
           <Label Text="{Binding Status}" Style="{StaticResource Problem}"
                  IsVisible="{Binding Status, Converter={StaticResource IsNotEmpty}}" />
@@ -74,6 +146,20 @@
                  Style="{StaticResource Muted}" />
           <Button Text="Выгрузить операции в CSV" Style="{StaticResource Soft}" Command="{Binding ShareCsvCommand}" />
           <Button Text="Поделиться копией базы" Style="{StaticResource Soft}" Command="{Binding ShareBackupCommand}" />
+          <Button Text="Восстановить из копии" Style="{StaticResource Soft}" Command="{Binding PickRestoreCommand}"
+                  IsVisible="{Binding IsConfirmingRestore, Converter={StaticResource Not}}" />
+          <!-- What the chosen copy holds, before it replaces anything. -->
+          <Border Style="{StaticResource Card}" Stroke="{StaticResource Warning}" BackgroundColor="{StaticResource Control}"
+                  IsVisible="{Binding IsConfirmingRestore}">
+            <VerticalStackLayout Spacing="10">
+              <Label Text="Заменить данные копией?" FontSize="16" FontAttributes="Bold" />
+              <Label Text="{Binding PendingRestore}" Style="{StaticResource Muted}" />
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button Text="Заменить" Command="{Binding ConfirmRestoreCommand}" />
+                <Button Grid.Column="1" Text="Отмена" Style="{StaticResource Soft}" Command="{Binding CancelRestoreCommand}" />
+              </Grid>
+            </VerticalStackLayout>
+          </Border>
           <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" HeightRequest="24" />
           <Label Text="{Binding Status}" FontSize="13" TextColor="{StaticResource Income}"
                  IsVisible="{Binding Status, Converter={StaticResource IsNotEmpty}}">
@@ -84,7 +170,7 @@
             </Label.Triggers>
           </Label>
           <Label Text="{Binding BackupsText}" Style="{StaticResource Muted}" />
-          <Label Text="CSV загружается в программу для Windows командой finance import. Копия базы — это вся история целиком."
+          <Label Text="CSV загружается в программу для Windows командой finance import. Копия базы — это вся история целиком: её можно вернуть сюда же или на новый телефон."
                  Style="{StaticResource Muted}" FontSize="12" />
         </VerticalStackLayout>
       </Border>

@@ -23,9 +23,14 @@ public partial class TransactionFormPage : ContentPage
             {
                 HighlightRemember();
             }
+            else if (e.PropertyName == nameof(TransactionFormViewModel.Repeat))
+            {
+                Controls.Chips.Highlight(RepeatChips, _form.Repeat);
+            }
         };
         HighlightPaidCurrency();
         HighlightRemember();
+        Controls.Chips.Highlight(RepeatChips, _form.Repeat);
     }
 
     public TransactionFormViewModel Form => _form;
@@ -51,6 +56,14 @@ public partial class TransactionFormPage : ContentPage
         if ((sender as BindableObject)?.BindingContext is CurrencyCode currency)
         {
             _form.ChoosePaidCurrencyCommand.Execute(currency);
+        }
+    }
+
+    private void OnRepeat(object? sender, EventArgs e)
+    {
+        if ((sender as BindableObject)?.BindingContext is RepeatChoice choice)
+        {
+            _form.ChooseRepeatCommand.Execute(choice);
         }
     }
 

@@ -31,6 +31,12 @@ public sealed record SetupChoices(
 public interface ISetupBackend
 {
     Task CompleteAsync(SetupChoices choices, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A new phone or a reinstall: the data comes from a copy instead of the setup. Asks for the file;
+    /// <c>null</c> when none was chosen, otherwise what was brought back.
+    /// </summary>
+    Task<string?> RestoreFromCopyAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>«Сколько сейчас на карте»: a starter account and the amount typed for it.</summary>
@@ -91,7 +97,7 @@ public sealed partial class SetupViewModel : ObservableObject
     public int StepCount => IsTourOnly ? Slides.Count : Slides.Count + 2;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Slide), nameof(IsTour), nameof(IsCurrencyStep), nameof(IsBalancesStep), nameof(IsFirst), nameof(IsLast), nameof(NextText), nameof(Dots))]
+    [NotifyPropertyChangedFor(nameof(Slide), nameof(IsTour), nameof(IsCurrencyStep), nameof(IsBalancesStep), nameof(IsFirst), nameof(IsLast), nameof(NextText), nameof(Dots), nameof(ShowsRestore))]
     [NotifyCanExecuteChangedFor(nameof(BackCommand))]
     public partial int Index { get; private set; }
 
@@ -140,6 +146,41 @@ public sealed partial class SetupViewModel : ObservableObject
 
     /// <summary>Raised when the tour is over or the setup is saved: the app shows the tabs or closes the tour.</summary>
     public event EventHandler? Completed;
+
+    /// <summary>«Перенести данные из копии» — for those coming from another phone or the previous install.</summary>
+    public bool CanRestore => !IsTourOnly;
+
+    /// <summary>The offer to restore sits on the first page, before anything is set up.</summary>
+    public bool ShowsRestore => CanRestore && IsFirst;
+
+    [RelayCommand]
+    private async Task RestoreAsync(CancellationToken cancellationToken)
+    {
+        if (_backend is null || IsBusy)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        Problem = string.Empty;
+        try
+        {
+            if (await _backend.RestoreFromCopyAsync(cancellationToken) is not null)
+            {
+                Completed?.Invoke(this, EventArgs.Empty);
+            }
+        }
+#pragma warning disable CA1031 // A wrong file is said on the page; the setup goes on as usual.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
+        {
+            Problem = $"Не получилось восстановить: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
 
     public static SetupViewModel ForFirstRun(ISetupBackend backend)
     {

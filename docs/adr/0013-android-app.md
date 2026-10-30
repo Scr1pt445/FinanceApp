@@ -27,6 +27,8 @@ The app is meant for other people too, so the phone version has to work on its o
 | 5.3 | Summaries and insights, categories, settings, export and backups through sharing | ✅ ¹ |
 | 5.4 | Icon, signed release APK, README with phone screenshots | |
 
+After 5.3 the phone also got (2026-10-30): restoring a copy, a PIN and fingerprint lock, shortcuts on the app icon and a home-screen widget (Android-only code under `Platforms/Android`), recurring operations and monthly limits per category (in the shared core, migration `RecurringOperationsAndLimits`).
+
 ¹ The phone has no settings screen: the base currency is chosen once, on the first run (with the starting balances); the totals currency on the accounts tab; daily backups are always on with the default of 14 copies.
 
 ## Consequences

@@ -1,5 +1,7 @@
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.Debts;
 using FinanceApp.Application.ExchangeRates;
+using FinanceApp.Application.Recurring;
 using FinanceApp.Application.Setup;
 using FinanceApp.Application.Summaries;
 using FinanceApp.Application.Transactions;
@@ -250,6 +252,112 @@ public sealed class FakeFinanceBackend : IFinanceBackend
     public Task RemoveManualRateAsync(ManualRate rate, CancellationToken cancellationToken = default)
     {
         ManualRates.Remove(rate);
+        return Task.CompletedTask;
+    }
+
+    public List<RecurringOperation> Recurring { get; } = [];
+
+    public Task<IReadOnlyList<RecurringOperation>> ListRecurringAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<RecurringOperation>>([.. Recurring.OrderBy(r => r.NextDate)]);
+
+    public Task<RecurringOperation> AddRecurringAsync(RecurringInput input, CancellationToken cancellationToken = default)
+    {
+        ThrowIfFailing();
+        var added = RecurringOperation.Create(input.Type, input.Amount, input.CategoryId, input.AccountId, input.ToAccountId, input.Note, input.Frequency, input.NextDate, Stamp());
+        if (input.StartAfter)
+        {
+            added.Advance();
+        }
+
+        Recurring.Add(added);
+        return Task.FromResult(added);
+    }
+
+    public Task<RecurringOperation> UpdateRecurringAsync(Guid id, RecurringInput input, CancellationToken cancellationToken = default)
+    {
+        var operation = Recurring.Single(r => r.Id == id);
+        operation.Update(input.Type, input.Amount, input.CategoryId, input.AccountId, input.ToAccountId, input.Note, input.Frequency, input.NextDate);
+        return Task.FromResult(operation);
+    }
+
+    public Task DeleteRecurringAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        Recurring.RemoveAll(r => r.Id == id);
+        return Task.CompletedTask;
+    }
+
+    public async Task<SavedTransaction> RecordRecurringAsync(Guid id, decimal? amount = null, CancellationToken cancellationToken = default)
+    {
+        var operation = Recurring.Single(r => r.Id == id);
+        var sum = amount ?? operation.Amount;
+        var saved = operation.Type == TransactionType.Transfer
+            ? await AddTransferAsync(new TransferInput(operation.NextDate, sum, operation.AccountId, operation.ToAccountId!.Value, operation.Note), cancellationToken)
+            : await AddAsync(new TransactionInput(operation.NextDate, operation.Type, sum, operation.CategoryId!.Value, operation.AccountId, operation.Note), cancellationToken);
+        operation.Advance();
+        return saved;
+    }
+
+    public Task SkipRecurringAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        Recurring.Single(r => r.Id == id).Advance();
+        return Task.CompletedTask;
+    }
+
+    public Task<MonthLimits> LoadLimitsAsync(YearMonth month, CancellationToken cancellationToken = default)
+    {
+        var lines = Categories.Where(c => c.MonthlyLimit is not null && !c.IsHidden)
+            .Select(c => new LimitLine(c, c.MonthlyLimit!.Value, Transactions
+                .Where(t => t.CategoryId == c.Id && t.Type == TransactionType.Expense && YearMonth.Of(t.Date) == month)
+                .Sum(t => t.BaseAmount)))
+            .OrderByDescending(l => l.Share)
+            .ToList();
+        return Task.FromResult(new MonthLimits(month, lines, CurrencyCode.Rub));
+    }
+
+    public Task SetCategoryLimitAsync(Guid id, decimal? limit, CancellationToken cancellationToken = default)
+    {
+        Categories.Single(c => c.Id == id).SetLimit(limit);
+        return Task.CompletedTask;
+    }
+
+    public async Task<MonthComparison> LoadComparisonAsync(YearMonth month, YearMonth other, bool samePoint, CancellationToken cancellationToken = default)
+    {
+        var limits = await LoadLimitsAsync(month, cancellationToken);
+        return MonthComparison.For(
+            Transactions, month, other, samePoint, Categories.ToDictionary(c => c.Id), Accounts.ToDictionary(a => a.Id),
+            Recurring, limits, currency => currency == CurrencyCode.Usd ? 90m : 1m, CurrencyCode.Rub, Today);
+    }
+
+    public List<Debt> Debts { get; } = [];
+
+    public Task<IReadOnlyList<Debt>> ListDebtsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Debt>>([.. Debts.OrderBy(d => d.IsClosed).ThenBy(d => d.DueDate ?? DateOnly.MaxValue)]);
+
+    public Task<Debt> AddDebtAsync(DebtInput input, CancellationToken cancellationToken = default)
+    {
+        ThrowIfFailing();
+        var debt = Debt.Create(input.Direction, input.Person, input.Amount, input.Currency, input.Date, input.DueDate, input.Note, Stamp());
+        Debts.Add(debt);
+        return Task.FromResult(debt);
+    }
+
+    public Task<Debt> UpdateDebtAsync(Guid id, DebtInput input, CancellationToken cancellationToken = default)
+    {
+        var debt = Debts.Single(d => d.Id == id);
+        debt.Update(input.Direction, input.Person, input.Amount, input.Currency, input.Date, input.DueDate, input.Note);
+        return Task.FromResult(debt);
+    }
+
+    public Task<Debt> RepayDebtAsync(Guid id, decimal amount, CancellationToken cancellationToken = default)
+    {
+        var debt = Debts.Single(d => d.Id == id);
+        debt.Repay(amount, Today);
+        return Task.FromResult(debt);
+    }
+
+    public Task DeleteDebtAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        Debts.RemoveAll(d => d.Id == id);
         return Task.CompletedTask;
     }
 

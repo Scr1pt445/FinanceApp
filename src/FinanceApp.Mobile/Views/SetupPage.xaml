@@ -130,6 +130,9 @@
                 IsVisible="{Binding IsFirst, Converter={StaticResource Not}}" />
         <Button Grid.Column="1" Text="{Binding NextText}" Command="{Binding NextCommand}" HeightRequest="54" />
       </Grid>
+      <!-- A new phone or a reinstall: bring everything back from a copy instead of setting up. -->
+      <Button Text="Перенести данные из копии" Style="{StaticResource Link}" HorizontalOptions="Center"
+              Command="{Binding RestoreCommand}" IsVisible="{Binding ShowsRestore}" />
     </VerticalStackLayout>
   </Grid>
 </ContentPage>

@@ -242,7 +242,7 @@ public sealed class PagesTests : IAsyncLifetime
         var home = _app.Get<HomeViewModel>();
         home.QuickEntryOn.ShouldBeFalse();
         var line = Descendants<Entry>(_app.Get<HomePage>()).First(e => e.Placeholder == "350 еда кофе");
-        var settingsSwitch = Descendants<Switch>(_app.Get<MorePage>()).Single(s => s.BindingContext is Presentation.Settings.PhoneSettingsViewModel);
+        var settingsSwitch = Descendants<Switch>(_app.Get<MorePage>()).First(s => s.BindingContext is Presentation.Settings.PhoneSettingsViewModel);
 
         settingsSwitch.IsToggled = true;
 

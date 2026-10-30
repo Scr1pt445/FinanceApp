@@ -37,6 +37,28 @@ public sealed class Category
 
     public int SortOrder { get; private set; }
 
+    /// <summary>How much may be spent in a month, in the base currency; <c>null</c> — no limit. Expenses only.</summary>
+    public decimal? MonthlyLimit { get; private set; }
+
+    /// <param name="limit"><c>null</c> removes the limit.</param>
+    public void SetLimit(decimal? limit)
+    {
+        if (limit is { } value)
+        {
+            if (Type != TransactionType.Expense)
+            {
+                throw new DomainException("Лимит ставится только на категории расходов.");
+            }
+
+            if (value <= 0 || value > Transaction.MaxAmount || decimal.Round(value, 2) != value)
+            {
+                throw new DomainException("Лимит — сумма больше нуля, не больше двух знаков после запятой.");
+            }
+        }
+
+        MonthlyLimit = limit;
+    }
+
     public void Rename(string name) => Name = NormalizeName(name);
 
     public void Hide() => IsHidden = true;

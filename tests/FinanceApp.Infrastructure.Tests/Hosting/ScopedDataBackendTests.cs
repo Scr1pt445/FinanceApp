@@ -15,7 +15,7 @@ public sealed class ScopedDataBackendTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync() => await _app.DisposeAsync();
 
-    private ScopedDataBackend Backend => new(_app.Get<IServiceScopeFactory>(), _app.Get<IDatabaseBackup>());
+    private ScopedDataBackend Backend => new(_app.Get<IServiceScopeFactory>(), _app.Get<IDatabaseBackup>(), _app.Get<IDatabaseRestore>());
 
     [Fact]
     public async Task ExportCsv_WritesBothFilesIntoTheFolder()

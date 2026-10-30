@@ -33,11 +33,14 @@ public static class DependencyInjection
         services.AddSingleton<IFileWriter, AtomicFileWriter>();
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
         services.AddSingleton<IDatabaseBackup, SqliteDatabaseBackup>();
+        services.AddSingleton<IDatabaseRestore, SqliteDatabaseRestore>();
 
         services.AddDbContext<FinanceDbContext>(options => options.UseSqlite(paths.ConnectionString));
         services.AddScoped<ITransactionRepository, EfTransactionRepository>();
         services.AddScoped<ICategoryRepository, EfCategoryRepository>();
         services.AddScoped<IAccountRepository, EfAccountRepository>();
+        services.AddScoped<IRecurringOperationRepository, EfRecurringOperationRepository>();
+        services.AddScoped<IDebtRepository, EfDebtRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<DatabaseInitializer>();
 
@@ -61,6 +64,10 @@ public static class DependencyInjection
         services.AddScoped<AccountBalancesService>();
         services.AddScoped<CatalogService>();
         services.AddScoped<CategoryService>();
+        services.AddScoped<LimitsService>();
+        services.AddScoped<FinanceApp.Application.Recurring.RecurringService>();
+        services.AddScoped<FinanceApp.Application.Debts.DebtService>();
+        services.AddScoped<FinanceApp.Application.Summaries.MonthComparisonService>();
         services.AddScoped<CsvExportService>();
 
         services.AddSingleton(exportOptions ?? new CsvExportOptions());

@@ -20,3 +20,23 @@ public interface IDatabaseBackup
     /// <returns>The new copy, or <c>null</c> if none was needed.</returns>
     Task<BackupInfo?> EnsureDailyAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>What a copy holds, shown before it replaces the data.</summary>
+public sealed record BackupContents(int Transactions, int Accounts, DateOnly? LastOperation);
+
+/// <summary>The result of a restore: what is now in the app and where the replaced data was kept.</summary>
+public sealed record RestoreResult(BackupContents Contents, FinanceApp.Domain.CurrencyCode BaseCurrency, BackupInfo? SafetyCopy);
+
+/// <summary>Brings back a copy of the database (ADR 0012) — after a new phone, a reinstall or a mistake.</summary>
+public interface IDatabaseRestore
+{
+    /// <summary>Checks that the file is a FinanceApp database and counts what it holds.</summary>
+    /// <exception cref="InvalidDataException">Not a database, damaged, or not FinanceApp's.</exception>
+    Task<BackupContents> InspectAsync(string path, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replaces the data with the copy. The current data is copied to the backups first; the copy is brought up to
+    /// the current schema, and the base currency follows the copy's.
+    /// </summary>
+    Task<RestoreResult> RestoreAsync(string path, CancellationToken cancellationToken = default);
+}

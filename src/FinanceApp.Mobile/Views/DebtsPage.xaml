@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- «Долги»: who owes the user and whom the user owes. A notebook apart from the accounts. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             xmlns:domain="clr-namespace:FinanceApp.Domain;assembly=FinanceApp.Domain"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
+             x:Class="FinanceApp.Mobile.Views.DebtsPage"
+             x:DataType="finance:DebtsViewModel"
+             Title="Долги">
+  <ContentPage.Resources>
+    <Style x:Key="SmallChip" TargetType="Button" BasedOn="{StaticResource Chip}">
+      <Setter Property="HeightRequest" Value="32" />
+      <Setter Property="MinimumHeightRequest" Value="32" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Padding" Value="12,0" />
+    </Style>
+    <DataTemplate x:Key="DebtTemplate" x:DataType="finance:DebtItem">
+      <Border Style="{StaticResource Row}" Padding="16,12">
+        <Border.GestureRecognizers>
+          <TapGestureRecognizer Tapped="OnItem" />
+        </Border.GestureRecognizers>
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+          <Label Text="↗" FontSize="22" TextColor="{StaticResource Income}" VerticalOptions="Center">
+            <Label.Triggers>
+              <DataTrigger TargetType="Label" Binding="{Binding IsLent}" Value="False">
+                <Setter Property="Text" Value="↙" />
+                <Setter Property="TextColor" Value="{StaticResource AccentLight}" />
+              </DataTrigger>
+            </Label.Triggers>
+          </Label>
+          <VerticalStackLayout Grid.Column="1" Spacing="2">
+            <Label Text="{Binding Person}" FontSize="16" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+            <Label Text="{Binding AmountText}" FontSize="14" />
+            <Label Text="{Binding Details}" Style="{StaticResource Muted}" LineBreakMode="TailTruncation" />
+            <Label Text="{Binding DueText}" FontSize="13" TextColor="{StaticResource MutedText}">
+              <Label.Triggers>
+                <DataTrigger TargetType="Label" Binding="{Binding IsOverdue}" Value="True">
+                  <Setter Property="TextColor" Value="{StaticResource Warning}" />
+                </DataTrigger>
+              </Label.Triggers>
+            </Label>
+          </VerticalStackLayout>
+          <Label Grid.Column="2" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </ContentPage.Resources>
+
+  <Grid>
+    <ScrollView>
+      <VerticalStackLayout Spacing="10" Padding="16,16,16,24">
+        <Grid ColumnDefinitions="Auto,*">
+          <Button Text="‹ Назад" Style="{StaticResource Link}" Clicked="OnBack" Padding="0" />
+        </Grid>
+        <Label Text="Долги" Style="{StaticResource PageTitle}" />
+        <Label Text="Кто должен вам и кому должны вы. Это записная книжка: остатки на счетах и итоги она не меняет."
+               Style="{StaticResource Muted}" />
+        <Label Text="{Binding Status}" Style="{StaticResource Problem}"
+               IsVisible="{Binding Status, Converter={StaticResource IsNotEmpty}}" />
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="{Binding IsEmpty, Converter={StaticResource Not}}">
+          <Border Style="{StaticResource Card}" Padding="12">
+            <VerticalStackLayout Spacing="3">
+              <Label Text="Мне должны" Style="{StaticResource Muted}" />
+              <Label Text="{Binding LentText}" FontSize="17" FontAttributes="Bold" TextColor="{StaticResource Income}"
+                     IsVisible="{Binding LentText, Converter={StaticResource IsNotEmpty}}" />
+              <Label Text="никто" FontSize="17" IsVisible="{Binding LentText, Converter={StaticResource IsEmpty}}" />
+            </VerticalStackLayout>
+          </Border>
+          <Border Grid.Column="1" Style="{StaticResource Card}" Padding="12">
+            <VerticalStackLayout Spacing="3">
+              <Label Text="Я должен" Style="{StaticResource Muted}" />
+              <Label Text="{Binding BorrowedText}" FontSize="17" FontAttributes="Bold"
+                     IsVisible="{Binding BorrowedText, Converter={StaticResource IsNotEmpty}}" />
+              <Label Text="никому" FontSize="17" IsVisible="{Binding BorrowedText, Converter={StaticResource IsEmpty}}" />
+            </VerticalStackLayout>
+          </Border>
+        </Grid>
+
+        <Button Text="+ Записать долг" Style="{StaticResource Soft}" Command="{Binding NewCommand}" Margin="0,4,0,4" />
+
+        <Label Text="Пока ничего. Дали в долг или заняли — запишите, чтобы не забыть, кто, сколько и до какого числа."
+               Style="{StaticResource Muted}" HorizontalTextAlignment="Center" Margin="0,16"
+               IsVisible="{Binding IsEmpty}" />
+
+        <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Open}"
+                             BindableLayout.ItemTemplate="{StaticResource DebtTemplate}" />
+
+        <Button Text="Закрытые ›" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="0"
+                Command="{Binding ToggleClosedCommand}" IsVisible="{Binding HasClosed}">
+          <Button.Triggers>
+            <DataTrigger TargetType="Button" Binding="{Binding ShowClosed}" Value="True">
+              <Setter Property="Text" Value="Закрытые ⌄" />
+            </DataTrigger>
+          </Button.Triggers>
+        </Button>
+        <VerticalStackLayout Spacing="8" Opacity="0.7" IsVisible="{Binding ShowClosed}"
+                             BindableLayout.ItemsSource="{Binding Closed}"
+                             BindableLayout.ItemTemplate="{StaticResource DebtTemplate}" />
+      </VerticalStackLayout>
+    </ScrollView>
+
+    <!-- The editor: a sheet over the list. -->
+    <Grid IsVisible="{Binding IsEditing}" BackgroundColor="#B3000000">
+      <Grid.GestureRecognizers>
+        <TapGestureRecognizer Tapped="OnEditorBackdrop" />
+      </Grid.GestureRecognizers>
+      <Border BindingContext="{Binding Editor}" x:DataType="finance:DebtEditor"
+              VerticalOptions="End" BackgroundColor="{StaticResource Surface}" Stroke="{StaticResource Border}"
+              StrokeShape="RoundRectangle 28,28,0,0" Padding="20,16,20,16">
+        <Border.GestureRecognizers>
+          <!-- Taps inside the sheet must not reach the backdrop. -->
+          <TapGestureRecognizer />
+        </Border.GestureRecognizers>
+        <ScrollView MaximumHeightRequest="620">
+          <VerticalStackLayout Spacing="8" Padding="0,0,0,8">
+            <BoxView WidthRequest="40" HeightRequest="4" CornerRadius="2" Color="{StaticResource Border}" HorizontalOptions="Center" />
+            <Label Text="{Binding Title}" FontSize="20" FontAttributes="Bold" Margin="0,6,0,0" LineBreakMode="TailTruncation" />
+
+            <!-- An open debt: what came back. -->
+            <Border Style="{StaticResource Card}" Padding="12" IsVisible="{Binding CanRepay}">
+              <VerticalStackLayout Spacing="8">
+                <Label Text="{Binding RepaidText}" Style="{StaticResource Muted}" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <controls:Field>
+                    <Entry Text="{Binding RepayText}" Keyboard="Numeric" Placeholder="Сколько вернули" />
+                  </controls:Field>
+                  <Button Grid.Column="1" Text="Вернули часть" Style="{StaticResource Soft}" Command="{Binding RepayCommand}" />
+                </Grid>
+                <Button Text="{Binding RepayAllTitle}" Command="{Binding RepayAllCommand}" HeightRequest="48" />
+              </VerticalStackLayout>
+            </Border>
+
+            <HorizontalStackLayout x:Name="DirectionChips" Spacing="6" BindableLayout.ItemsSource="{Binding Directions}" Margin="0,4,0,0">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="finance:DebtDirectionChoice">
+                  <Button Text="{Binding Title}" Style="{StaticResource Chip}" Clicked="OnDirection" />
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </HorizontalStackLayout>
+
+            <Label Text="{Binding PersonLabel}" Style="{StaticResource FieldLabel}" />
+            <controls:Field>
+              <Entry Text="{Binding Person}" Placeholder="Например, «Саша»" />
+            </controls:Field>
+
+            <Label Text="Сумма" Style="{StaticResource FieldLabel}" />
+            <controls:Field>
+              <Entry Text="{Binding AmountText}" Keyboard="Numeric" FontSize="20" FontAttributes="Bold" />
+            </controls:Field>
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+              <HorizontalStackLayout x:Name="CurrencyChips" Spacing="6" BindableLayout.ItemsSource="{Binding Currencies}">
+                <BindableLayout.ItemTemplate>
+                  <DataTemplate x:DataType="domain:CurrencyCode">
+                    <Button Text="{Binding Value}" Style="{StaticResource SmallChip}" Clicked="OnCurrency" />
+                  </DataTemplate>
+                </BindableLayout.ItemTemplate>
+              </HorizontalStackLayout>
+            </ScrollView>
+
+            <Label Text="{Binding DateLabel}" Style="{StaticResource FieldLabel}" />
+            <controls:DateField Text="{Binding DateText}" Kind="Operation" Title="Когда" />
+            <Label Text="Вернуть до" Style="{StaticResource FieldLabel}" />
+            <controls:DateField Text="{Binding DueText}" Kind="Due" AllowEmpty="True" Placeholder="Без срока" Title="Срок возврата" />
+
+            <Label Text="Заметка" Style="{StaticResource FieldLabel}" />
+            <controls:Field>
+              <Entry Text="{Binding Note}" Placeholder="Например, «на билеты»" />
+            </controls:Field>
+
+            <Label Text="{Binding Error}" Style="{StaticResource Problem}"
+                   IsVisible="{Binding Error, Converter={StaticResource IsNotEmpty}}" />
+            <Button Text="Сохранить" Command="{Binding SaveCommand}" HeightRequest="52" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+              <Button Text="Удалить" Style="{StaticResource Soft}" TextColor="{StaticResource Warning}" Clicked="OnDelete"
+                      IsVisible="{Binding IsNew, Converter={StaticResource Not}}" />
+              <Button Grid.Column="1" Text="Отмена" Style="{StaticResource Soft}" Command="{Binding CancelCommand}" />
+            </Grid>
+          </VerticalStackLayout>
+        </ScrollView>
+      </Border>
+    </Grid>
+  </Grid>
+</ContentPage>

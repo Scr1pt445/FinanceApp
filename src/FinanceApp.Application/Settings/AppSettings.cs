@@ -30,6 +30,9 @@ public sealed record AppSettings
     /// <summary>Rates the user typed for a day, a week, a month or for good; they win over the CBR rate.</summary>
     public IReadOnlyList<ManualRate> ManualRates { get; init; } = [];
 
+    /// <summary>The phone's PIN and fingerprint lock; off by default.</summary>
+    public LockSettings Lock { get; init; } = new();
+
     /// <summary>Value equality, the list of rates included (a record compares lists by reference).</summary>
     public bool Equals(AppSettings? other) =>
         other is not null
@@ -39,10 +42,33 @@ public sealed record AppSettings
         && TotalsCurrency == other.TotalsCurrency
         && Backups == other.Backups
         && QuickEntryLine == other.QuickEntryLine
+        && Lock == other.Lock
         && ManualRates.SequenceEqual(other.ManualRates);
 
     public override int GetHashCode() =>
-        HashCode.Combine(BaseCurrency, CsvExport, QuickEntryHotKey, TotalsCurrency, Backups, QuickEntryLine, ManualRates.Count);
+        HashCode.Combine(BaseCurrency, CsvExport, QuickEntryHotKey, TotalsCurrency, Backups, QuickEntryLine, Lock, ManualRates.Count);
+}
+
+/// <summary>
+/// The app opens only after the PIN (or a fingerprint, when allowed). Only a salted PBKDF2 hash of the PIN is
+/// stored; the data itself is not encrypted — the lock keeps out someone holding an unlocked phone.
+/// </summary>
+public sealed record LockSettings
+{
+    public string? PinHash { get; init; }
+
+    public string? PinSalt { get; init; }
+
+    /// <summary>A fingerprint (or face) may open the app instead of the PIN.</summary>
+    public bool Biometrics { get; init; }
+
+    /// <summary>
+    /// The home-screen widget shows the amounts even while the lock is on (anyone can look at a home screen, so off
+    /// by default); its buttons work either way.
+    /// </summary>
+    public bool WidgetAmounts { get; init; }
+
+    public bool IsOn => PinHash is not null && PinSalt is not null;
 }
 
 /// <summary>Daily copies of the database (ADR 0012). On by default: losing the only file loses everything.</summary>

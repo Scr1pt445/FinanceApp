@@ -30,6 +30,10 @@
         <Button Grid.Column="2" Text="›" FontSize="24" Style="{StaticResource Link}" Command="{Binding NextCommand}" />
       </Grid>
 
+      <!-- Any two months side by side and the forecast live on a screen of their own. -->
+      <Button Text="Сравнить месяцы и прогноз ›" Style="{StaticResource Link}" FontSize="14" HorizontalOptions="Center"
+              Padding="8,0" HeightRequest="34" MinimumHeightRequest="34" Clicked="OnCompare" />
+
       <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8" IsVisible="{Binding IsCustom}">
         <controls:Field>
           <Entry Text="{Binding CustomFrom}" Placeholder="с дд.мм.гггг" Keyboard="Numeric" FontSize="15" />
@@ -178,6 +182,20 @@
                   <Label Grid.Row="1" Text="{Binding Subtitle}" Style="{StaticResource Muted}" LineBreakMode="TailTruncation" />
                   <Label Grid.Column="1" Text="{Binding AmountText}" FontAttributes="Bold" TextColor="{StaticResource Income}" />
                 </Grid>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+
+      <!-- Monthly limits of the categories: only when a month is shown. Set in «Ещё → Категории». -->
+      <Border Style="{StaticResource Card}" IsVisible="{Binding HasLimits}">
+        <VerticalStackLayout Spacing="12">
+          <Label Text="ЛИМИТЫ" Style="{StaticResource SectionTitle}" />
+          <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding Limits}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="finance:LimitRow">
+                <controls:LimitBarView />
               </DataTemplate>
             </BindableLayout.ItemTemplate>
           </VerticalStackLayout>

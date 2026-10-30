@@ -165,6 +165,17 @@ public sealed partial class ShellViewModel : ObservableObject
     [RelayCommand]
     private Task NewTransferAsync() => OpenNewAsync(TransactionType.Transfer);
 
+    /// <summary>«+ Регулярная»: the expense form with «каждый месяц» already chosen.</summary>
+    [RelayCommand]
+    private async Task NewRecurringAsync()
+    {
+        await OpenNewAsync(TransactionType.Expense);
+        if (Form is { } form)
+        {
+            form.Repeat = RepeatChoice.All.First(r => r.Frequency == RecurrenceFrequency.Monthly);
+        }
+    }
+
     /// <summary>«Пополнить» the selected envelope: a transfer into it from the default account.</summary>
     [RelayCommand]
     private Task FillEnvelopeAsync() => OpenNewAsync(TransactionType.Transfer, toAccount: SelectedAccount);
