@@ -159,6 +159,12 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
 
     public ObservableCollection<EnvelopeRow> Envelopes { get; } = [];
 
+    /// <summary>Monthly limits of the categories, for a month only.</summary>
+    public ObservableCollection<LimitRow> Limits { get; } = [];
+
+    [ObservableProperty]
+    public partial bool HasLimits { get; private set; }
+
     public ObservableCollection<string> EnvelopeWarnings { get; } = [];
 
     [ObservableProperty]
@@ -173,6 +179,7 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
             var overview = await backend.LoadPeriodAsync(Period, cancellationToken);
             var balances = await backend.LoadBalancesAsync(cancellationToken: cancellationToken);
             Apply(overview, balances);
+            await LoadLimitsAsync(cancellationToken);
             Status = string.Empty;
         }
 #pragma warning disable CA1031 // Shown in place.
@@ -181,6 +188,21 @@ public sealed partial class SummaryViewModel(IFinanceBackend backend, TimeProvid
         {
             Status = $"Не удалось посчитать итоги: {ex.Message}";
         }
+    }
+
+    private async Task LoadLimitsAsync(CancellationToken cancellationToken)
+    {
+        Limits.Clear();
+        if (Period.Kind == PeriodKind.Month)
+        {
+            var limits = await backend.LoadLimitsAsync(YearMonth.Of(Period.Start), cancellationToken);
+            foreach (var line in limits.Lines)
+            {
+                Limits.Add(LimitRow.From(line, limits.BaseCurrency));
+            }
+        }
+
+        HasLimits = Limits.Count > 0;
     }
 
     [RelayCommand(CanExecute = nameof(HasPrevious))]

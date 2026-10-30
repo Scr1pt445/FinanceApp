@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FinanceApp.Application.Accounts;
 using FinanceApp.Application.ExchangeRates;
+using FinanceApp.Application.Recurring;
 using FinanceApp.Application.Transactions;
 using FinanceApp.Domain;
 
@@ -124,6 +125,19 @@ public sealed partial class TransactionFormViewModel : ObservableObject
 
     [ObservableProperty]
     public partial RememberChoice Remember { get; set; } = RememberChoice.All[0];
+
+    /// <summary>A new operation may repeat: rent, a subscription, the salary — offered again on the day it is due.</summary>
+    public IReadOnlyList<RepeatChoice> RepeatChoices => RepeatChoice.All;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RepeatHint))]
+    public partial RepeatChoice Repeat { get; set; } = RepeatChoice.All[0];
+
+    /// <summary>«Следующая — 30 ноября: приложение предложит записать её в этот день».</summary>
+    public string RepeatHint =>
+        Repeat.Frequency is { } frequency && Format.TryParseDate(DateText, out var date)
+            ? $"Следующая — {RecurringOperation.After(date, frequency, frequency == RecurrenceFrequency.Weekly ? 0 : date.Day).ToString("d MMMM yyyy", Format.Russian)}: приложение предложит записать её в этот день."
+            : string.Empty;
 
     public string RateLabel =>
         Account is null || ToAccount is null ? string.Empty
@@ -336,6 +350,9 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     private void ChooseRemember(RememberChoice choice) => Remember = choice;
 
     [RelayCommand]
+    private void ChooseRepeat(RepeatChoice choice) => Repeat = choice;
+
+    [RelayCommand]
     private void StartAddCategory()
     {
         NewCategoryName = string.Empty;
@@ -429,6 +446,11 @@ public sealed partial class TransactionFormViewModel : ObservableObject
                 }
             }
 
+            if (IsNew && Repeat.Frequency is { } frequency)
+            {
+                await RepeatAsync(saved.Transaction, frequency, cancellationToken);
+            }
+
             Saved?.Invoke(this, saved);
         }
 #pragma warning disable CA1031 // Shown on the form; the user can fix the input and try again.
@@ -440,6 +462,23 @@ public sealed partial class TransactionFormViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>The operation is saved; the schedule starts from its day, the first one due is the next time.</summary>
+    private async Task RepeatAsync(Domain.Transaction saved, RecurrenceFrequency frequency, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _backend.AddRecurringAsync(
+                new RecurringInput(saved.Type, saved.Amount, saved.CategoryId, saved.AccountId, saved.ToAccountId, saved.Note, frequency, saved.Date, StartAfter: true),
+                cancellationToken);
+        }
+#pragma warning disable CA1031 // The operation itself is saved; the schedule can be set up again.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
+        {
+            SaveError = $"Операция сохранена, но повтор не настроен: {ex.Message}";
         }
     }
 
@@ -538,6 +577,7 @@ public sealed partial class TransactionFormViewModel : ObservableObject
 
     partial void OnDateTextChanged(string value)
     {
+        OnPropertyChanged(nameof(RepeatHint));
         _ = RefreshConversionAsync();
         _ = RefreshTransferRateAsync();
     }

@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace FinanceApp.Presentation.Hosting;
 
 /// <summary>The «Данные» screen's backend: the export runs in its own DI scope, copies use the shared service.</summary>
-public sealed class ScopedDataBackend(IServiceScopeFactory scopes, IDatabaseBackup backups) : IDataBackend
+public sealed class ScopedDataBackend(IServiceScopeFactory scopes, IDatabaseBackup backups, IDatabaseRestore restore) : IDataBackend
 {
     public const string TransactionsFileName = "transactions.csv";
 
@@ -23,4 +23,10 @@ public sealed class ScopedDataBackend(IServiceScopeFactory scopes, IDatabaseBack
     public Task<BackupInfo> BackupAsync(CancellationToken cancellationToken = default) => backups.CreateAsync(cancellationToken);
 
     public IReadOnlyList<BackupInfo> ListBackups() => backups.List();
+
+    public Task<BackupContents> InspectBackupAsync(string path, CancellationToken cancellationToken = default) =>
+        restore.InspectAsync(path, cancellationToken);
+
+    public Task<RestoreResult> RestoreAsync(string path, CancellationToken cancellationToken = default) =>
+        restore.RestoreAsync(path, cancellationToken);
 }

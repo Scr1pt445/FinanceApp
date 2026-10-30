@@ -1,5 +1,6 @@
 using FinanceApp.Application.Accounts;
 using FinanceApp.Application.ExchangeRates;
+using FinanceApp.Application.Recurring;
 using FinanceApp.Application.Settings;
 using FinanceApp.Application.Summaries;
 using FinanceApp.Application.Transactions;
@@ -86,6 +87,42 @@ public sealed class ScopedFinanceBackend(IServiceScopeFactory scopes) : IFinance
         InScopeAsync<ManualRateService, bool>(async s =>
         {
             await s.RemoveAsync(rate, cancellationToken);
+            return true;
+        });
+
+    public Task<IReadOnlyList<RecurringOperation>> ListRecurringAsync(CancellationToken cancellationToken = default) =>
+        InScopeAsync<RecurringService, IReadOnlyList<RecurringOperation>>(s => s.ListAsync(cancellationToken));
+
+    public Task<RecurringOperation> AddRecurringAsync(RecurringInput input, CancellationToken cancellationToken = default) =>
+        InScopeAsync<RecurringService, RecurringOperation>(s => s.AddAsync(input, cancellationToken));
+
+    public Task<RecurringOperation> UpdateRecurringAsync(Guid id, RecurringInput input, CancellationToken cancellationToken = default) =>
+        InScopeAsync<RecurringService, RecurringOperation>(s => s.UpdateAsync(id, input, cancellationToken));
+
+    public Task DeleteRecurringAsync(Guid id, CancellationToken cancellationToken = default) =>
+        InScopeAsync<RecurringService, bool>(async s =>
+        {
+            await s.DeleteAsync(id, cancellationToken);
+            return true;
+        });
+
+    public Task<SavedTransaction> RecordRecurringAsync(Guid id, decimal? amount = null, CancellationToken cancellationToken = default) =>
+        InScopeAsync<RecurringService, SavedTransaction>(s => s.RecordAsync(id, amount, cancellationToken));
+
+    public Task SkipRecurringAsync(Guid id, CancellationToken cancellationToken = default) =>
+        InScopeAsync<RecurringService, bool>(async s =>
+        {
+            await s.SkipAsync(id, cancellationToken);
+            return true;
+        });
+
+    public Task<MonthLimits> LoadLimitsAsync(YearMonth month, CancellationToken cancellationToken = default) =>
+        InScopeAsync<LimitsService, MonthLimits>(s => s.LoadAsync(month, cancellationToken));
+
+    public Task SetCategoryLimitAsync(Guid id, decimal? limit, CancellationToken cancellationToken = default) =>
+        InScopeAsync<CategoryService, bool>(async s =>
+        {
+            await s.SetLimitAsync(id, limit, cancellationToken);
             return true;
         });
 

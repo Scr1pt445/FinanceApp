@@ -12,6 +12,19 @@ public interface IDataBackend
     Task<BackupInfo> BackupAsync(CancellationToken cancellationToken = default);
 
     IReadOnlyList<BackupInfo> ListBackups();
+
+    /// <summary>What a copy holds; throws <see cref="InvalidDataException"/> for a file that is not one.</summary>
+    Task<BackupContents> InspectBackupAsync(string path, CancellationToken cancellationToken = default);
+
+    /// <summary>Replaces the data with the copy; the current data goes to the backups first.</summary>
+    Task<RestoreResult> RestoreAsync(string path, CancellationToken cancellationToken = default);
+}
+
+/// <summary>The platform's way to pick a file another app keeps (Downloads, a cloud drive, a messenger).</summary>
+public interface IFileChooser
+{
+    /// <summary>A local path to read the chosen file from, or <c>null</c> when nothing was chosen.</summary>
+    Task<string?> PickAsync(string title);
 }
 
 /// <summary>The written files and how many transactions they hold.</summary>

@@ -93,6 +93,68 @@ public class DataViewModelTests
         }
 
         public IReadOnlyList<BackupInfo> ListBackups() => Copies.OrderByDescending(c => c.CreatedLocal).ToList();
+
+        public string? Restored { get; private set; }
+
+        public Task<BackupContents> InspectBackupAsync(string path, CancellationToken cancellationToken = default) =>
+            path.EndsWith(".db", StringComparison.Ordinal)
+                ? Task.FromResult(new BackupContents(1234, 5, new DateOnly(2026, 10, 28)))
+                : Task.FromException<BackupContents>(new InvalidDataException("Это не копия базы FinanceApp."));
+
+        public Task<RestoreResult> RestoreAsync(string path, CancellationToken cancellationToken = default)
+        {
+            Restored = path;
+            return Task.FromResult(new RestoreResult(new BackupContents(1234, 5, new DateOnly(2026, 10, 28)), FinanceApp.Domain.CurrencyCode.Rub, null));
+        }
+    }
+
+    private sealed class FakePicker(string? path) : IFileChooser
+    {
+        public Task<string?> PickAsync(string title) => Task.FromResult(path);
+    }
+
+    [Fact]
+    public async Task Restore_ShowsWhatTheCopyHolds_ThenReplacesTheDataOnlyWhenConfirmed()
+    {
+        var viewModel = new DataViewModel(_backend, _sharer, _time, new FakePicker("/sdcard/Download/finance-2026-10-28.db"));
+        RestoreResult? restored = null;
+        viewModel.Restored += (_, result) => restored = result;
+
+        await viewModel.PickRestoreCommand.ExecuteAsync(null);
+
+        viewModel.IsConfirmingRestore.ShouldBeTrue();
+        viewModel.PendingRestore.ShouldStartWith("В копии операций: 1234, счетов: 5, последняя операция — 28 октября 2026.");
+        _backend.Restored.ShouldBeNull();
+
+        await viewModel.ConfirmRestoreCommand.ExecuteAsync(null);
+
+        _backend.Restored.ShouldBe("/sdcard/Download/finance-2026-10-28.db");
+        restored.ShouldNotBeNull();
+        viewModel.IsConfirmingRestore.ShouldBeFalse();
+        viewModel.Status.ShouldBe("Данные восстановлены: операций 1234, счетов 5. Основная валюта — RUB.");
+    }
+
+    [Fact]
+    public async Task Restore_OfAWrongFile_SaysSo_AndChangesNothing()
+    {
+        var viewModel = new DataViewModel(_backend, _sharer, _time, new FakePicker("/sdcard/Download/photo.jpg"));
+
+        await viewModel.PickRestoreCommand.ExecuteAsync(null);
+
+        viewModel.Failed.ShouldBeTrue();
+        viewModel.Status.ShouldBe("Не получилось: Это не копия базы FinanceApp.");
+        viewModel.IsConfirmingRestore.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Restore_NothingPicked_NothingHappens()
+    {
+        var viewModel = new DataViewModel(_backend, _sharer, _time, new FakePicker(null));
+
+        await viewModel.PickRestoreCommand.ExecuteAsync(null);
+
+        viewModel.IsConfirmingRestore.ShouldBeFalse();
+        viewModel.Failed.ShouldBeFalse();
     }
 
     private sealed class FakeSharer : IFileSharer

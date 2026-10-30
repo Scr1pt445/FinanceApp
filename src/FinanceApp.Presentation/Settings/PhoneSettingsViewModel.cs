@@ -20,6 +20,23 @@ public sealed partial class PhoneSettingsViewModel(ISettingsStore settings, Home
     [ObservableProperty]
     public partial string Status { get; private set; } = string.Empty;
 
+    /// <summary>The app asks for a PIN when it opens.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BiometricsMissing))]
+    public partial bool LockOn { get; private set; }
+
+    /// <summary>A fingerprint opens the app instead of the PIN (when the phone has one).</summary>
+    [ObservableProperty]
+    public partial bool Biometrics { get; set; }
+
+    /// <summary>Set by the platform: the phone has a fingerprint (or face) enrolled.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BiometricsMissing))]
+    public partial bool BiometricsAvailable { get; set; }
+
+    /// <summary>The lock is on but the phone has no fingerprint enrolled: say where to add one.</summary>
+    public bool BiometricsMissing => LockOn && !BiometricsAvailable;
+
     public string BaseCurrencyText => $"Основная валюта — {settings.Load().BaseCurrency}. Её выбирают один раз, при первом запуске.";
 
     /// <summary>Reads the settings and applies them to the home screen; called before it is first shown.</summary>
@@ -30,6 +47,8 @@ public sealed partial class PhoneSettingsViewModel(ISettingsStore settings, Home
         {
             QuickEntryLine = settings.Load().QuickEntryLine;
             home.QuickEntryOn = QuickEntryLine;
+            LockOn = settings.Load().Lock.IsOn;
+            Biometrics = settings.Load().Lock.Biometrics;
         }
         finally
         {
@@ -43,6 +62,36 @@ public sealed partial class PhoneSettingsViewModel(ISettingsStore settings, Home
         if (!_loading)
         {
             _ = SaveAsync(value);
+        }
+    }
+
+    /// <summary>A PIN was just set (<see cref="PinSetupViewModel"/>): show the lock as on.</summary>
+    public void Reload() => Load();
+
+    /// <summary>Removes the PIN: the app opens without asking.</summary>
+    public Task TurnOffLockAsync() => SaveAsync(s => s with { Lock = new LockSettings() }, () => LockOn = false);
+
+    partial void OnBiometricsChanged(bool value)
+    {
+        if (!_loading && LockOn)
+        {
+            _ = SaveAsync(s => s with { Lock = s.Lock with { Biometrics = value } }, () => { });
+        }
+    }
+
+    private async Task SaveAsync(Func<AppSettings, AppSettings> change, Action done)
+    {
+        try
+        {
+            await settings.SaveAsync(change(settings.Load()));
+            done();
+            Status = string.Empty;
+        }
+#pragma warning disable CA1031 // Said on the screen.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
+        {
+            Status = $"Не удалось сохранить: {ex.Message}";
         }
     }
 

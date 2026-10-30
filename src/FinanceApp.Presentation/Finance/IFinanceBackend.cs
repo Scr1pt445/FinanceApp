@@ -1,5 +1,6 @@
 using FinanceApp.Application.Accounts;
 using FinanceApp.Application.ExchangeRates;
+using FinanceApp.Application.Recurring;
 using FinanceApp.Application.Summaries;
 using FinanceApp.Application.Transactions;
 using FinanceApp.Domain;
@@ -51,6 +52,26 @@ public interface IFinanceBackend
         CurrencyCode from, CurrencyCode to, decimal rate, DateOnly validFrom, ManualRatePeriod period, CancellationToken cancellationToken = default);
 
     Task RemoveManualRateAsync(ManualRate rate, CancellationToken cancellationToken = default);
+
+    /// <summary>Recurring operations, the soonest due first.</summary>
+    Task<IReadOnlyList<RecurringOperation>> ListRecurringAsync(CancellationToken cancellationToken = default);
+
+    Task<RecurringOperation> AddRecurringAsync(RecurringInput input, CancellationToken cancellationToken = default);
+
+    Task<RecurringOperation> UpdateRecurringAsync(Guid id, RecurringInput input, CancellationToken cancellationToken = default);
+
+    Task DeleteRecurringAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Records a due recurring operation for its day (with another amount this time, if given) and moves it on.</summary>
+    Task<SavedTransaction> RecordRecurringAsync(Guid id, decimal? amount = null, CancellationToken cancellationToken = default);
+
+    Task SkipRecurringAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Monthly limits of expense categories and what is spent of them in <paramref name="month"/>.</summary>
+    Task<MonthLimits> LoadLimitsAsync(YearMonth month, CancellationToken cancellationToken = default);
+
+    /// <summary>Sets or removes (<c>null</c>) a category's monthly limit, in the base currency.</summary>
+    Task SetCategoryLimitAsync(Guid id, decimal? limit, CancellationToken cancellationToken = default);
 
     /// <summary>Remembers the currency of the «Всего» totals; <c>null</c> — the base currency.</summary>
     Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default);

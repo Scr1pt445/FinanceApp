@@ -33,6 +33,24 @@ public class SetupViewModelTests
     }
 
     [Fact]
+    public async Task RestoreFromACopy_ReplacesTheSetup()
+    {
+        var setup = SetupViewModel.ForFirstRun(_backend);
+        var completed = false;
+        setup.Completed += (_, _) => completed = true;
+        setup.ShowsRestore.ShouldBeTrue();
+
+        await setup.RestoreCommand.ExecuteAsync(null); // nothing chosen
+        completed.ShouldBeFalse();
+
+        _backend.RestoreAnswer = "В копии операций: 12, счетов: 2.";
+        await setup.RestoreCommand.ExecuteAsync(null);
+        completed.ShouldBeTrue();
+        _backend.Choices.ShouldBeNull();
+        SetupViewModel.ForTour().ShowsRestore.ShouldBeFalse();
+    }
+
+    [Fact]
     public void Skip_JumpsOverTheTour_ButNotOverTheSetup()
     {
         var setup = SetupViewModel.ForFirstRun(_backend);
@@ -132,5 +150,10 @@ public class SetupViewModelTests
             Choices = choices;
             return Task.CompletedTask;
         }
+
+        public string? RestoreAnswer { get; set; }
+
+        public Task<string?> RestoreFromCopyAsync(CancellationToken cancellationToken = default) =>
+            Failure is not null ? Task.FromException<string?>(Failure) : Task.FromResult(RestoreAnswer);
     }
 }
