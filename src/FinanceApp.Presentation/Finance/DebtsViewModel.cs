@@ -80,11 +80,7 @@ public sealed partial class DebtsViewModel(IFinanceBackend backend, TimeProvider
         {
             var catalog = await backend.LoadCatalogAsync(cancellationToken);
             _baseCurrency = catalog.BaseCurrency;
-            _currencies = new[] { catalog.BaseCurrency }
-                .Concat(catalog.Accounts.Where(a => !a.IsHidden).Select(a => a.Currency))
-                .Concat([CurrencyCode.Usd, CurrencyCode.Eur])
-                .Distinct()
-                .ToList();
+            _currencies = catalog.Currencies;
             Apply(await backend.ListDebtsAsync(cancellationToken));
             Status = string.Empty;
         }

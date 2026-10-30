@@ -30,6 +30,12 @@ public sealed record AppSettings
     /// <summary>Rates the user typed for a day, a week, a month or for good; they win over the CBR rate.</summary>
     public IReadOnlyList<ManualRate> ManualRates { get; init; } = [];
 
+    /// <summary>
+    /// Currencies the user keeps in the choices besides the base one and those of the accounts (CurrencyList);
+    /// <c>null</c> — never changed: rubles, dollars and euros.
+    /// </summary>
+    public IReadOnlyList<CurrencyCode>? Currencies { get; init; }
+
     /// <summary>The phone's PIN and fingerprint lock; off by default.</summary>
     public LockSettings Lock { get; init; } = new();
 
@@ -43,7 +49,8 @@ public sealed record AppSettings
         && Backups == other.Backups
         && QuickEntryLine == other.QuickEntryLine
         && Lock == other.Lock
-        && ManualRates.SequenceEqual(other.ManualRates);
+        && ManualRates.SequenceEqual(other.ManualRates)
+        && (Currencies is null ? other.Currencies is null : other.Currencies is not null && Currencies.SequenceEqual(other.Currencies));
 
     public override int GetHashCode() =>
         HashCode.Combine(BaseCurrency, CsvExport, QuickEntryHotKey, TotalsCurrency, Backups, QuickEntryLine, Lock, ManualRates.Count);

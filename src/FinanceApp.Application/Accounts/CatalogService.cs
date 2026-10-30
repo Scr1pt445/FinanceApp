@@ -12,8 +12,12 @@ public sealed record Catalog(
     IReadOnlyList<Account> Accounts,
     IReadOnlyDictionary<Guid, int> CategoryUsage,
     IReadOnlyDictionary<TransactionType, Guid> LastAccountByType,
-    CurrencyCode BaseCurrency)
+    CurrencyCode BaseCurrency,
+    IReadOnlyList<CurrencyCode>? ChosenCurrencies = null)
 {
+    /// <summary>The currencies to offer: the base one, the user's (CurrencyList) and those of the visible accounts.</summary>
+    public IReadOnlyList<CurrencyCode> Currencies => CurrencyList.Resolve(BaseCurrency, ChosenCurrencies, Accounts);
+
     /// <summary>Visible categories of the type, most used first, then in catalog order.</summary>
     public IReadOnlyList<Category> CategoriesFor(TransactionType type) =>
         Categories
@@ -60,6 +64,7 @@ public sealed class CatalogService(
             allAccounts,
             usage,
             last,
-            settings.Load().BaseCurrency);
+            settings.Load().BaseCurrency,
+            settings.Load().Currencies);
     }
 }

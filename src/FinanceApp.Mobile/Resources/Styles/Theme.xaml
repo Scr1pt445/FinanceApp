@@ -26,42 +26,54 @@
   <local:FlowToneColorConverter x:Key="FlowToneColor" />
   <local:DateTextConverter x:Key="DateText" />
 
+  <!-- Labels and buttons draw the Belarusian ruble sign from BynSign.ttf (Unicode has no code point for it yet);
+       every other character falls back to the system font. Elsewhere the alias is unknown and the default font is used. -->
+  <x:String x:Key="AppFont">BynSign</x:String>
+
   <Style TargetType="ContentPage" ApplyToDerivedTypes="True">
     <Setter Property="BackgroundColor" Value="{StaticResource Window}" />
   </Style>
 
   <!-- Text -->
   <Style TargetType="Label">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="{StaticResource Text}" />
     <Setter Property="FontSize" Value="15" />
   </Style>
   <Style x:Key="Muted" TargetType="Label">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="{StaticResource MutedText}" />
     <Setter Property="FontSize" Value="13" />
   </Style>
   <Style x:Key="PageTitle" TargetType="Label">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="FontSize" Value="26" />
     <Setter Property="FontAttributes" Value="Bold" />
   </Style>
   <Style x:Key="SectionTitle" TargetType="Label">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="{StaticResource MutedText}" />
     <Setter Property="FontSize" Value="13" />
     <Setter Property="FontAttributes" Value="Bold" />
     <Setter Property="VerticalOptions" Value="Center" />
   </Style>
   <Style x:Key="Big" TargetType="Label">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="FontSize" Value="34" />
     <Setter Property="FontAttributes" Value="Bold" />
   </Style>
   <Style x:Key="Amount" TargetType="Label">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="FontAttributes" Value="Bold" />
     <Setter Property="HorizontalTextAlignment" Value="End" />
   </Style>
   <Style x:Key="Problem" TargetType="Label">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="{StaticResource Warning}" />
     <Setter Property="FontSize" Value="13" />
   </Style>
   <Style x:Key="FieldLabel" TargetType="Label">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="{StaticResource MutedText}" />
     <Setter Property="FontSize" Value="13" />
     <Setter Property="Margin" Value="2,6,0,0" />
@@ -102,6 +114,7 @@
   </Style>
   <!-- A unit or a hint at the right edge of a field: «₽», «USD». -->
   <Style x:Key="FieldSuffix" TargetType="Label">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="{StaticResource MutedText}" />
     <Setter Property="FontSize" Value="16" />
     <Setter Property="VerticalOptions" Value="Center" />
@@ -120,6 +133,7 @@
 
   <!-- Buttons: the accent one saves, the soft one is everything else. -->
   <Style TargetType="Button">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="White" />
     <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
     <Setter Property="FontAttributes" Value="Bold" />
@@ -141,6 +155,7 @@
     </Setter>
   </Style>
   <Style x:Key="Soft" TargetType="Button">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="{StaticResource Text}" />
     <Setter Property="BackgroundColor" Value="{StaticResource Control}" />
     <Setter Property="FontAttributes" Value="None" />
@@ -150,6 +165,7 @@
     <Setter Property="MinimumHeightRequest" Value="44" />
   </Style>
   <Style x:Key="Chip" TargetType="Button">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="{StaticResource Text}" />
     <Setter Property="BackgroundColor" Value="{StaticResource Control}" />
     <Setter Property="FontAttributes" Value="None" />
@@ -160,6 +176,7 @@
     <Setter Property="MinimumHeightRequest" Value="36" />
   </Style>
   <Style x:Key="Link" TargetType="Button">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="{StaticResource AccentLight}" />
     <Setter Property="BackgroundColor" Value="Transparent" />
     <Setter Property="FontAttributes" Value="None" />
@@ -168,6 +185,7 @@
     <Setter Property="MinimumHeightRequest" Value="40" />
   </Style>
   <Style x:Key="Fab" TargetType="Button">
+    <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
     <Setter Property="TextColor" Value="White" />
     <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
     <Setter Property="FontSize" Value="28" />

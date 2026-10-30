@@ -32,6 +32,11 @@ public static class MauiProgram
 
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>();
+        builder.ConfigureFonts(fonts => fonts.AddFont("BynSign.ttf", "BynSign"));
+#if ANDROID
+        // Labels and buttons draw this private character as the Belarusian ruble sign (Resources/Fonts/BynSign.ttf).
+        QuickEntryFormatter.BynSign = "\uE0B0";
+#endif
         builder.Services.AddMobileApp(paths);
         return builder.Build();
     }
@@ -58,6 +63,7 @@ public static class MauiProgram
             .AddSingleton<RecurringViewModel>()
             .AddSingleton<DebtsViewModel>()
             .AddSingleton<CompareMonthsViewModel>()
+            .AddSingleton<CurrenciesViewModel>()
             .AddSingleton<Screens>()
             .AddSingleton(sp => new QuickEntryViewModel(sp.GetRequiredService<IQuickEntryBackend>())
             {
@@ -104,5 +110,7 @@ public static class MauiProgram
             .AddTransient<DebtsPage>()
             .AddSingleton<Func<DebtsPage>>(sp => sp.GetRequiredService<DebtsPage>)
             .AddTransient<CompareMonthsPage>()
-            .AddSingleton<Func<CompareMonthsPage>>(sp => sp.GetRequiredService<CompareMonthsPage>);
+            .AddSingleton<Func<CompareMonthsPage>>(sp => sp.GetRequiredService<CompareMonthsPage>)
+            .AddTransient<CurrenciesPage>()
+            .AddSingleton<Func<CurrenciesPage>>(sp => sp.GetRequiredService<CurrenciesPage>);
 }

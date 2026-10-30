@@ -79,7 +79,7 @@ public sealed class FakeFinanceBackend : IFinanceBackend
         var display = TotalsCurrency ?? CurrencyCode.Rub;
         return Task.FromResult(new BalancesOverview(
             regular, envelopes, regular.Sum(b => b.BaseBalance!.Value), envelopes.Sum(b => b.BaseBalance!.Value), CurrencyCode.Rub, false,
-            display, display == CurrencyCode.Usd ? 1m / 90 : 1m));
+            display, display == CurrencyCode.Usd ? 1m / 90 : 1m, Currencies));
     }
 
     public Task<PeriodOverview> LoadPeriodAsync(Period period, CancellationToken cancellationToken = default)
@@ -97,7 +97,7 @@ public sealed class FakeFinanceBackend : IFinanceBackend
         var usage = Transactions.Where(t => t.CategoryId is not null).GroupBy(t => t.CategoryId!.Value).ToDictionary(g => g.Key, g => g.Count());
         var last = Transactions.Where(t => Accounts.Single(a => a.Id == t.AccountId) is { IsEnvelope: false })
             .GroupBy(t => t.Type).ToDictionary(g => g.Key, g => g.MaxBy(t => t.CreatedAt)!.AccountId);
-        return Task.FromResult(new Catalog(Categories, Accounts, usage, last, CurrencyCode.Rub));
+        return Task.FromResult(new Catalog(Categories, Accounts, usage, last, CurrencyCode.Rub, Currencies));
     }
 
     /// <summary>The last expense or income saved, as the form sent it (receipt currency and rate included).</summary>
@@ -358,6 +358,14 @@ public sealed class FakeFinanceBackend : IFinanceBackend
     public Task DeleteDebtAsync(Guid id, CancellationToken cancellationToken = default)
     {
         Debts.RemoveAll(d => d.Id == id);
+        return Task.CompletedTask;
+    }
+
+    public IReadOnlyList<CurrencyCode>? Currencies { get; set; }
+
+    public Task SetCurrenciesAsync(IReadOnlyList<CurrencyCode> chosen, CancellationToken cancellationToken = default)
+    {
+        Currencies = [.. chosen.Distinct()];
         return Task.CompletedTask;
     }
 

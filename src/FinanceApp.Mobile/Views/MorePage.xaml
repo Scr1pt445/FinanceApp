@@ -70,6 +70,19 @@
         </Grid>
       </Border>
 
+      <Border x:Name="CurrenciesRow" Style="{StaticResource Row}" Padding="16,16" x:DataType="finance:CurrenciesViewModel">
+        <Border.GestureRecognizers>
+          <TapGestureRecognizer Tapped="OnCurrencies" />
+        </Border.GestureRecognizers>
+        <Grid ColumnDefinitions="*,Auto">
+          <VerticalStackLayout Spacing="2">
+            <Label Text="Валюты" FontSize="16" />
+            <Label Text="{Binding Summary}" Style="{StaticResource Muted}" />
+          </VerticalStackLayout>
+          <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+
       <Border Style="{StaticResource Row}" Padding="16,16">
         <Border.GestureRecognizers>
           <TapGestureRecognizer Tapped="OnRates" />

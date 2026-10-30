@@ -149,6 +149,13 @@ public sealed class ScopedFinanceBackend(IServiceScopeFactory scopes) : IFinance
             return true;
         });
 
+    public Task SetCurrenciesAsync(IReadOnlyList<CurrencyCode> chosen, CancellationToken cancellationToken = default) =>
+        InScopeAsync<CurrencySettingsService, bool>(async s =>
+        {
+            await s.SaveAsync(chosen, cancellationToken);
+            return true;
+        });
+
     public Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default) =>
         InScopeAsync<ISettingsStore, bool>(async store =>
         {

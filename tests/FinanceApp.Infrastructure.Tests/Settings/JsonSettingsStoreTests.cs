@@ -42,6 +42,7 @@ public sealed class JsonSettingsStoreTests : IDisposable
                 new ManualRate(CurrencyCode.Eur, CurrencyCode.Byn, 3.45m, new DateOnly(2026, 10, 30), new DateOnly(2026, 11, 5)),
                 new ManualRate(CurrencyCode.Usd, CurrencyCode.Byn, 3.1m, new DateOnly(2026, 10, 30), null),
             ],
+            Currencies = [CurrencyCode.Usd, CurrencyCode.Parse("KZT")],
         };
 
         await new JsonSettingsStore(_paths, new AtomicFileWriter()).SaveAsync(saved, Ct);

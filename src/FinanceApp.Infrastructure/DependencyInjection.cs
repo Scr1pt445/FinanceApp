@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<LimitsService>();
         services.AddScoped<FinanceApp.Application.Recurring.RecurringService>();
         services.AddScoped<FinanceApp.Application.Debts.DebtService>();
+        services.AddScoped<CurrencySettingsService>();
         services.AddScoped<FinanceApp.Application.Summaries.MonthComparisonService>();
         services.AddScoped<CsvExportService>();
 
