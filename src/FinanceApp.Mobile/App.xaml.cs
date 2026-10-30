@@ -35,7 +35,7 @@ public partial class App : Microsoft.Maui.Controls.Application
         _rates = rates;
         _lock = lockViewModel;
         _lock.Unlocked += (_, _) => _ = UnlockedAsync();
-        PendingAction.Requested += (_, _) => Dispatcher.Dispatch(RunPendingAction);
+        PendingAction.Requested += OnPendingAction;
 
         // The home-screen widget shows what the home screen counted last.
         home.PropertyChanged += (_, e) =>
@@ -147,6 +147,14 @@ public partial class App : Microsoft.Maui.Controls.Application
 
         RunPendingAction();
     }
+
+    /// <summary>
+    /// Stops taking shortcut requests: <see cref="PendingAction"/> is static and outlives an app whose services are gone
+    /// (the screen tests build one app after another in the same process).
+    /// </summary>
+    internal void StopListening() => PendingAction.Requested -= OnPendingAction;
+
+    private void OnPendingAction(object? sender, EventArgs e) => Dispatcher.Dispatch(RunPendingAction);
 
     /// <summary>«Новый расход» from a shortcut or the widget, once the tabs are there and the lock is open.</summary>
     private void RunPendingAction()
