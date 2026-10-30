@@ -6,9 +6,11 @@ namespace FinanceApp.Mobile.Views;
 public partial class AccountsPage : ContentPage
 {
     private readonly ShellViewModel _shell;
+    private readonly Func<RatesPage> _rates;
 
-    public AccountsPage(ShellViewModel shell)
+    public AccountsPage(ShellViewModel shell, Func<RatesPage> rates)
     {
+        _rates = rates;
         InitializeComponent();
         BindingContext = _shell = shell;
 
@@ -49,4 +51,7 @@ public partial class AccountsPage : ContentPage
             (Shell.Current as AppShell)?.Show(AppShell.OperationsRoute);
         }
     }
+
+    /// <summary>«Задать свой курс» under totals that miss a rate.</summary>
+    private async void OnRates(object? sender, EventArgs e) => await Navigation.PushAsync(_rates());
 }

@@ -4,7 +4,7 @@ namespace FinanceApp.Mobile.Controls;
 /// The frame around every input: a rounded plate that lights up in the accent while its entry, picker or date
 /// picker has focus. The inputs themselves are transparent and, on Android, lose their underline (InputLook).
 /// </summary>
-public sealed class Field : Border
+public class Field : Border
 {
     public Field()
     {

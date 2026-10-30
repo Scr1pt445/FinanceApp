@@ -38,6 +38,8 @@
           </Grid>
           <Label Text="{Binding Warning, StringFormat='ⓘ {0}'}" Style="{StaticResource Muted}"
                  IsVisible="{Binding Warning, Converter={StaticResource IsNotEmpty}}" />
+          <Button Text="Задать свой курс ›" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="0"
+                  Clicked="OnRates" IsVisible="{Binding Warning, Converter={StaticResource IsNotEmpty}}" />
         </VerticalStackLayout>
       </Border>
 

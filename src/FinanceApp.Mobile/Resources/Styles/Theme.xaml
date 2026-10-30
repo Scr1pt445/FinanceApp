@@ -68,7 +68,7 @@
   </Style>
 
   <!-- Inputs: transparent, inside a Field plate that draws the background, the corners and the focus. -->
-  <Style TargetType="controls:Field">
+  <Style TargetType="controls:Field" ApplyToDerivedTypes="True">
     <Setter Property="BackgroundColor" Value="{StaticResource Control}" />
     <Setter Property="Stroke" Value="{StaticResource Border}" />
     <Setter Property="StrokeThickness" Value="1.5" />

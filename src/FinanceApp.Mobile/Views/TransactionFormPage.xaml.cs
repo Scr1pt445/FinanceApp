@@ -19,8 +19,13 @@ public partial class TransactionFormPage : ContentPage
             {
                 HighlightPaidCurrency();
             }
+            else if (e.PropertyName == nameof(TransactionFormViewModel.Remember))
+            {
+                HighlightRemember();
+            }
         };
         HighlightPaidCurrency();
+        HighlightRemember();
     }
 
     public TransactionFormViewModel Form => _form;
@@ -47,6 +52,20 @@ public partial class TransactionFormPage : ContentPage
         {
             _form.ChoosePaidCurrencyCommand.Execute(currency);
         }
+    }
+
+    private void OnRemember(object? sender, EventArgs e)
+    {
+        if ((sender as BindableObject)?.BindingContext is RememberChoice choice)
+        {
+            _form.ChooseRememberCommand.Execute(choice);
+        }
+    }
+
+    private void HighlightRemember()
+    {
+        Controls.Chips.Highlight(RememberForeign, _form.Remember);
+        Controls.Chips.Highlight(RememberTransfer, _form.Remember);
     }
 
     private void HighlightPaidCurrency() => Controls.Chips.Highlight(PaidCurrencies, _form.PaidCurrency);

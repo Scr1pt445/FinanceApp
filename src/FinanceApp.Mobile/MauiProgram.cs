@@ -64,5 +64,27 @@ public static class MauiProgram
             .AddSingleton<SummaryPage>()
             .AddSingleton<MorePage>()
             .AddTransient<CategoriesPage>()
-            .AddSingleton<Func<CategoriesPage>>(sp => sp.GetRequiredService<CategoriesPage>);
+            .AddSingleton<Func<CategoriesPage>>(sp => sp.GetRequiredService<CategoriesPage>)
+            .AddSingleton(sp =>
+            {
+                // A new or removed rate changes the totals on the home screen and the accounts.
+                var rates = new ManualRatesViewModel(sp.GetRequiredService<IFinanceBackend>(), sp.GetRequiredService<TimeProvider>());
+                rates.Changed += async (_, _) =>
+                {
+                    try
+                    {
+                        await sp.GetRequiredService<HomeViewModel>().RefreshAsync();
+                        await sp.GetRequiredService<ShellViewModel>().RefreshAsync();
+                    }
+#pragma warning disable CA1031 // An event handler: the totals catch up on the next refresh anyway.
+                    catch (Exception ex)
+#pragma warning restore CA1031
+                    {
+                        CrashReport.Save(ex);
+                    }
+                };
+                return rates;
+            })
+            .AddTransient<RatesPage>()
+            .AddSingleton<Func<RatesPage>>(sp => sp.GetRequiredService<RatesPage>);
 }

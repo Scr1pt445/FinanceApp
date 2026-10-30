@@ -24,6 +24,19 @@
         </Grid>
       </Border>
 
+      <Border Style="{StaticResource Row}" Padding="16,16">
+        <Border.GestureRecognizers>
+          <TapGestureRecognizer Tapped="OnRates" />
+        </Border.GestureRecognizers>
+        <Grid ColumnDefinitions="*,Auto">
+          <VerticalStackLayout Spacing="2">
+            <Label Text="Курсы валют" FontSize="16" />
+            <Label Text="Свой курс на день, неделю или месяц — в поездке и без связи с ЦБ" Style="{StaticResource Muted}" />
+          </VerticalStackLayout>
+          <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+
       <Border x:Name="SettingsCard" Style="{StaticResource Card}" x:DataType="settings:PhoneSettingsViewModel">
         <VerticalStackLayout Spacing="8">
           <Label Text="НАСТРОЙКИ" Style="{StaticResource SectionTitle}" />

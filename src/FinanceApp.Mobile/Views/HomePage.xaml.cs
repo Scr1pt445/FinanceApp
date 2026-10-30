@@ -8,10 +8,12 @@ public partial class HomePage : ContentPage
 {
     private readonly HomeViewModel _viewModel;
     private readonly ShellViewModel _shell;
+    private readonly Func<RatesPage> _rates;
     private bool _opened;
 
-    public HomePage(HomeViewModel viewModel, ShellViewModel shell, PhoneSettingsViewModel settings)
+    public HomePage(HomeViewModel viewModel, ShellViewModel shell, PhoneSettingsViewModel settings, Func<RatesPage> rates)
     {
+        _rates = rates;
         ArgumentNullException.ThrowIfNull(settings);
         InitializeComponent();
         BindingContext = _viewModel = viewModel;
@@ -55,4 +57,7 @@ public partial class HomePage : ContentPage
             _shell.Operations.EditCommand.Execute(row);
         }
     }
+
+    /// <summary>«Задать свой курс» under totals that miss a rate.</summary>
+    private async void OnRates(object? sender, EventArgs e) => await Navigation.PushAsync(_rates());
 }

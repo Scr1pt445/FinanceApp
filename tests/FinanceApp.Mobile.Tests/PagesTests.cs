@@ -37,7 +37,7 @@ public sealed class PagesTests : IAsyncLifetime
     {
         Microsoft.Maui.Controls.Application.Current = null;
 
-        Should.Throw<Exception>(() => new AccountsPage(_app.Get<ShellViewModel>()));
+        Should.Throw<Exception>(() => new AccountsPage(_app.Get<ShellViewModel>(), _app.Get<Func<RatesPage>>()));
     }
 
     [Fact]
@@ -185,6 +185,53 @@ public sealed class PagesTests : IAsyncLifetime
         page.Form.IsForeign.ShouldBeTrue();
         euro.BackgroundColor.ShouldBe(Palette.Accent);
         page.Form.RateMissing.ShouldBeTrue(); // the test rates know only USD
+        _bindingFailures.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ExpenseForm_TakesItsOwnRate_AndCanRememberIt()
+    {
+        var shell = _app.Get<ShellViewModel>();
+        await shell.NewExpenseCommand.ExecuteAsync(null);
+        var page = new TransactionFormPage(shell.Form!);
+        Button Find(string text) => Descendants<Button>(page).First(b => b.Text == text);
+        page.Form.AmountText = "20";
+        ((IButtonController)Descendants<Button>(page).Single(b => b.BindingContext is CurrencyCode c && c == CurrencyCode.Eur)).SendClicked();
+
+        ((IButtonController)Find("Свой курс")).SendClicked();
+        page.Form.ForeignRateText = "100";
+        ((IButtonController)Find("На неделю")).SendClicked();
+
+        page.Form.ForeignByRate.ShouldBeTrue();
+        page.Form.ChargedPreview.ShouldBe("Спишется 2\u00a0000 ₽");
+        page.Form.Remember.Period.ShouldBe(FinanceApp.Application.ExchangeRates.ManualRatePeriod.Week);
+        Find("На неделю").BackgroundColor.ShouldBe(Palette.Accent);
+        _bindingFailures.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RatesPage_AddsARate_AndTheTotalsUseIt()
+    {
+        var shell = _app.Get<ShellViewModel>();
+        await shell.NewAccountCommand.ExecuteAsync(null);
+        shell.AccountForm!.Name = "Наличные EUR";
+        shell.AccountForm.CurrencyText = "EUR";
+        shell.AccountForm.OpeningBalanceText = "10";
+        await shell.AccountForm.SaveCommand.ExecuteAsync(null);
+        await shell.RefreshAsync(Ct);
+        shell.Warning.ShouldNotBeEmpty(); // the test rates know only USD
+
+        var page = _app.Get<RatesPage>();
+        var rates = (ManualRatesViewModel)page.BindingContext;
+        await rates.LoadAsync(Ct);
+        ((IButtonController)Descendants<Button>(page).First(b => b.BindingContext is CurrencyCode c && c == CurrencyCode.Eur)).SendClicked();
+        rates.RateText = "100";
+        await rates.AddCommand.ExecuteAsync(null);
+        await shell.RefreshAsync(Ct);
+
+        rates.Rates.ShouldHaveSingleItem().Title.ShouldBe("1 EUR = 100 RUB");
+        shell.Warning.ShouldBeEmpty();
+        shell.TotalText.ShouldBe("1\u00a0000 ₽");
         _bindingFailures.ShouldBeEmpty();
     }
 

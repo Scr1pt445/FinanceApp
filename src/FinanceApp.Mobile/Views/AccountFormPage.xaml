@@ -40,10 +40,9 @@
             <controls:Field>
               <Entry Text="{Binding GoalAmountText}" Keyboard="Numeric" Placeholder="Сколько накопить" />
             </controls:Field>
-            <Label Text="Срок, дд.мм.гггг" Style="{StaticResource FieldLabel}" />
-            <controls:Field>
-              <Entry Text="{Binding GoalDateText}" Keyboard="Numeric" Placeholder="Необязательно" />
-            </controls:Field>
+            <Label Text="Срок" Style="{StaticResource FieldLabel}" />
+            <controls:DateField Text="{Binding GoalDateText}" Kind="Goal" AllowEmpty="True" FutureOnly="True"
+                                Title="Срок цели" Placeholder="Без срока — копить без даты" />
             <Button Text="Убрать цель" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="2,0"
                     TextColor="{StaticResource MutedText}" Command="{Binding RemoveGoalCommand}" />
           </VerticalStackLayout>
