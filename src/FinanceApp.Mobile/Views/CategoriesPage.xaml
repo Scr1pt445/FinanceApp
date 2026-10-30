@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
+             x:Class="FinanceApp.Mobile.Views.CategoriesPage"
+             x:DataType="finance:CategoriesViewModel"
+             Title="Категории">
+  <ContentPage.Resources>
+    <!-- One row: the name (or a field while renaming), how often it is used, and what can be done with it. -->
+    <DataTemplate x:Key="CategoryTemplate" x:DataType="finance:CategoryItem">
+      <Border Style="{StaticResource Row}">
+        <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="4">
+          <Label Text="{Binding Name}" FontSize="16" IsVisible="{Binding IsEditing, Converter={StaticResource Not}}">
+            <Label.Triggers>
+              <DataTrigger TargetType="Label" Binding="{Binding IsHidden}" Value="True">
+                <Setter Property="TextColor" Value="{StaticResource MutedText}" />
+              </DataTrigger>
+            </Label.Triggers>
+          </Label>
+          <controls:Field IsVisible="{Binding IsEditing}" MinimumHeightRequest="44">
+            <Entry Text="{Binding Name}" ReturnType="Done" ReturnCommand="{Binding FinishRenameCommand}" FontSize="16" />
+          </controls:Field>
+          <Label Grid.Row="1" Text="{Binding UsageText}" Style="{StaticResource Muted}" />
+          <Button Grid.Column="1" Grid.RowSpan="2" Text="✎" FontSize="18" Style="{StaticResource Link}"
+                  Command="{Binding StartRenameCommand}" IsVisible="{Binding IsEditing, Converter={StaticResource Not}}" />
+          <Button Grid.Column="1" Grid.RowSpan="2" Text="Отмена" Style="{StaticResource Link}"
+                  Command="{Binding CancelRenameCommand}" IsVisible="{Binding IsEditing}" />
+          <Button Grid.Column="2" Grid.RowSpan="2" Text="Скрыть" Style="{StaticResource Link}" TextColor="{StaticResource MutedText}"
+                  Command="{Binding ToggleHiddenCommand}">
+            <Button.Triggers>
+              <DataTrigger TargetType="Button" Binding="{Binding IsHidden}" Value="True">
+                <Setter Property="Text" Value="Вернуть" />
+              </DataTrigger>
+            </Button.Triggers>
+          </Button>
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </ContentPage.Resources>
+
+  <ScrollView>
+    <VerticalStackLayout Spacing="10" Padding="16,16,16,24">
+      <Grid ColumnDefinitions="Auto,*">
+        <Button Text="‹ Назад" Style="{StaticResource Link}" Clicked="OnBack" Padding="0" />
+      </Grid>
+      <Label Text="Категории" Style="{StaticResource PageTitle}" />
+      <Label Text="Скрытые категории не предлагаются в формах, но остаются в истории." Style="{StaticResource Muted}" />
+      <Label Text="{Binding Status}" Style="{StaticResource Problem}"
+             IsVisible="{Binding Status, Converter={StaticResource IsNotEmpty}}" />
+
+      <Label Text="РАСХОДЫ" Style="{StaticResource SectionTitle}" Margin="0,8,0,0" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <controls:Field>
+          <Entry Text="{Binding NewExpenseName}" Placeholder="Новая категория расходов" ReturnType="Done"
+                 ReturnCommand="{Binding AddExpenseCommand}" />
+        </controls:Field>
+        <Button Grid.Column="1" Text="+" FontSize="22" WidthRequest="52" Padding="0" Command="{Binding AddExpenseCommand}" />
+      </Grid>
+      <VerticalStackLayout Spacing="6" BindableLayout.ItemsSource="{Binding Expenses}"
+                           BindableLayout.ItemTemplate="{StaticResource CategoryTemplate}" />
+
+      <Label Text="ДОХОДЫ" Style="{StaticResource SectionTitle}" Margin="0,12,0,0" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <controls:Field>
+          <Entry Text="{Binding NewIncomeName}" Placeholder="Новая категория доходов" ReturnType="Done"
+                 ReturnCommand="{Binding AddIncomeCommand}" />
+        </controls:Field>
+        <Button Grid.Column="1" Text="+" FontSize="22" WidthRequest="52" Padding="0" Command="{Binding AddIncomeCommand}" />
+      </Grid>
+      <VerticalStackLayout Spacing="6" BindableLayout.ItemsSource="{Binding Incomes}"
+                           BindableLayout.ItemTemplate="{StaticResource CategoryTemplate}" />
+
+      <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+        <Label Text="Показывать скрытые" VerticalOptions="Center" />
+        <Switch Grid.Column="1" IsToggled="{Binding ShowHidden}" />
+      </Grid>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

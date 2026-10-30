@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- «Курсы валют»: the user's own rates for a day, a week, a month or for good — for trips and for days without the CBR. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             xmlns:domain="clr-namespace:FinanceApp.Domain;assembly=FinanceApp.Domain"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
+             x:Class="FinanceApp.Mobile.Views.RatesPage"
+             x:DataType="finance:ManualRatesViewModel"
+             Title="Курсы валют">
+  <ContentPage.Resources>
+    <Style x:Key="SmallChip" TargetType="Button" BasedOn="{StaticResource Chip}">
+      <Setter Property="HeightRequest" Value="32" />
+      <Setter Property="MinimumHeightRequest" Value="32" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Padding" Value="12,0" />
+    </Style>
+  </ContentPage.Resources>
+
+    <ScrollView>
+      <VerticalStackLayout Spacing="12" Padding="16,16,16,24">
+        <Grid ColumnDefinitions="Auto,*">
+          <Button Text="‹ Назад" Style="{StaticResource Link}" Clicked="OnBack" Padding="0" />
+        </Grid>
+        <Label Text="Курсы валют" Style="{StaticResource PageTitle}" />
+        <Label Text="Курс ЦБ подходит не всегда: за границей банк считает по своему, а без связи с ЦБ курса нет вовсе. Задайте свой — на день, неделю, месяц или пока не уберёте. Он заменит курс ЦБ в итогах и новых операциях."
+               Style="{StaticResource Muted}" />
+
+        <!-- The rates in force first, then the expired ones, dimmed. -->
+        <VerticalStackLayout Spacing="6" IsVisible="{Binding HasRates}">
+          <Label Text="СВОИ КУРСЫ" Style="{StaticResource SectionTitle}" />
+          <VerticalStackLayout Spacing="6" BindableLayout.ItemsSource="{Binding Rates}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="finance:ManualRateItem">
+                <Border Style="{StaticResource Row}" Padding="16,12">
+                  <Border.Triggers>
+                    <DataTrigger TargetType="Border" Binding="{Binding IsExpired}" Value="True">
+                      <Setter Property="Opacity" Value="0.5" />
+                    </DataTrigger>
+                  </Border.Triggers>
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <BoxView Style="{StaticResource Dot}" Color="{StaticResource MutedText}" VerticalOptions="Center">
+                      <BoxView.Triggers>
+                        <DataTrigger TargetType="BoxView" Binding="{Binding IsActive}" Value="True">
+                          <Setter Property="Color" Value="{StaticResource Income}" />
+                        </DataTrigger>
+                      </BoxView.Triggers>
+                    </BoxView>
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                      <Label Text="{Binding Title}" FontSize="17" FontAttributes="Bold" />
+                      <Label Text="{Binding PeriodText}" Style="{StaticResource Muted}" />
+                    </VerticalStackLayout>
+                    <Button Grid.Column="2" Text="Убрать" Style="{StaticResource Link}" TextColor="{StaticResource MutedText}"
+                            Clicked="OnRemove" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+
+        <Border Style="{StaticResource Card}">
+          <VerticalStackLayout Spacing="8">
+            <Label Text="НОВЫЙ КУРС" Style="{StaticResource SectionTitle}" />
+
+            <Label Text="Валюта" Style="{StaticResource FieldLabel}" />
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+              <HorizontalStackLayout x:Name="FromChips" Spacing="6" BindableLayout.ItemsSource="{Binding Currencies}">
+                <BindableLayout.ItemTemplate>
+                  <DataTemplate x:DataType="domain:CurrencyCode">
+                    <Button Text="{Binding Value}" Style="{StaticResource SmallChip}" Clicked="OnFrom" />
+                  </DataTemplate>
+                </BindableLayout.ItemTemplate>
+              </HorizontalStackLayout>
+            </ScrollView>
+
+            <Label Text="В какой валюте цена" Style="{StaticResource FieldLabel}" />
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+              <HorizontalStackLayout x:Name="ToChips" Spacing="6" BindableLayout.ItemsSource="{Binding Currencies}">
+                <BindableLayout.ItemTemplate>
+                  <DataTemplate x:DataType="domain:CurrencyCode">
+                    <Button Text="{Binding Value}" Style="{StaticResource SmallChip}" Clicked="OnTo" />
+                  </DataTemplate>
+                </BindableLayout.ItemTemplate>
+              </HorizontalStackLayout>
+            </ScrollView>
+
+            <Label Text="Курс" Style="{StaticResource FieldLabel}" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <controls:Field>
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                  <Label Text="{Binding RateLabel}" Style="{StaticResource FieldSuffix}" />
+                  <Entry Grid.Column="1" Text="{Binding RateText}" Keyboard="Numeric" Placeholder="0" FontSize="20" FontAttributes="Bold" />
+                  <Label Grid.Column="2" Text="{Binding RateUnit}" Style="{StaticResource FieldSuffix}" />
+                </Grid>
+              </controls:Field>
+              <Button Grid.Column="1" Text="⇅" Style="{StaticResource Soft}" WidthRequest="52" Command="{Binding SwapCommand}" />
+            </Grid>
+            <Label Text="{Binding CurrentHint}" Style="{StaticResource Muted}"
+                   IsVisible="{Binding CurrentHint, Converter={StaticResource IsNotEmpty}}" />
+
+            <Label Text="На сколько" Style="{StaticResource FieldLabel}" />
+            <FlexLayout x:Name="PeriodChips" Wrap="Wrap" BindableLayout.ItemsSource="{Binding Periods}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="finance:RatePeriodChoice">
+                  <Button Text="{Binding Title}" Style="{StaticResource SmallChip}" Margin="0,0,6,6" Clicked="OnPeriod" />
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </FlexLayout>
+
+            <Label Text="С какого дня" Style="{StaticResource FieldLabel}" />
+            <controls:DateField Text="{Binding StartText}" Kind="Start" Title="Курс действует с" />
+            <Label Text="{Binding PeriodHint}" Style="{StaticResource Muted}"
+                   IsVisible="{Binding PeriodHint, Converter={StaticResource IsNotEmpty}}" />
+
+            <Label Text="{Binding Status}" Style="{StaticResource Problem}"
+                   IsVisible="{Binding Status, Converter={StaticResource IsNotEmpty}}" />
+            <Button Text="Сохранить курс" Command="{Binding AddCommand}" HeightRequest="52" Margin="0,6,0,0" />
+          </VerticalStackLayout>
+        </Border>
+      </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

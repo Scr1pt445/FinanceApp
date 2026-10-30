@@ -8,7 +8,7 @@
 
 A Windows desktop app for personal finance tracking, built around one idea: **recording a transaction should take five seconds.** A global hotkey opens a one-line entry box; a banking-style main window keeps accounts, envelopes for savings goals, transfers and summaries for any period.
 
-> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 384 automated tests. A standalone Android app is under way: the core and quick entry already run on the phone ([Android](#android)). See the [roadmap](#roadmap).
+> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 454 automated tests. The standalone Android app covers the same ground on the phone: quick entry, operations, accounts and envelopes, summaries ([Android](#android)). See the [roadmap](#roadmap).
 
 ## Features
 
@@ -17,6 +17,7 @@ A Windows desktop app for personal finance tracking, built around one idea: **re
 - **Main window.** Accounts and envelopes with balances on the left, operations grouped by day on the right; forms with category tiles instead of syntax; totals in a currency of your choice, split into accounts and savings; your own categories.
 - **Multi-currency accounts.** Each account has a currency; amounts are converted to a base currency at the Central Bank of Russia rate **fixed on the transaction date**, so past months never drift.
 - **Offline first.** Local SQLite database; exchange rates are cached and the latest known rate is used (and flagged) when there is no network.
+- **Your own rates.** Abroad the bank's rate is what counts, and without the CBR there may be no rate at all: set your own for a day, a week, a month or until removed. It replaces the CBR rate in the totals and new operations; a rate typed in a form can be remembered the same way.
 - **Daily backups.** A consistent copy of the database is made once a day on start; the latest 14 are kept ([ADR 0012](docs/adr/0012-database-backups.md)).
 - **Summaries for any period.** Week, month, quarter, year, a custom range or all time: income, expenses, money put into envelopes, balance, a month chart, expenses by category and comparison with the previous period.
 - **Transfers between currencies.** Enter what was sent and either what arrived or the rate; the result is shown before saving.
@@ -25,7 +26,7 @@ A Windows desktop app for personal finance tracking, built around one idea: **re
 
 ### Quick-entry syntax
 
-`[+|>]<amount> [category] [note…] [date] [@account]` — see [ADR 0009](docs/adr/0009-quick-entry-syntax.md).
+`[+|>]<amount>[currency] [category] [note…] [date] [@account]` — see [ADR 0009](docs/adr/0009-quick-entry-syntax.md).
 
 | Line | Result |
 |---|---|
@@ -35,6 +36,7 @@ A Windows desktop app for personal finance tracking, built around one idea: **re
 | `>10 000 машина` | into the «Машина» envelope from the default account |
 | `1200 тр такси вчера` | «Транспорт» by prefix, dated yesterday |
 | `20 еда ужин @карта usd` | dollar account, converted at the CBR rate of the day |
+| `20 eur еда ужин` | receipt in euros from the default ruble card: charged at the CBR rate, «20 EUR» kept in the note (also `20€`, `€20`, `20 евро`) |
 
 Categories and accounts match by prefix; ambiguities are shown instead of guessed. The default account is the last base-currency account used for the same type.
 
@@ -62,7 +64,7 @@ flowchart LR
 | `FinanceApp.Infrastructure` | EF Core + SQLite repositories and migrations, CBR rate source with a local cache, atomic file writer, JSON settings, DI registration shared by all front ends. |
 | `FinanceApp.Presentation` | View models on CommunityToolkit.Mvvm with no WPF dependency — window behaviour is unit-tested. |
 | `FinanceApp.Desktop` | WPF tray app: global hotkey via `RegisterHotKey`, a pre-created quick-entry window (shown instantly), hotkey settings, single instance. |
-| `FinanceApp.Mobile` | Android app on .NET MAUI with its own database on the phone: the home screen with quick entry, the total and recent operations. Built on its own — it needs the MAUI workload. |
+| `FinanceApp.Mobile` | Android app on .NET MAUI with its own database on the phone: five tabs over the same view models as the desktop window. Built on its own — it needs the MAUI workload. |
 | `FinanceApp.Cli` | `finance` command-line tool built on the same service graph as the desktop app. |
 
 ### Key design decisions
@@ -102,14 +104,20 @@ dotnet workload install maui-android
 ```
 
 ```bash
-dotnet build src/FinanceApp.Mobile -t:InstallAndroidDependencies -p:AndroidSdkDirectory=<sdk folder> -p:AcceptAndroidSDKLicenses=True
+dotnet build src/FinanceApp.Mobile -t:InstallAndroidDependencies -f net10.0-android -p:AndroidSdkDirectory=<sdk folder> -p:AcceptAndroidSDKLicenses=True
 ```
 
 ```bash
 tools/build-android.sh <sdk folder>
 ```
 
-The second command downloads the Android SDK packages the project needs (skip it if Android Studio already installed them); on Windows run `tools\build-android.ps1 -AndroidSdk <sdk folder>` instead of the `.sh`. The result is `artifacts/android/FinanceApp-debug.apk`, signed with the local debug key: copy it to the phone and open it (allow installing apps from this source). The phone keeps its own database — it is not synced with the desktop app. So far the app has one screen: the quick-entry line with its live preview, the total balance and the last 30 days of operations.
+The second command downloads the Android SDK packages the project needs (skip it if Android Studio already installed them); on Windows run `tools\build-android.ps1 -AndroidSdk <sdk folder>` instead of the `.sh`. The result is `artifacts/android/FinanceApp-debug.apk`, signed with the local debug key: copy it to the phone and open it (allow installing apps from this source). The phone keeps its own database — it is not synced with the desktop app. The first start is a short tour of the app, then the base currency (fixed from then on) and what is on the card and in cash now, plus an optional first envelope and whether to show the quick-entry line; the tour can be opened again from «Ещё». Then the app has five tabs:
+
+- **Главная** — buttons for the expense, income and transfer forms and, if switched on in «Ещё → Настройки» or at the first run, the quick-entry line with its live preview (off by default: not everyone likes to type a syntax); the total and the last 30 days of operations (tap one to edit it).
+- **Операции** — a month by day for all accounts or one, filters by type, search, swipe left to delete with «Вернуть» to undo; filling and emptying an envelope.
+- **Счета** — accounts and envelopes with balances, goals and progress; totals in any currency; new and hidden accounts.
+- **Итоги** — any period: money in and out, where the income went, insights, the pace of spending against the previous period, categories, the biggest expenses, envelopes.
+- **Ещё** — categories, CSV and a copy of the database through the share sheet (the CSV imports into the desktop app with `finance import`).
 
 ### CLI examples
 
@@ -138,10 +146,11 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 
 ## Testing
 
-384 tests on xUnit v3 and Microsoft Testing Platform (on Linux one Windows-only file-lock test is skipped):
+454 tests on xUnit v3 and Microsoft Testing Platform (on Linux one Windows-only file-lock test is skipped):
 
 - **Core tests** — domain invariants, the quick-entry parser (amounts, prefixes, dates, accounts, ambiguities), category hints, CSV writer/reader (byte-level checks for BOM, quoting and culture independence), summaries, exchange-rate fallback logic, export coordinator (debounce, retries, failure status), view models of the main window (operations, forms, summaries, categories, totals currency), the quick-entry and hotkey windows and the phone's home screen.
-- **Infrastructure tests** — run against a real SQLite file and the real file system: migrations and seeding, decimal/date round-trips, atomic replace with a locked target, CBR parsing with a fake HTTP handler, end-to-end add → edit → delete → CSV, import idempotency and export → import round-trip, the phone's home screen through the shared scoped backends.
+- **Infrastructure tests** — run against a real SQLite file and the real file system: migrations and seeding, decimal/date round-trips, atomic replace with a locked target, CBR parsing with a fake HTTP handler, end-to-end add → edit → delete → CSV, import idempotency and export → import round-trip, the phone's home screen and data sharing through the shared scoped backends.
+- **Phone screens** (`tests/FinanceApp.Mobile.Tests`, needs the MAUI workload, runs in the `android` CI job) — every page is built from the app's real service graph under its theme on a SQLite file, without a device: the first-run setup, start-up, the five tabs, the currency and period chips, the forms coming and going, the theme matching the palette. A page built before the theme — the crash of the first APK — fails here.
 
 ## Roadmap
 
@@ -151,7 +160,7 @@ UTF-8 without BOM, LF line endings, RFC 4180 quoting, `amount` always in the bas
 | 2. Quick entry | Tray icon, global hotkey, one-line entry window, input parser | ✅ |
 | 3. Main window | Accounts, envelopes, transfers, operations, forms, summaries, categories | ✅ |
 | 4. Polish | Settings window, autostart, backups, single-file build and install, app icon ✅; screenshots | ⏳ |
-| 5. Android | Standalone phone app on .NET MAUI with its own database, sharing the core — [ADR 0013](docs/adr/0013-android-app.md). 5.1 the core and quick entry on the phone ✅; accounts and operations, summaries and settings, release APK | ⏳ |
+| 5. Android | Standalone phone app on .NET MAUI with its own database, sharing the core — [ADR 0013](docs/adr/0013-android-app.md). 5.1 the core and quick entry ✅, 5.2 accounts and operations ✅, 5.3 summaries, categories, sharing ✅; signed release APK | ⏳ |
 
 Details: [product requirements](docs/requirements.md).
 

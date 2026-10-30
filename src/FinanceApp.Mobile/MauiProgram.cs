@@ -1,12 +1,16 @@
 using FinanceApp.Infrastructure;
+using FinanceApp.Mobile.Views;
+using FinanceApp.Presentation.Data;
 using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.Home;
 using FinanceApp.Presentation.Hosting;
 using FinanceApp.Presentation.QuickEntry;
+using FinanceApp.Presentation.Settings;
+using FinanceApp.Presentation.Setup;
 
 namespace FinanceApp.Mobile;
 
-/// <summary>Composition root of the Android app: the same core and service graph as the desktop app.</summary>
+/// <summary>Composition root of the Android app: the same core and service graph as the desktop app, plus the phone screens.</summary>
 public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
@@ -15,21 +19,72 @@ public static class MauiProgram
         var paths = new FinancePaths(FileSystem.AppDataDirectory);
         paths.EnsureDataDirectory();
 
+        if (CrashReport.TakeLast() is { } report)
+        {
+            var crashBuilder = MauiApp.CreateBuilder();
+            crashBuilder.UseMauiApp(_ => new CrashApp(report));
+            return crashBuilder.Build();
+        }
+
+#if ANDROID
+        InputLook.Apply();
+#endif
+
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>();
-        builder.Services
+        builder.Services.AddMobileApp(paths);
+        return builder.Build();
+    }
+
+    /// <summary>Everything the app is made of, on top of the shared core; the tests build the same graph.</summary>
+    public static IServiceCollection AddMobileApp(this IServiceCollection services, FinancePaths paths) =>
+        services
             .AddFinanceApp(paths)
             .AddSingleton<AppStartup>()
+            .AddSingleton<RatePrefetcher>()
             .AddSingleton<IQuickEntryBackend, ScopedQuickEntryBackend>()
             .AddSingleton<IFinanceBackend, ScopedFinanceBackend>()
+            .AddSingleton<IDataBackend, ScopedDataBackend>()
+            .AddSingleton<IFileSharer, MauiFileSharer>()
+            .AddSingleton<ISetupBackend, SetupBackend>()
             .AddSingleton(sp => new QuickEntryViewModel(sp.GetRequiredService<IQuickEntryBackend>())
             {
                 // There is no Esc on a phone; the keyboard's action key and the button both save.
                 ReadyMessage = "Готово — сохранить",
             })
             .AddSingleton<HomeViewModel>()
-            .AddSingleton<HomePage>();
-
-        return builder.Build();
-    }
+            .AddSingleton<ShellViewModel>()
+            .AddSingleton<DataViewModel>()
+            .AddSingleton<PhoneSettingsViewModel>()
+            .AddSingleton<FormPresenter>()
+            .AddSingleton<AppShell>()
+            .AddSingleton<HomePage>()
+            .AddSingleton<OperationsPage>()
+            .AddSingleton<AccountsPage>()
+            .AddSingleton<SummaryPage>()
+            .AddSingleton<MorePage>()
+            .AddTransient<CategoriesPage>()
+            .AddSingleton<Func<CategoriesPage>>(sp => sp.GetRequiredService<CategoriesPage>)
+            .AddSingleton(sp =>
+            {
+                // A new or removed rate changes the totals on the home screen and the accounts.
+                var rates = new ManualRatesViewModel(sp.GetRequiredService<IFinanceBackend>(), sp.GetRequiredService<TimeProvider>());
+                rates.Changed += async (_, _) =>
+                {
+                    try
+                    {
+                        await sp.GetRequiredService<HomeViewModel>().RefreshAsync();
+                        await sp.GetRequiredService<ShellViewModel>().RefreshAsync();
+                    }
+#pragma warning disable CA1031 // An event handler: the totals catch up on the next refresh anyway.
+                    catch (Exception ex)
+#pragma warning restore CA1031
+                    {
+                        CrashReport.Save(ex);
+                    }
+                };
+                return rates;
+            })
+            .AddTransient<RatesPage>()
+            .AddSingleton<Func<RatesPage>>(sp => sp.GetRequiredService<RatesPage>);
 }

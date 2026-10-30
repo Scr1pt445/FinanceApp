@@ -28,13 +28,15 @@ public sealed class CbrExchangeRateSource(HttpClient httpClient) : IExchangeRate
             {
                 response = await httpClient.GetAsync(new Uri(url, UriKind.Relative), cancellationToken);
             }
-            catch (HttpRequestException ex)
-            {
-                throw new ExchangeRateSourceException("Сервис курсов ЦБ недоступен.", ex);
-            }
             catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
             {
                 throw new ExchangeRateSourceException("Сервис курсов ЦБ не ответил вовремя.", ex);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Not only HttpRequestException: on Android a lost network can surface as a platform I/O or
+                // WebException. Any of them means «no rates now», never a broken screen.
+                throw new ExchangeRateSourceException("Сервис курсов ЦБ недоступен.", ex);
             }
 
             using (response)

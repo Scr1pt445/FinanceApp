@@ -24,6 +24,7 @@ public enum QuickEntryIssueKind
     NoAccount,
     MissingEnvelope,
     AmbiguousEnvelope,
+    ForeignTransfer,
 }
 
 /// <summary>Why the line cannot be saved yet. <see cref="Message"/> is user-facing (Russian).</summary>
@@ -45,6 +46,9 @@ public sealed record QuickEntryDraft(
     IReadOnlyList<QuickEntryIssue> Issues,
     Account? ToAccount = null)
 {
+    /// <summary>The receipt's currency when it is not the account's; <see cref="Amount"/> is in it.</summary>
+    public CurrencyCode? PaidCurrency { get; init; }
+
     public bool IsComplete =>
         Issues.Count == 0 && Amount is not null && Account is not null
         && (Type == TransactionType.Transfer ? ToAccount is not null : Category is not null);

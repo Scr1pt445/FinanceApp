@@ -1,40 +1,44 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Phone-first: the total on top, the quick-entry line under it, the latest operations below. -->
+<!-- Phone-first: the total on top, the quick-entry line under it, then the full forms and the latest operations. -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:local="clr-namespace:FinanceApp.Mobile"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
              xmlns:home="clr-namespace:FinanceApp.Presentation.Home;assembly=FinanceApp.Presentation"
              xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
              xmlns:quick="clr-namespace:FinanceApp.Presentation.QuickEntry;assembly=FinanceApp.Presentation"
-             x:Class="FinanceApp.Mobile.HomePage"
+             x:Class="FinanceApp.Mobile.Views.HomePage"
              x:DataType="home:HomeViewModel"
-             Title="FinanceApp">
-  <ContentPage.Resources>
-    <local:IsNotEmptyConverter x:Key="IsNotEmpty" />
-  </ContentPage.Resources>
+             Title="Главная">
 
-  <Grid RowDefinitions="Auto,Auto,*" RowSpacing="14" Padding="16,16,16,0">
+  <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12" Padding="16,16,16,0">
 
     <VerticalStackLayout Spacing="2">
       <Label Text="Всего" Style="{StaticResource Muted}" />
-      <Label Text="{Binding TotalText}" FontSize="34" FontAttributes="Bold" />
+      <Label Text="{Binding TotalText}" Style="{StaticResource Big}" />
       <Label Text="{Binding TotalDetails}" Style="{StaticResource Muted}" />
-      <Label Text="{Binding Warning}" TextColor="{StaticResource Warning}" FontSize="13"
+      <!-- Gray, not orange: missing rates are a note about the total, not an error. -->
+      <Label Text="{Binding Warning, StringFormat='ⓘ {0}'}" Style="{StaticResource Muted}"
              IsVisible="{Binding Warning, Converter={StaticResource IsNotEmpty}}" />
+      <Button Text="Задать свой курс ›" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="0"
+              Clicked="OnRates" IsVisible="{Binding Warning, Converter={StaticResource IsNotEmpty}}" />
     </VerticalStackLayout>
 
-    <VerticalStackLayout Grid.Row="1" Spacing="6">
-      <Border Style="{StaticResource Card}">
-        <VerticalStackLayout Spacing="8" BindingContext="{Binding QuickEntry}" x:DataType="quick:QuickEntryViewModel">
+    <!-- The one-line entry, for those who switched it on in «Ещё → Настройки». -->
+    <VerticalStackLayout Grid.Row="1" Spacing="6" IsVisible="{Binding QuickEntryOn}">
+      <Border Style="{StaticResource Card}" Padding="14,12">
+        <VerticalStackLayout Spacing="6" BindingContext="{Binding QuickEntry}" x:DataType="quick:QuickEntryViewModel">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <!-- Prediction and spell check would "correct" «еда» and the amounts under the user's fingers. -->
-            <Entry x:Name="Line" Text="{Binding Input}" Placeholder="350 еда кофе"
-                   ReturnType="Done" ReturnCommand="{Binding SaveCommand}"
-                   IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
-                   ClearButtonVisibility="WhileEditing" />
-            <Button Grid.Column="1" Text="Сохранить" Command="{Binding SaveCommand}" />
+            <controls:Field>
+              <Entry x:Name="Line" Text="{Binding Input}" Placeholder="350 еда кофе"
+                     ReturnType="Done" ReturnCommand="{Binding SaveCommand}"
+                     IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
+                     ClearButtonVisibility="WhileEditing" />
+            </controls:Field>
+            <Button Grid.Column="1" Text="✓" FontSize="20" WidthRequest="52" HeightRequest="52" Padding="0"
+                    CornerRadius="14" Command="{Binding SaveCommand}" />
           </Grid>
-          <Label Text="{Binding Headline}" FontSize="18" FontAttributes="Bold"
+          <Label Text="{Binding Headline}" FontSize="17" FontAttributes="Bold"
                  IsVisible="{Binding Headline, Converter={StaticResource IsNotEmpty}}" />
           <Label Text="{Binding Details}"
                  IsVisible="{Binding Details, Converter={StaticResource IsNotEmpty}}" />
@@ -51,9 +55,16 @@
              IsVisible="{Binding LastSaved, Converter={StaticResource IsNotEmpty}}" />
     </VerticalStackLayout>
 
-    <CollectionView Grid.Row="2" ItemsSource="{Binding Recent}" SelectionMode="None">
+    <!-- The forms: the main way to record unless the line is on. Expense is the common case, so it stands out. -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+      <Button Text="− Расход" HeightRequest="56" Clicked="OnNewExpense" />
+      <Button Grid.Column="1" Text="+ Доход" Style="{StaticResource Soft}" HeightRequest="56" Clicked="OnNewIncome" />
+      <Button Grid.Column="2" Text="⇄ Перевод" Style="{StaticResource Soft}" HeightRequest="56" Clicked="OnNewTransfer" />
+    </Grid>
+
+    <CollectionView Grid.Row="3" ItemsSource="{Binding Recent}" SelectionMode="None">
       <CollectionView.Header>
-        <Label Text="Последние 30 дней" Style="{StaticResource SectionTitle}" />
+        <Label Text="Последние 30 дней" Style="{StaticResource SectionTitle}" Margin="0,4,0,0" />
       </CollectionView.Header>
       <CollectionView.EmptyView>
         <Label Text="Операций пока нет — запишите первую строкой выше." Style="{StaticResource Muted}"
@@ -72,26 +83,11 @@
             <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding Rows}">
               <BindableLayout.ItemTemplate>
                 <DataTemplate x:DataType="finance:OperationRow">
-                  <Border Style="{StaticResource Row}">
-                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                      <Label Text="{Binding Title}" LineBreakMode="TailTruncation" />
-                      <Label Grid.Row="1" Text="{Binding Subtitle}" Style="{StaticResource Muted}" LineBreakMode="TailTruncation"
-                             IsVisible="{Binding Subtitle, Converter={StaticResource IsNotEmpty}}" />
-                      <Label Grid.Column="1" Text="{Binding AmountText}" FontAttributes="Bold" HorizontalTextAlignment="End">
-                        <Label.Triggers>
-                          <DataTrigger TargetType="Label" Binding="{Binding Tone}" Value="{x:Static finance:AmountTone.Income}">
-                            <Setter Property="TextColor" Value="{StaticResource Income}" />
-                          </DataTrigger>
-                          <DataTrigger TargetType="Label" Binding="{Binding Tone}" Value="{x:Static finance:AmountTone.Envelope}">
-                            <Setter Property="TextColor" Value="{StaticResource Saving}" />
-                          </DataTrigger>
-                        </Label.Triggers>
-                      </Label>
-                      <Label Grid.Row="1" Grid.Column="1" Text="{Binding SecondaryAmount}" Style="{StaticResource Muted}"
-                             HorizontalTextAlignment="End"
-                             IsVisible="{Binding SecondaryAmount, Converter={StaticResource IsNotEmpty}}" />
-                    </Grid>
-                  </Border>
+                  <controls:OperationRowView>
+                    <controls:OperationRowView.GestureRecognizers>
+                      <TapGestureRecognizer Tapped="OnRowTapped" />
+                    </controls:OperationRowView.GestureRecognizers>
+                  </controls:OperationRowView>
                 </DataTemplate>
               </BindableLayout.ItemTemplate>
             </VerticalStackLayout>

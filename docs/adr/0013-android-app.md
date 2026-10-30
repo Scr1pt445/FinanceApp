@@ -23,9 +23,11 @@ The app is meant for other people too, so the phone version has to work on its o
 | Step | Scope | Status |
 |---|---|:-:|
 | 5.1 | MAUI project, the core running on Android: database, starter catalog, rates, the quick-entry line | ✅ |
-| 5.2 | Accounts and envelopes, operations by day, forms for expense, income and transfer | |
-| 5.3 | Summaries and insights, categories, settings, export and backups through sharing | |
+| 5.2 | Accounts and envelopes, operations by day, forms for expense, income and transfer | ✅ |
+| 5.3 | Summaries and insights, categories, settings, export and backups through sharing | ✅ ¹ |
 | 5.4 | Icon, signed release APK, README with phone screenshots | |
+
+¹ The phone has no settings screen: the base currency is chosen once, on the first run (with the starting balances); the totals currency on the accounts tab; daily backups are always on with the default of 14 copies.
 
 ## Consequences
 

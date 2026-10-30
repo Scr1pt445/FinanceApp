@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Accounts and envelopes with balances — the desktop's left column as a page. A tap shows the operations. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             xmlns:domain="clr-namespace:FinanceApp.Domain;assembly=FinanceApp.Domain"
+             x:Class="FinanceApp.Mobile.Views.AccountsPage"
+             x:DataType="finance:ShellViewModel"
+             Title="Счета">
+  <ScrollView>
+    <VerticalStackLayout Spacing="12" Padding="16,16,16,24">
+      <Label Text="Счета" Style="{StaticResource PageTitle}" />
+
+      <Border Style="{StaticResource Card}">
+        <VerticalStackLayout Spacing="4">
+          <Label Text="Всего" Style="{StaticResource Muted}" />
+          <Label Text="{Binding TotalText}" Style="{StaticResource Big}" />
+          <!-- The currency of the totals, at today's CBR rate: one tap per currency. -->
+          <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,4,0,0">
+            <HorizontalStackLayout x:Name="Currencies" Spacing="6" BindableLayout.ItemsSource="{Binding TotalsCurrencies}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="domain:CurrencyCode">
+                  <Button Text="{Binding Value}" Style="{StaticResource Chip}" HeightRequest="32" MinimumHeightRequest="32"
+                          FontSize="13" Padding="12,0" Clicked="OnCurrency" />
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </HorizontalStackLayout>
+          </ScrollView>
+          <Grid ColumnDefinitions="*,*" Margin="0,6,0,0">
+            <VerticalStackLayout>
+              <Label Text="На счетах" Style="{StaticResource Muted}" />
+              <Label Text="{Binding AccountsTotalText}" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1">
+              <Label Text="В накоплениях" Style="{StaticResource Muted}" />
+              <Label Text="{Binding EnvelopesTotalText}" FontAttributes="Bold" TextColor="{StaticResource AccentLight}" />
+            </VerticalStackLayout>
+          </Grid>
+          <Label Text="{Binding Warning, StringFormat='ⓘ {0}'}" Style="{StaticResource Muted}"
+                 IsVisible="{Binding Warning, Converter={StaticResource IsNotEmpty}}" />
+          <Button Text="Задать свой курс ›" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="0"
+                  Clicked="OnRates" IsVisible="{Binding Warning, Converter={StaticResource IsNotEmpty}}" />
+        </VerticalStackLayout>
+      </Border>
+
+      <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+        <Label Text="СЧЕТА" Style="{StaticResource SectionTitle}" />
+        <Button Grid.Column="1" Text="+ Счёт" Style="{StaticResource Link}" Command="{Binding NewAccountCommand}" />
+      </Grid>
+      <VerticalStackLayout Spacing="6" BindableLayout.ItemsSource="{Binding Accounts}">
+        <BindableLayout.ItemTemplate>
+          <DataTemplate x:DataType="finance:SidebarItem">
+            <Border Style="{StaticResource Row}" Padding="16,14">
+              <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnItemTapped" />
+              </Border.GestureRecognizers>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <Label Text="{Binding Title}" FontSize="16" LineBreakMode="TailTruncation" />
+                <Label Grid.Column="1" Text="{Binding BalanceText}" Style="{StaticResource Amount}" FontSize="16">
+                  <Label.Triggers>
+                    <DataTrigger TargetType="Label" Binding="{Binding IsNegative}" Value="True">
+                      <Setter Property="TextColor" Value="{StaticResource Warning}" />
+                    </DataTrigger>
+                  </Label.Triggers>
+                </Label>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </BindableLayout.ItemTemplate>
+      </VerticalStackLayout>
+
+      <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+        <Label Text="КОНВЕРТЫ" Style="{StaticResource SectionTitle}" />
+        <Button Grid.Column="1" Text="+ Конверт" Style="{StaticResource Link}" Command="{Binding NewEnvelopeCommand}" />
+      </Grid>
+      <Label Text="Отдельные копилки — на машину, отпуск, подушку. Деньги в конверт кладутся переводом со счёта."
+             Style="{StaticResource Muted}" IsVisible="{Binding Envelopes.Count, Converter={StaticResource IsEmpty}}" />
+      <VerticalStackLayout Spacing="6" BindableLayout.ItemsSource="{Binding Envelopes}">
+        <BindableLayout.ItemTemplate>
+          <DataTemplate x:DataType="finance:SidebarItem">
+            <Border Style="{StaticResource Row}" Padding="16,14">
+              <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnItemTapped" />
+              </Border.GestureRecognizers>
+              <VerticalStackLayout Spacing="8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                  <Label Text="{Binding Title}" FontSize="16" LineBreakMode="TailTruncation" />
+                  <Label Grid.Column="1" Text="{Binding BalanceText}" Style="{StaticResource Amount}" FontSize="16"
+                         TextColor="{StaticResource AccentLight}" />
+                </Grid>
+                <ProgressBar Progress="{Binding Progress}" IsVisible="{Binding HasProgress}" />
+                <Label Text="{Binding Hint}" Style="{StaticResource Muted}"
+                       IsVisible="{Binding Hint, Converter={StaticResource IsNotEmpty}}" />
+              </VerticalStackLayout>
+            </Border>
+          </DataTemplate>
+        </BindableLayout.ItemTemplate>
+      </VerticalStackLayout>
+
+      <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+        <Label Text="Показывать скрытые" VerticalOptions="Center" />
+        <Switch Grid.Column="1" IsToggled="{Binding ShowHidden}" />
+      </Grid>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

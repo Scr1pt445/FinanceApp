@@ -1,30 +1,42 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Android only (ADR 0013). It needs the maui-android workload and an Android SDK, so it stays out of
-         FinanceApp.slnx and the desktop build; build it with tools/build-android.ps1 or .sh. -->
-    <TargetFramework>net10.0-android</TargetFramework>
-    <OutputType>Exe</OutputType>
+    <!-- The app is Android only (ADR 0013). It needs the maui-android workload and an Android SDK, so it stays out
+         of FinanceApp.slnx and the desktop build; build it with tools/build-android.ps1 or .sh. The plain net10.0
+         target is only for FinanceApp.Mobile.Tests, which create the pages off the phone. -->
+    <!-- Directory.Build.props sets TargetFramework for every project; left set, it would win over the list. -->
+    <TargetFramework></TargetFramework>
+    <TargetFrameworks>net10.0-android;net10.0</TargetFrameworks>
+    <OutputType Condition="'$(TargetFramework)' == 'net10.0-android'">Exe</OutputType>
     <UseMaui>true</UseMaui>
     <SingleProject>true</SingleProject>
     <RootNamespace>FinanceApp.Mobile</RootNamespace>
-    <Description>Android app: the one-line quick entry, balances and operations, with its own database on the phone.</Description>
+    <Description>Android app: quick entry, operations, accounts and envelopes, summaries — with its own database on the phone.</Description>
 
     <ApplicationTitle>FinanceApp</ApplicationTitle>
     <ApplicationId>io.github.scr1pt445.financeapp</ApplicationId>
     <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
     <!-- Android's integer version code; raise it with every APK that is handed out. -->
-    <ApplicationVersion>1</ApplicationVersion>
-    <SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
+    <ApplicationVersion>6</ApplicationVersion>
+    <SupportedOSPlatformVersion Condition="'$(TargetFramework)' == 'net10.0-android'">21.0</SupportedOSPlatformVersion>
+    <!-- Debug builds of .NET for Android run interpreted (for hot reload, which this project does not use):
+         several times slower, and the APKs handed out for testing are debug builds. Compile with the JIT. -->
+    <UseInterpreter>false</UseInterpreter>
   </PropertyGroup>
 
   <ItemGroup>
     <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#9446F8" />
     <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0B0B0B" BaseSize="128,128" />
+    <!-- Tab icons, drawn white; Android tints them for the selected and the other tabs. -->
+    <MauiImage Include="Resources\Images\*" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FinanceApp.Mobile.Tests" />
   </ItemGroup>
 
   <ItemGroup>

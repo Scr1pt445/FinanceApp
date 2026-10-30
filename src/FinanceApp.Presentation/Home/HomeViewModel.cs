@@ -35,6 +35,10 @@ public sealed partial class HomeViewModel : ObservableObject
 
     public QuickEntryViewModel QuickEntry { get; }
 
+    /// <summary>The one-line entry is shown; off — the buttons and forms are the way to record (settings).</summary>
+    [ObservableProperty]
+    public partial bool QuickEntryOn { get; set; }
+
     /// <summary>Everything on accounts and in envelopes, e.g. «48 650 ₽».</summary>
     [ObservableProperty]
     public partial string TotalText { get; private set; } = string.Empty;
@@ -90,7 +94,7 @@ public sealed partial class HomeViewModel : ObservableObject
             }
 
             IsEmpty = Recent.Count == 0;
-            Warning = balances.HasMissingRates ? "Для части валют нет курса — итог посчитан без них." : string.Empty;
+            Warning = balances.HasMissingRates ? ShellViewModel.MissingRatesWarning : string.Empty;
         }
 #pragma warning disable CA1031 // Shown on the screen; quick entry stays usable.
         catch (Exception ex) when (ex is not OperationCanceledException)

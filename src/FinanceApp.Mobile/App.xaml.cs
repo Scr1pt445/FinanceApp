@@ -1,28 +1,112 @@
+using FinanceApp.Mobile.Views;
+using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.Home;
+using FinanceApp.Presentation.Setup;
 
 namespace FinanceApp.Mobile;
 
 public partial class App : Microsoft.Maui.Controls.Application
 {
-    private readonly HomePage _home;
-    private readonly HomeViewModel _viewModel;
+    private readonly IServiceProvider _services;
+    private readonly AppStartup _startup;
+    private readonly HomeViewModel _home;
+    private readonly RatePrefetcher _rates;
 
-    public App(HomePage home, HomeViewModel viewModel)
+    // Pages are not constructor parameters: DI would build them before InitializeComponent loads the theme,
+    // and their {StaticResource} lookups would fail — the first APK crashed on start that way.
+    public App(IServiceProvider services, AppStartup startup, HomeViewModel home, RatePrefetcher rates)
     {
         InitializeComponent();
 
         // Dark only, like the desktop app: the palette is designed for it.
         UserAppTheme = AppTheme.Dark;
+        _services = services;
+        _startup = startup;
         _home = home;
-        _viewModel = viewModel;
+        _rates = rates;
     }
 
-    protected override Window CreateWindow(IActivationState? activationState) => new(_home) { Title = "FinanceApp" };
+    /// <summary>
+    /// The tabs appear once the database is ready: their view models start loading as soon as they exist,
+    /// and on the first run the tables are not there yet.
+    /// </summary>
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        var startup = new StartupPage();
+        var window = new Window(startup) { Title = "FinanceApp" };
+        if (_startup.NeedsSetup)
+        {
+            // A fresh install: the tour and the base currency first; the database is created with that choice.
+            var setup = SetupViewModel.ForFirstRun(_services.GetRequiredService<ISetupBackend>());
+            setup.Completed += (_, _) => window.Dispatcher.Dispatch(() =>
+            {
+                window.Page = startup;
+                _ = ShowAppAsync(window, startup);
+            });
+            window.Page = new SetupPage(setup);
+            return window;
+        }
+
+        _ = ShowAppAsync(window, startup);
+        return window;
+    }
 
     /// <summary>Back from the background, maybe the next day: «Сегодня» and the totals must be current.</summary>
     protected override void OnResume()
     {
         base.OnResume();
-        _ = _viewModel.RefreshAsync();
+        _ = _home.RefreshAsync();
+        _ = RefreshRatesAsync();
+    }
+
+    /// <summary>In the background: a new day's rates, then the totals once more with them.</summary>
+    private async Task RefreshRatesAsync()
+    {
+        try
+        {
+            if (await _rates.WarmUpAsync())
+            {
+                await _home.RefreshAsync();
+                await _services.GetRequiredService<ShellViewModel>().RefreshAsync();
+            }
+        }
+#pragma warning disable CA1031 // Rates are a nicety here; the screens work with the cached ones.
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+        }
+    }
+
+    private async Task ShowAppAsync(Window window, StartupPage startup)
+    {
+        try
+        {
+            await _startup.EnsureReadyAsync();
+        }
+#pragma warning disable CA1031 // Without a database there is nothing to show; say why instead of crashing.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            startup.ShowError($"Не удалось открыть базу данных: {ex.Message}");
+            return;
+        }
+
+        window.Dispatcher.Dispatch(() =>
+        {
+            try
+            {
+                var shell = _services.GetRequiredService<AppShell>();
+                window.Page = shell;
+                _services.GetRequiredService<FormPresenter>().Attach(shell.Navigation);
+                _ = RefreshRatesAsync();
+            }
+#pragma warning disable CA1031 // A screen that cannot be built is reported in place, not as a silent blank window.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                CrashReport.Save(ex);
+                startup.ShowError($"Не удалось открыть приложение: {ex.Message}");
+            }
+        });
     }
 }

@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- «Расход / Доход / Перевод» without syntax: category tiles, account pickers, a calendar for the date. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:domain="clr-namespace:FinanceApp.Domain;assembly=FinanceApp.Domain"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             x:Class="FinanceApp.Mobile.Views.TransactionFormPage"
+             x:DataType="finance:TransactionFormViewModel">
+  <ContentPage.Resources>
+    <Style x:Key="Kind" TargetType="Button" BasedOn="{StaticResource Chip}">
+      <Setter Property="HeightRequest" Value="40" />
+    </Style>
+    <!-- Two halves of a pill: «Сумма | Курс». The chosen half is filled. -->
+    <Style x:Key="Segment" TargetType="Button">
+      <Setter Property="BackgroundColor" Value="Transparent" />
+      <Setter Property="TextColor" Value="{StaticResource MutedText}" />
+      <Setter Property="FontAttributes" Value="None" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,0" />
+      <Setter Property="HeightRequest" Value="38" />
+      <Setter Property="MinimumHeightRequest" Value="38" />
+    </Style>
+    <Style x:Key="SegmentBox" TargetType="Border">
+      <Setter Property="BackgroundColor" Value="{StaticResource Control}" />
+      <Setter Property="StrokeThickness" Value="0" />
+      <Setter Property="StrokeShape" Value="RoundRectangle 13" />
+      <Setter Property="Padding" Value="3" />
+    </Style>
+  </ContentPage.Resources>
+
+  <Grid RowDefinitions="Auto,*,Auto">
+    <Grid ColumnDefinitions="Auto,*" Padding="8,8,16,0">
+      <Button Text="✕" FontSize="20" Style="{StaticResource Link}" TextColor="{StaticResource MutedText}"
+              Command="{Binding CancelCommand}" />
+      <Label Grid.Column="1" Text="{Binding Title}" FontSize="20" FontAttributes="Bold" VerticalTextAlignment="Center" />
+    </Grid>
+
+    <ScrollView Grid.Row="1">
+      <VerticalStackLayout Spacing="8" Padding="16,8,16,16">
+
+        <HorizontalStackLayout Spacing="8" IsVisible="{Binding IsNew}">
+          <Button Text="Расход" Style="{StaticResource Kind}" Command="{Binding ChooseKindCommand}"
+                  CommandParameter="{x:Static domain:TransactionType.Expense}">
+            <Button.Triggers>
+              <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="{x:Static domain:TransactionType.Expense}">
+                <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+              </DataTrigger>
+            </Button.Triggers>
+          </Button>
+          <Button Text="Доход" Style="{StaticResource Kind}" Command="{Binding ChooseKindCommand}"
+                  CommandParameter="{x:Static domain:TransactionType.Income}">
+            <Button.Triggers>
+              <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="{x:Static domain:TransactionType.Income}">
+                <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+              </DataTrigger>
+            </Button.Triggers>
+          </Button>
+          <Button Text="Перевод" Style="{StaticResource Kind}" Command="{Binding ChooseKindCommand}"
+                  CommandParameter="{x:Static domain:TransactionType.Transfer}">
+            <Button.Triggers>
+              <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="{x:Static domain:TransactionType.Transfer}">
+                <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+              </DataTrigger>
+            </Button.Triggers>
+          </Button>
+        </HorizontalStackLayout>
+
+        <Label Text="Сумма" Style="{StaticResource FieldLabel}" />
+        <controls:Field MinimumHeightRequest="64">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <Entry x:Name="Amount" Text="{Binding AmountText}" Keyboard="Numeric" FontSize="30" FontAttributes="Bold"
+                   Placeholder="0" />
+            <Label Grid.Column="1" Text="{Binding AmountCurrency}" FontSize="20" Style="{StaticResource FieldSuffix}" />
+          </Grid>
+        </controls:Field>
+
+        <!-- The receipt's currency: abroad a card in rubles pays euros; the amount is converted on saving. -->
+        <VerticalStackLayout Spacing="6" IsVisible="{Binding IsTransfer, Converter={StaticResource Not}}">
+          <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+            <HorizontalStackLayout x:Name="PaidCurrencies" Spacing="6" BindableLayout.ItemsSource="{Binding PaidCurrencies}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="domain:CurrencyCode">
+                  <Button Text="{Binding Value}" Style="{StaticResource Chip}" HeightRequest="32" MinimumHeightRequest="32"
+                          FontSize="13" Padding="12,0" Clicked="OnPaidCurrency" />
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </HorizontalStackLayout>
+          </ScrollView>
+          <Label Text="{Binding ConversionText}" Style="{StaticResource Muted}"
+                 IsVisible="{Binding ConversionText, Converter={StaticResource IsNotEmpty}}" />
+          <VerticalStackLayout Spacing="6" IsVisible="{Binding IsForeign}">
+            <!-- What the user knows: the amount the bank charged (from its SMS) or the rate. -->
+            <Border Style="{StaticResource SegmentBox}" Margin="0,4,0,0">
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="3">
+                <Button Text="Сумма списания" Style="{StaticResource Segment}" Command="{Binding ChooseForeignModeCommand}" CommandParameter="amount">
+                  <Button.Triggers>
+                    <DataTrigger TargetType="Button" Binding="{Binding ForeignByRate}" Value="False">
+                      <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+                      <Setter Property="TextColor" Value="White" />
+                    </DataTrigger>
+                  </Button.Triggers>
+                </Button>
+                <Button Grid.Column="1" Text="Свой курс" Style="{StaticResource Segment}" Command="{Binding ChooseForeignModeCommand}" CommandParameter="rate">
+                  <Button.Triggers>
+                    <DataTrigger TargetType="Button" Binding="{Binding ForeignByRate}" Value="True">
+                      <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+                      <Setter Property="TextColor" Value="White" />
+                    </DataTrigger>
+                  </Button.Triggers>
+                </Button>
+              </Grid>
+            </Border>
+            <VerticalStackLayout Spacing="6" IsVisible="{Binding ForeignByRate, Converter={StaticResource Not}}">
+              <Label Text="{Binding ChargedLabel}" Style="{StaticResource FieldLabel}" />
+              <controls:Field>
+                <Entry Text="{Binding ChargedText}" Keyboard="Numeric" Placeholder="Из SMS банка — точнее курса ЦБ" />
+              </controls:Field>
+            </VerticalStackLayout>
+            <VerticalStackLayout Spacing="6" IsVisible="{Binding ForeignByRate}">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <controls:Field>
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                    <Label Text="{Binding ForeignRateLabel}" Style="{StaticResource FieldSuffix}" />
+                    <Entry Grid.Column="1" Text="{Binding ForeignRateText}" Keyboard="Numeric" Placeholder="{Binding ForeignRatePlaceholder}" />
+                    <Label Grid.Column="2" Text="{Binding ForeignRateUnit}" Style="{StaticResource FieldSuffix}" />
+                  </Grid>
+                </controls:Field>
+                <Button Grid.Column="1" Text="⇅" Style="{StaticResource Soft}" WidthRequest="52" Command="{Binding SwapForeignRateCommand}" />
+              </Grid>
+              <Label Text="{Binding ChargedPreview}" Style="{StaticResource Muted}" TextColor="{StaticResource AccentLight}"
+                     IsVisible="{Binding ChargedPreview, Converter={StaticResource IsNotEmpty}}" />
+              <Label Text="Запомнить курс" Style="{StaticResource FieldLabel}" />
+              <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout x:Name="RememberForeign" Spacing="6" BindableLayout.ItemsSource="{Binding RememberChoices}">
+                  <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="finance:RememberChoice">
+                      <Button Text="{Binding Title}" Style="{StaticResource Chip}" HeightRequest="32" MinimumHeightRequest="32"
+                              FontSize="13" Padding="12,0" Clicked="OnRemember" />
+                    </DataTemplate>
+                  </BindableLayout.ItemTemplate>
+                </HorizontalStackLayout>
+              </ScrollView>
+              <Label Text="Запомненный курс заменит курс ЦБ в итогах и следующих операциях. Все свои курсы — в «Ещё → Курсы валют»."
+                     Style="{StaticResource Muted}" FontSize="12" />
+            </VerticalStackLayout>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+
+        <!-- Expense and income: categories as tiles, the most used first. -->
+        <VerticalStackLayout Spacing="6" IsVisible="{Binding IsTransfer, Converter={StaticResource Not}}">
+          <Label Text="Категория" Style="{StaticResource FieldLabel}" />
+          <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Tiles}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="finance:CategoryTile">
+                <Border Style="{StaticResource Tile}">
+                  <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnTileTapped" />
+                  </Border.GestureRecognizers>
+                  <Border.Triggers>
+                    <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                      <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+                      <Setter Property="Stroke" Value="{StaticResource Accent}" />
+                    </DataTrigger>
+                  </Border.Triggers>
+                  <Label Text="{Binding Name}" FontSize="14" />
+                </Border>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </FlexLayout>
+          <Button Text="+ Своя категория" Style="{StaticResource Link}" HorizontalOptions="Start" Padding="2,0"
+                  Command="{Binding StartAddCategoryCommand}" IsVisible="{Binding IsAddingCategory, Converter={StaticResource Not}}" />
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" IsVisible="{Binding IsAddingCategory}">
+            <controls:Field>
+              <Entry Text="{Binding NewCategoryName}" Placeholder="Название" ReturnType="Done" ReturnCommand="{Binding AddCategoryCommand}" />
+            </controls:Field>
+            <Button Grid.Column="1" Text="OK" Style="{StaticResource Soft}" Command="{Binding AddCategoryCommand}" />
+            <Button Grid.Column="2" Text="✕" Style="{StaticResource Link}" TextColor="{StaticResource MutedText}"
+                    Command="{Binding CancelAddCategoryCommand}" />
+          </Grid>
+          <Label Text="Счёт" Style="{StaticResource FieldLabel}" />
+          <controls:Field>
+            <Picker ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" Title="Счёт"
+                    ItemDisplayBinding="{Binding Name, x:DataType=domain:Account}" />
+          </controls:Field>
+        </VerticalStackLayout>
+
+        <!-- Transfer: from where, to where, and what arrived when the currencies differ. -->
+        <VerticalStackLayout Spacing="6" IsVisible="{Binding IsTransfer}">
+          <Label Text="Откуда" Style="{StaticResource FieldLabel}" />
+          <controls:Field>
+            <Picker ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" Title="Откуда"
+                    ItemDisplayBinding="{Binding Name, x:DataType=domain:Account}" />
+          </controls:Field>
+          <Label Text="Куда" Style="{StaticResource FieldLabel}" />
+          <controls:Field>
+            <Picker ItemsSource="{Binding Accounts}" SelectedItem="{Binding ToAccount}" Title="Куда"
+                    ItemDisplayBinding="{Binding Name, x:DataType=domain:Account}" />
+          </controls:Field>
+          <VerticalStackLayout Spacing="6" IsVisible="{Binding NeedsReceivedAmount}">
+            <Border Style="{StaticResource SegmentBox}" Margin="0,8,0,0">
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="3">
+                <Button Text="Сколько зачислено" Style="{StaticResource Segment}" Command="{Binding ChooseTransferModeCommand}" CommandParameter="amount">
+                  <Button.Triggers>
+                    <DataTrigger TargetType="Button" Binding="{Binding UseRate}" Value="False">
+                      <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+                      <Setter Property="TextColor" Value="White" />
+                    </DataTrigger>
+                  </Button.Triggers>
+                </Button>
+                <Button Grid.Column="1" Text="Свой курс" Style="{StaticResource Segment}" Command="{Binding ChooseTransferModeCommand}" CommandParameter="rate">
+                  <Button.Triggers>
+                    <DataTrigger TargetType="Button" Binding="{Binding UseRate}" Value="True">
+                      <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+                      <Setter Property="TextColor" Value="White" />
+                    </DataTrigger>
+                  </Button.Triggers>
+                </Button>
+              </Grid>
+            </Border>
+            <VerticalStackLayout Spacing="6" IsVisible="{Binding UseRate, Converter={StaticResource Not}}">
+              <Label Text="{Binding ReceivedCurrency, StringFormat='Зачислено, {0}'}" Style="{StaticResource FieldLabel}" />
+              <controls:Field>
+                <Entry Text="{Binding ReceivedText}" Keyboard="Numeric" Placeholder="0" />
+              </controls:Field>
+            </VerticalStackLayout>
+            <VerticalStackLayout Spacing="6" IsVisible="{Binding UseRate}">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <controls:Field>
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                    <Label Text="{Binding RateLabel}" Style="{StaticResource FieldSuffix}" />
+                    <Entry Grid.Column="1" Text="{Binding RateText}" Keyboard="Numeric" Placeholder="{Binding RatePlaceholder}" />
+                    <Label Grid.Column="2" Text="{Binding RateUnit}" Style="{StaticResource FieldSuffix}" />
+                  </Grid>
+                </controls:Field>
+                <Button Grid.Column="1" Text="⇅" Style="{StaticResource Soft}" WidthRequest="52" Command="{Binding SwapRateCommand}" />
+              </Grid>
+            </VerticalStackLayout>
+            <Label Text="{Binding ReceivedPreview}" Style="{StaticResource Muted}" TextColor="{StaticResource AccentLight}"
+                   IsVisible="{Binding ReceivedPreview, Converter={StaticResource IsNotEmpty}}" />
+            <VerticalStackLayout Spacing="6" IsVisible="{Binding UseRate}">
+              <Label Text="Запомнить курс" Style="{StaticResource FieldLabel}" />
+              <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout x:Name="RememberTransfer" Spacing="6" BindableLayout.ItemsSource="{Binding RememberChoices}">
+                  <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="finance:RememberChoice">
+                      <Button Text="{Binding Title}" Style="{StaticResource Chip}" HeightRequest="32" MinimumHeightRequest="32"
+                              FontSize="13" Padding="12,0" Clicked="OnRemember" />
+                    </DataTemplate>
+                  </BindableLayout.ItemTemplate>
+                </HorizontalStackLayout>
+              </ScrollView>
+            </VerticalStackLayout>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+
+        <Label Text="Дата" Style="{StaticResource FieldLabel}" />
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <controls:DateField Text="{Binding DateText}" Kind="Operation" Title="Дата операции" />
+          <Button Grid.Column="1" Text="Вчера" Style="{StaticResource Soft}" Command="{Binding YesterdayCommand}" />
+        </Grid>
+
+        <Label Text="Заметка" Style="{StaticResource FieldLabel}" />
+        <controls:Field>
+          <Entry Text="{Binding Note}" Placeholder="Необязательно" />
+        </controls:Field>
+      </VerticalStackLayout>
+    </ScrollView>
+
+    <VerticalStackLayout Grid.Row="2" Spacing="6" Padding="16,6,16,16">
+      <Label Text="{Binding SaveError}" Style="{StaticResource Problem}"
+             IsVisible="{Binding SaveError, Converter={StaticResource IsNotEmpty}}" />
+      <Button Text="Сохранить" Command="{Binding SaveCommand}" HeightRequest="52" />
+    </VerticalStackLayout>
+  </Grid>
+</ContentPage>

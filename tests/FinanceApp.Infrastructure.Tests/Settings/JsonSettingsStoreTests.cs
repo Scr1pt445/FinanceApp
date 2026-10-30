@@ -1,3 +1,4 @@
+using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Application.Settings;
 using FinanceApp.Domain;
 using FinanceApp.Infrastructure.Files;
@@ -36,6 +37,11 @@ public sealed class JsonSettingsStoreTests : IDisposable
         {
             BaseCurrency = CurrencyCode.Byn,
             CsvExport = new CsvExportSettings { Enabled = true, Path = @"C:\Notes\Финансы\transactions.csv" },
+            ManualRates =
+            [
+                new ManualRate(CurrencyCode.Eur, CurrencyCode.Byn, 3.45m, new DateOnly(2026, 10, 30), new DateOnly(2026, 11, 5)),
+                new ManualRate(CurrencyCode.Usd, CurrencyCode.Byn, 3.1m, new DateOnly(2026, 10, 30), null),
+            ],
         };
 
         await new JsonSettingsStore(_paths, new AtomicFileWriter()).SaveAsync(saved, Ct);

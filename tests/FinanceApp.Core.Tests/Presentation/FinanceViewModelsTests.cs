@@ -1,3 +1,4 @@
+using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Domain;
 using FinanceApp.Presentation.Finance;
 using Microsoft.Extensions.Time.Testing;
@@ -296,6 +297,129 @@ public class TransactionFormViewModelTests : FinanceViewModelTestBase
         form.AmountText = amount;
 
         form.CanSave.ShouldBeFalse();
+    }
+}
+
+/// <summary>A receipt in another currency than the account: converted at the CBR rate or at what the bank charged.</summary>
+public class ReceiptCurrencyTests : FinanceViewModelTestBase
+{
+    private async Task<TransactionFormViewModel> NewExpenseAsync() =>
+        TransactionFormViewModel.ForNew(Backend, await Backend.LoadCatalogAsync(Ct), FakeFinanceBackend.Today, TransactionType.Expense, Backend.Card);
+
+    [Fact]
+    public async Task ByDefault_TheReceiptIsInTheAccountCurrency()
+    {
+        var form = await NewExpenseAsync();
+
+        form.PaidCurrency.ShouldBe(CurrencyCode.Rub);
+        form.PaidCurrencies.Take(3).ShouldBe([CurrencyCode.Rub, CurrencyCode.Usd, CurrencyCode.Eur]);
+        form.IsForeign.ShouldBeFalse();
+        form.ConversionText.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Euros_AreConverted_AtTheCbrRate()
+    {
+        var form = await NewExpenseAsync();
+        form.AmountText = "20";
+        form.ChooseCategoryCommand.Execute(form.Tiles.First(t => t.Name == "Еда"));
+
+        form.ChoosePaidCurrencyCommand.Execute(CurrencyCode.Eur);
+
+        form.IsForeign.ShouldBeTrue();
+        form.AmountCurrency.ShouldBe("EUR");
+        form.ConversionText.ShouldBe("≈ 2\u00a0000 ₽ по курсу ЦБ на 15.10.2026");
+        await form.SaveCommand.ExecuteAsync(null);
+        form.SaveError.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task WithoutARate_WhatWasChargedIsAsked()
+    {
+        Backend.RubRates.Remove(CurrencyCode.Eur);
+        var form = await NewExpenseAsync();
+        form.AmountText = "20";
+        form.ChooseCategoryCommand.Execute(form.Tiles.First(t => t.Name == "Еда"));
+
+        form.ChoosePaidCurrencyCommand.Execute(CurrencyCode.Eur);
+
+        form.RateMissing.ShouldBeTrue();
+        form.Problem.ShouldBe("Нет курса EUR — укажите курс или сколько списано со счёта.");
+        form.ChargedText = "2150";
+        form.Problem.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task OwnRate_InsteadOfTheChargedAmount()
+    {
+        Backend.RubRates.Remove(CurrencyCode.Eur);
+        var form = await NewExpenseAsync();
+        form.AmountText = "20";
+        form.ChooseCategoryCommand.Execute(form.Tiles.First(t => t.Name == "Еда"));
+        form.ChoosePaidCurrencyCommand.Execute(CurrencyCode.Eur);
+
+        form.ChooseForeignModeCommand.Execute("rate");
+        form.ForeignRateLabel.ShouldBe("1 EUR =");
+        form.ForeignRateUnit.ShouldBe("RUB");
+        form.Problem.ShouldBe("Курс — положительное число.");
+        form.ForeignRateText = "105,5";
+
+        form.ChargedPreview.ShouldBe("Спишется 2\u00a0110 ₽");
+        form.Problem.ShouldBeNull();
+        await form.SaveCommand.ExecuteAsync(null);
+
+        Backend.LastInput.ShouldNotBeNull().PaidCurrency.ShouldBe(CurrencyCode.Eur);
+        Backend.LastInput.PaidRate.ShouldBe(105.5m);
+        Backend.ManualRates.ShouldBeEmpty(); // «Только здесь» by default
+    }
+
+    [Fact]
+    public async Task OwnRate_CanBeRemembered_ForAWeek()
+    {
+        var form = await NewExpenseAsync();
+        form.AmountText = "20";
+        form.ChooseCategoryCommand.Execute(form.Tiles.First(t => t.Name == "Еда"));
+        form.ChoosePaidCurrencyCommand.Execute(CurrencyCode.Eur);
+        form.ChooseForeignModeCommand.Execute("rate");
+        form.ForeignRatePlaceholder.ShouldBe("100"); // the CBR rate as a hint
+        form.ForeignRateText = "104";
+
+        form.ChooseRememberCommand.Execute(form.RememberChoices.Single(c => c.Period == ManualRatePeriod.Week));
+        await form.SaveCommand.ExecuteAsync(null);
+
+        Backend.ManualRates.ShouldHaveSingleItem().ShouldBe(
+            new ManualRate(CurrencyCode.Eur, CurrencyCode.Rub, 104m, FakeFinanceBackend.Today, FakeFinanceBackend.Today.AddDays(6)));
+    }
+
+    [Fact]
+    public async Task OwnRate_SwappedForADollarCardPayingInTheBaseCurrency()
+    {
+        var usd = Backend.Add(new Account(Guid.NewGuid(), "Карта USD", CurrencyCode.Usd));
+        var form = TransactionFormViewModel.ForNew(Backend, await Backend.LoadCatalogAsync(Ct), FakeFinanceBackend.Today, TransactionType.Expense, usd);
+        form.AmountText = "900";
+        form.ChooseCategoryCommand.Execute(form.Tiles.First(t => t.Name == "Еда"));
+        form.ChoosePaidCurrencyCommand.Execute(CurrencyCode.Rub);
+        form.ChooseForeignModeCommand.Execute("rate");
+
+        form.ForeignRateLabel.ShouldBe("1 USD =");
+        form.ForeignRateUnit.ShouldBe("RUB");
+        form.ForeignRateText = "90";
+        form.ChargedPreview.ShouldBe("Спишется 10 $");
+        await form.SaveCommand.ExecuteAsync(null);
+
+        Backend.LastInput.ShouldNotBeNull().PaidRate.ShouldBe(0.011111m);
+    }
+
+    [Fact]
+    public async Task Transfers_HaveNoReceiptCurrency()
+    {
+        var form = await NewExpenseAsync();
+        form.ChoosePaidCurrencyCommand.Execute(CurrencyCode.Eur);
+
+        form.ChooseKindCommand.Execute(TransactionType.Transfer);
+
+        form.IsForeign.ShouldBeFalse();
+        form.AmountCurrency.ShouldBe("RUB");
     }
 }
 

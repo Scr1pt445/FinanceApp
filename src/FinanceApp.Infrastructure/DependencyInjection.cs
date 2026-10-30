@@ -41,13 +41,16 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<DatabaseInitializer>();
 
-        services.AddHttpClient<IExchangeRateSource, CbrExchangeRateSource>(client =>
+        services.AddHttpClient<CbrExchangeRateSource>(client =>
         {
             client.BaseAddress = CbrExchangeRateSource.DefaultBaseAddress;
             client.Timeout = TimeSpan.FromSeconds(10);
         });
+        services.AddSingleton<RateSourceCooldown>();
+        services.AddTransient<IExchangeRateSource, CoolingExchangeRateSource>();
         services.AddScoped<IExchangeRateCache, EfExchangeRateCache>();
         services.AddScoped<IExchangeRateService, ExchangeRateService>();
+        services.AddSingleton<ManualRateService>();
 
         services.AddScoped<DataChangedNotifier>();
         services.AddScoped<TransactionService>();
