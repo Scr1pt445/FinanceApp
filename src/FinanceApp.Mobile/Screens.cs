@@ -16,17 +16,19 @@ public sealed class Screens
     private readonly PhoneSettingsViewModel settings;
 
     /// <summary>Listens to every view model that changes data the others show.</summary>
-    public Screens(HomeViewModel home, ShellViewModel shell, PhoneSettingsViewModel settings, DataViewModel data, RecurringViewModel recurring)
+    public Screens(HomeViewModel home, ShellViewModel shell, PhoneSettingsViewModel settings, DataViewModel data, RecurringViewModel recurring, CurrenciesViewModel currencies)
     {
         ArgumentNullException.ThrowIfNull(home);
         ArgumentNullException.ThrowIfNull(shell);
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(recurring);
+        ArgumentNullException.ThrowIfNull(currencies);
         this.home = home;
         this.shell = shell;
         this.settings = settings;
         data.Restored += async (_, _) => await RefreshAllAsync();
         recurring.Changed += async (_, _) => await RefreshAllAsync();
+        currencies.Changed += async (_, _) => await RefreshAllAsync();
         shell.Categories.LimitsChanged += async (_, _) => await RefreshAllAsync();
         home.Changed += async (_, _) => await shell.RefreshAsync();
     }

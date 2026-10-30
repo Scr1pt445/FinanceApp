@@ -588,7 +588,8 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     /// <summary>The receipt keeps its currency when the account changes; a new account's own comes first.</summary>
     private void RebuildPaidCurrencies()
     {
-        var choices = new[] { Account?.Currency ?? _catalog.BaseCurrency, _catalog.BaseCurrency, CurrencyCode.Usd, CurrencyCode.Eur }
+        var choices = new[] { Account?.Currency ?? _catalog.BaseCurrency }
+            .Concat(_catalog.Currencies)
             .Concat(Accounts.Select(a => a.Currency))
             .Concat(PaidCurrency is { } chosen ? [chosen] : [])
             .Distinct()

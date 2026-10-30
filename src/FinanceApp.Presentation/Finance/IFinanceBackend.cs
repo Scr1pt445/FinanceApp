@@ -89,6 +89,9 @@ public interface IFinanceBackend
 
     Task DeleteDebtAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>The currencies to offer besides the base one and those of the accounts («Валюты»), in this order.</summary>
+    Task SetCurrenciesAsync(IReadOnlyList<CurrencyCode> chosen, CancellationToken cancellationToken = default);
+
     /// <summary>Remembers the currency of the «Всего» totals; <c>null</c> — the base currency.</summary>
     Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default);
 }

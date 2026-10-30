@@ -42,19 +42,17 @@ public sealed record BalancesOverview(
     CurrencyCode BaseCurrency,
     bool HasMissingRates,
     CurrencyCode DisplayCurrency,
-    decimal DisplayRate = 1m)
+    decimal DisplayRate = 1m,
+    IReadOnlyList<CurrencyCode>? ChosenCurrencies = null)
 {
     public decimal Total => FreeTotal + EnvelopesTotal;
 
     /// <summary>A base-currency total converted to <see cref="DisplayCurrency"/>.</summary>
     public decimal InDisplay(decimal baseAmount) => decimal.Round(baseAmount * DisplayRate, 2, MidpointRounding.AwayFromZero);
 
-    /// <summary>Currencies worth offering for the totals: the base one, those of the accounts, and the usual ones.</summary>
+    /// <summary>Currencies worth offering for the totals: the base one, the user's and those of the accounts.</summary>
     public IReadOnlyList<CurrencyCode> DisplayChoices =>
-        new[] { BaseCurrency, CurrencyCode.Usd, CurrencyCode.Eur }
-            .Concat(Accounts.Concat(Envelopes).Select(b => b.Account.Currency))
-            .Distinct()
-            .ToList();
+        CurrencyList.Resolve(BaseCurrency, ChosenCurrencies, Accounts.Concat(Envelopes).Select(b => b.Account));
 }
 
 /// <summary>
@@ -124,6 +122,7 @@ public sealed class AccountBalancesService(
             baseCurrency,
             missingRates,
             display,
-            displayRate);
+            displayRate,
+            settings.Load().Currencies);
     }
 }

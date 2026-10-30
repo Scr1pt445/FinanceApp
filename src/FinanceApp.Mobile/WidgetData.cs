@@ -1,3 +1,5 @@
+using FinanceApp.Presentation.QuickEntry;
+
 namespace FinanceApp.Mobile;
 
 /// <summary>The home-screen widget's layouts, by the size it is stretched to.</summary>
@@ -22,7 +24,7 @@ public sealed record WidgetText(string Total, string Details, string Month)
     public static WidgetText From(string total, string details, string month, bool hideAmounts) =>
         hideAmounts
             ? new WidgetText(Hidden, "Суммы скрыты — включён вход по PIN", string.Empty)
-            : new WidgetText(total.Length > 0 ? total : "—", details, month);
+            : new WidgetText(total.Length > 0 ? QuickEntryFormatter.Plain(total) : "—", QuickEntryFormatter.Plain(details), QuickEntryFormatter.Plain(month));
 }
 
 /// <summary>

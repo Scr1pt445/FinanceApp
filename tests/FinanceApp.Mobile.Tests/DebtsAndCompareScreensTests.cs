@@ -79,5 +79,21 @@ public sealed class DebtsAndCompareScreensTests : IAsyncLifetime
         _bindingFailures.ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task CurrenciesPage_AddsAndRemoves_AndTheMenuFollows()
+    {
+        var page = _app.Get<CurrenciesPage>();
+        var currencies = (CurrenciesViewModel)page.BindingContext;
+        await currencies.LoadAsync(Ct);
+
+        await currencies.RemoveCommand.ExecuteAsync(currencies.Chosen.Single(c => c.Code == CurrencyCode.Eur));
+        await currencies.AddCommand.ExecuteAsync(currencies.Available.Single(c => c.Code == CurrencyCode.Byn));
+
+        _app.Get<MorePage>();
+        currencies.Summary.ShouldBe("RUB · USD · BYN");
+        (await _app.Get<IFinanceBackend>().LoadCatalogAsync(Ct)).Currencies.ShouldBe([CurrencyCode.Rub, CurrencyCode.Usd, CurrencyCode.Byn]);
+        _bindingFailures.ShouldBeEmpty();
+    }
+
     private void OnBindingFailed(object? sender, BindingBaseErrorEventArgs e) => _bindingFailures.Add(e.Message);
 }

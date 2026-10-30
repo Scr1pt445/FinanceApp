@@ -31,7 +31,7 @@ public sealed partial class ManualRatesViewModel(IFinanceBackend backend, TimePr
 
     public ObservableCollection<ManualRateItem> Rates { get; } = [];
 
-    /// <summary>The base currency, the usual ones and those of the accounts.</summary>
+    /// <summary>The base currency, the user's («Валюты») and those of the accounts.</summary>
     public ObservableCollection<CurrencyCode> Currencies { get; } = [];
 
     public IReadOnlyList<RatePeriodChoice> Periods => RatePeriodChoice.All;
@@ -99,10 +99,7 @@ public sealed partial class ManualRatesViewModel(IFinanceBackend backend, TimePr
         try
         {
             var catalog = await backend.LoadCatalogAsync(cancellationToken);
-            var choices = new[] { catalog.BaseCurrency, CurrencyCode.Usd, CurrencyCode.Eur, CurrencyCode.Rub }
-                .Concat(catalog.Accounts.Where(a => !a.IsHidden).Select(a => a.Currency))
-                .Distinct()
-                .ToList();
+            var choices = catalog.Currencies;
             if (!Currencies.SequenceEqual(choices))
             {
                 Currencies.Clear();
@@ -113,7 +110,7 @@ public sealed partial class ManualRatesViewModel(IFinanceBackend backend, TimePr
             }
 
             To ??= catalog.BaseCurrency;
-            From ??= choices.FirstOrDefault(c => c != To);
+            From ??= choices.Where(c => c != To).Select(c => (CurrencyCode?)c).FirstOrDefault();
             if (StartText.Length == 0)
             {
                 StartText = Format.DateText(Today);

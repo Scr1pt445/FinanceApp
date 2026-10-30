@@ -15,6 +15,8 @@ public partial class MorePage : ContentPage
     private readonly Func<DebtsPage> _debts;
     private readonly Func<CompareMonthsPage> _compare;
     private readonly DebtsViewModel _debtsViewModel;
+    private readonly Func<CurrenciesPage> _currencies;
+    private readonly CurrenciesViewModel _currenciesViewModel;
     private readonly PhoneSettingsViewModel _settings;
     private readonly IServiceProvider _services;
 
@@ -27,6 +29,8 @@ public partial class MorePage : ContentPage
         Func<DebtsPage> debts,
         Func<CompareMonthsPage> compare,
         DebtsViewModel debtsViewModel,
+        Func<CurrenciesPage> currencies,
+        CurrenciesViewModel currenciesViewModel,
         IBiometrics biometrics,
         IServiceProvider services)
     {
@@ -37,6 +41,8 @@ public partial class MorePage : ContentPage
         _debts = debts;
         _compare = compare;
         _debtsViewModel = debtsViewModel;
+        _currencies = currencies;
+        _currenciesViewModel = currenciesViewModel;
         _settings = settings;
         _services = services;
         settings.BiometricsAvailable = biometrics.IsAvailable;
@@ -45,6 +51,7 @@ public partial class MorePage : ContentPage
         BindingContext = _viewModel = viewModel;
         SettingsCard.BindingContext = settings;
         DebtsRow.BindingContext = debtsViewModel;
+        CurrenciesRow.BindingContext = currenciesViewModel;
         _categories = categories;
         var version = typeof(MorePage).Assembly.GetName().Version;
         VersionLabel.Text = version is null ? "FinanceApp" : $"FinanceApp {version.ToString(3)}";
@@ -55,11 +62,14 @@ public partial class MorePage : ContentPage
         base.OnAppearing();
         _viewModel.Load();
         await _debtsViewModel.LoadAsync();
+        await _currenciesViewModel.LoadAsync();
     }
 
     private async void OnCategories(object? sender, TappedEventArgs e) => await Navigation.PushAsync(_categories());
 
     private async void OnRates(object? sender, TappedEventArgs e) => await Navigation.PushAsync(_rates());
+
+    private async void OnCurrencies(object? sender, TappedEventArgs e) => await Navigation.PushAsync(_currencies());
 
     private async void OnDebts(object? sender, TappedEventArgs e) => await Navigation.PushAsync(_debts());
 
