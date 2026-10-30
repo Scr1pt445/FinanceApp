@@ -127,7 +127,7 @@ tools/build-android.sh <папка SDK>
 
 #### Релиз
 
-Подписанный APK публикуется в [GitHub Releases](https://github.com/Scr1pt445/FinanceApp/releases): тег `v1.0.0` (или «Run workflow» на main — тогда тег ставится на версию сборки) запускает `.github/workflows/release.yml`, который собирает его скриптом `tools/build-android-release.sh` с ключом из секретов репозитория (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`). Тот же скрипт собирает релиз локально, если передать ключ через `FINANCEAPP_KEYSTORE`, `FINANCEAPP_KEY_ALIAS` и `FINANCEAPP_KEYSTORE_PASSWORD`; сам ключ в репозиторий не попадает, и каждое обновление подписывается им же.
+Подписанный APK публикуется в [GitHub Releases](https://github.com/Scr1pt445/FinanceApp/releases): тег `v1.0.0` (или «Run workflow» на main — тогда тег ставится на версию сборки) запускает `.github/workflows/release.yml`, который собирает его скриптом `tools/build-android-release.sh` и берёт описание из `docs/release-notes/<тег>.md` (на русском и английском; правка этого файла в main обновляет уже опубликованный релиз) с ключом из секретов репозитория (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`). Тот же скрипт собирает релиз локально, если передать ключ через `FINANCEAPP_KEYSTORE`, `FINANCEAPP_KEY_ALIAS` и `FINANCEAPP_KEYSTORE_PASSWORD`; сам ключ в репозиторий не попадает, и каждое обновление подписывается им же.
 
 Отладочный и релизный APK подписаны разными ключами, поэтому Android не поставит один поверх другого. Чтобы перейти: в старом приложении «Ещё → Данные → Поделиться копией» и сохраните файл, удалите приложение, установите релиз и на первом экране выберите «Перенести данные из копии».
 
