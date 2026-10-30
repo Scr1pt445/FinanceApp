@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- The first run (and «Как пользоваться» in «Ещё»): a short tour, then the base currency and the balances. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
+             xmlns:setup="clr-namespace:FinanceApp.Presentation.Setup;assembly=FinanceApp.Presentation"
+             x:Class="FinanceApp.Mobile.Views.SetupPage"
+             x:DataType="setup:SetupViewModel">
+  <Grid RowDefinitions="Auto,*,Auto" Padding="24,12,24,20">
+
+    <!-- Progress dots and «Пропустить» while the tour is on. -->
+    <Grid ColumnDefinitions="*,Auto" HeightRequest="44">
+      <HorizontalStackLayout Spacing="6" VerticalOptions="Center" BindableLayout.ItemsSource="{Binding Dots}">
+        <BindableLayout.ItemTemplate>
+          <DataTemplate x:DataType="x:Boolean">
+            <BoxView HeightRequest="6" CornerRadius="3" WidthRequest="8" Color="{StaticResource Border}">
+              <BoxView.Triggers>
+                <DataTrigger TargetType="BoxView" Binding="{Binding .}" Value="True">
+                  <Setter Property="WidthRequest" Value="22" />
+                  <Setter Property="Color" Value="{StaticResource Accent}" />
+                </DataTrigger>
+              </BoxView.Triggers>
+            </BoxView>
+          </DataTemplate>
+        </BindableLayout.ItemTemplate>
+      </HorizontalStackLayout>
+      <Button Grid.Column="1" Text="Пропустить" Style="{StaticResource Link}" TextColor="{StaticResource MutedText}"
+              Command="{Binding SkipCommand}" IsVisible="{Binding IsTour}" />
+    </Grid>
+
+    <ScrollView Grid.Row="1">
+      <Grid>
+        <Grid.GestureRecognizers>
+          <SwipeGestureRecognizer Direction="Left" Swiped="OnSwipedLeft" />
+          <SwipeGestureRecognizer Direction="Right" Swiped="OnSwipedRight" />
+        </Grid.GestureRecognizers>
+
+        <!-- Tour -->
+        <VerticalStackLayout Spacing="18" VerticalOptions="Center" Padding="0,24" IsVisible="{Binding IsTour}">
+          <Border WidthRequest="96" HeightRequest="96" StrokeShape="RoundRectangle 30" StrokeThickness="0"
+                  BackgroundColor="{StaticResource AccentSoft}" HorizontalOptions="Start">
+            <Label Text="{Binding Slide.Icon}" FontSize="44" HorizontalOptions="Center" VerticalOptions="Center" />
+          </Border>
+          <Label Text="{Binding Slide.Title}" FontSize="30" FontAttributes="Bold" />
+          <Label Text="{Binding Slide.Text}" FontSize="17" TextColor="{StaticResource MutedText}" LineHeight="1.25" />
+          <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Slide.Examples}"
+                               IsVisible="{Binding Slide.HasExamples}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <Border Style="{StaticResource Row}" Padding="14,10">
+                  <Label Text="{Binding .}" FontFamily="monospace" FontSize="15" />
+                </Border>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+
+        <!-- Base currency -->
+        <VerticalStackLayout Spacing="14" Padding="0,24" IsVisible="{Binding IsCurrencyStep}">
+          <Label Text="Основная валюта" FontSize="30" FontAttributes="Bold" />
+          <Label Text="В ней считаются все итоги и заводятся счета. Потом её не поменять: курсы операций записываются относительно неё. Счета в других валютах можно добавить когда угодно."
+                 FontSize="16" TextColor="{StaticResource MutedText}" />
+          <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{x:Static setup:SetupViewModel.Currencies}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="setup:CurrencyOption">
+                <Border Style="{StaticResource Row}" Padding="16,14" Stroke="{StaticResource Border}" StrokeThickness="1.5">
+                  <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnCurrencyTapped" />
+                  </Border.GestureRecognizers>
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                    <Label Text="{Binding Code.Value}" FontAttributes="Bold" FontSize="17" WidthRequest="48" />
+                    <Label Grid.Column="1" Text="{Binding Name}" FontSize="16" TextColor="{StaticResource MutedText}" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+
+        <!-- Balances and the first envelope -->
+        <VerticalStackLayout Spacing="8" Padding="0,24" IsVisible="{Binding IsBalancesStep}">
+          <Label Text="Сколько у вас сейчас" FontSize="30" FontAttributes="Bold" />
+          <Label Text="С этих сумм начнётся учёт. Можно оставить пустыми и поправить потом на вкладке «Счета»."
+                 FontSize="16" TextColor="{StaticResource MutedText}" />
+          <Label Text="{Binding BaseCurrency.Name, StringFormat='Суммы — в валюте «{0}».'}" Style="{StaticResource Muted}"
+                 Margin="0,0,0,8" />
+          <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Balances}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="setup:OpeningBalanceItem">
+                <VerticalStackLayout Spacing="4">
+                  <Label Text="{Binding Account}" Style="{StaticResource FieldLabel}" />
+                  <controls:Field>
+                    <Entry Text="{Binding AmountText}" Keyboard="Numeric" Placeholder="0" />
+                  </controls:Field>
+                </VerticalStackLayout>
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+
+          <Label Text="Первый конверт — копилка на цель (необязательно)" Style="{StaticResource FieldLabel}" Margin="2,16,0,0" />
+          <controls:Field>
+            <Entry Text="{Binding EnvelopeName}" Placeholder="Отпуск, Машина, Подушка…" />
+          </controls:Field>
+          <controls:Field>
+            <Grid ColumnDefinitions="*,Auto">
+              <Entry Text="{Binding EnvelopeGoalText}" Keyboard="Numeric" Placeholder="Цель, сколько накопить" />
+              <Label Grid.Column="1" Text="{Binding CurrencySymbol}" Style="{StaticResource FieldSuffix}" />
+            </Grid>
+          </controls:Field>
+        </VerticalStackLayout>
+      </Grid>
+    </ScrollView>
+
+    <VerticalStackLayout Grid.Row="2" Spacing="8">
+      <Label Text="{Binding Problem}" Style="{StaticResource Problem}"
+             IsVisible="{Binding Problem, Converter={StaticResource IsNotEmpty}}" />
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+        <Button Text="Назад" Style="{StaticResource Soft}" Command="{Binding BackCommand}" WidthRequest="100"
+                IsVisible="{Binding IsFirst, Converter={StaticResource Not}}" />
+        <Button Grid.Column="1" Text="{Binding NextText}" Command="{Binding NextCommand}" HeightRequest="54" />
+      </Grid>
+    </VerticalStackLayout>
+  </Grid>
+</ContentPage>

@@ -5,6 +5,7 @@ using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.Home;
 using FinanceApp.Presentation.Hosting;
 using FinanceApp.Presentation.QuickEntry;
+using FinanceApp.Presentation.Setup;
 
 namespace FinanceApp.Mobile;
 
@@ -43,6 +44,7 @@ public static class MauiProgram
             .AddSingleton<IFinanceBackend, ScopedFinanceBackend>()
             .AddSingleton<IDataBackend, ScopedDataBackend>()
             .AddSingleton<IFileSharer, MauiFileSharer>()
+            .AddSingleton<ISetupBackend, SetupBackend>()
             .AddSingleton(sp => new QuickEntryViewModel(sp.GetRequiredService<IQuickEntryBackend>())
             {
                 // There is no Esc on a phone; the keyboard's action key and the button both save.

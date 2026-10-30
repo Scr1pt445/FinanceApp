@@ -1,5 +1,6 @@
 using System.Reflection;
 using FinanceApp.Presentation.Data;
+using FinanceApp.Presentation.Setup;
 
 namespace FinanceApp.Mobile.Views;
 
@@ -24,4 +25,12 @@ public partial class MorePage : ContentPage
     }
 
     private async void OnCategories(object? sender, TappedEventArgs e) => await Navigation.PushAsync(_categories());
+
+    /// <summary>The first run's tour again, without the setting up; it closes itself at the end.</summary>
+    private async void OnTour(object? sender, TappedEventArgs e)
+    {
+        var tour = SetupViewModel.ForTour();
+        tour.Completed += async (_, _) => await Navigation.PopModalAsync();
+        await Navigation.PushModalAsync(new SetupPage(tour));
+    }
 }

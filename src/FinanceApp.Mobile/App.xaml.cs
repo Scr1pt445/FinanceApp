@@ -1,5 +1,6 @@
 using FinanceApp.Mobile.Views;
 using FinanceApp.Presentation.Home;
+using FinanceApp.Presentation.Setup;
 
 namespace FinanceApp.Mobile;
 
@@ -30,6 +31,19 @@ public partial class App : Microsoft.Maui.Controls.Application
     {
         var startup = new StartupPage();
         var window = new Window(startup) { Title = "FinanceApp" };
+        if (_startup.NeedsSetup)
+        {
+            // A fresh install: the tour and the base currency first; the database is created with that choice.
+            var setup = SetupViewModel.ForFirstRun(_services.GetRequiredService<ISetupBackend>());
+            setup.Completed += (_, _) => window.Dispatcher.Dispatch(() =>
+            {
+                window.Page = startup;
+                _ = ShowAppAsync(window, startup);
+            });
+            window.Page = new SetupPage(setup);
+            return window;
+        }
+
         _ = ShowAppAsync(window, startup);
         return window;
     }

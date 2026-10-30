@@ -25,7 +25,8 @@ internal sealed class MobileApp : IAsyncDisposable
 
     public App App { get; }
 
-    public static async Task<MobileApp> StartAsync()
+    /// <param name="ready">Prepare the database, as on every start after the first; <c>false</c> — a fresh install.</param>
+    public static async Task<MobileApp> StartAsync(bool ready = true)
     {
         ImmediateDispatcher.Install();
         var paths = new FinancePaths(Path.Combine(Path.GetTempPath(), "FinanceApp.Mobile.Tests", Guid.NewGuid().ToString("N")));
@@ -40,7 +41,11 @@ internal sealed class MobileApp : IAsyncDisposable
         // As MAUI does (UseMauiApp): from DI, so whatever App asks for is built before its theme is loaded.
         var app = ActivatorUtilities.CreateInstance<App>(provider);
         Microsoft.Maui.Controls.Application.Current = app;
-        await provider.GetRequiredService<AppStartup>().EnsureReadyAsync();
+        if (ready)
+        {
+            await provider.GetRequiredService<AppStartup>().EnsureReadyAsync();
+        }
+
         return new MobileApp(paths, provider, app);
     }
 

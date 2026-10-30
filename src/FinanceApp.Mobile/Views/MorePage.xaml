@@ -23,6 +23,19 @@
         </Grid>
       </Border>
 
+      <Border Style="{StaticResource Row}" Padding="16,16">
+        <Border.GestureRecognizers>
+          <TapGestureRecognizer Tapped="OnTour" />
+        </Border.GestureRecognizers>
+        <Grid ColumnDefinitions="*,Auto">
+          <VerticalStackLayout Spacing="2">
+            <Label Text="Как пользоваться" FontSize="16" />
+            <Label Text="Короткое обучение: быстрый ввод, конверты, итоги" Style="{StaticResource Muted}" />
+          </VerticalStackLayout>
+          <Label Grid.Column="1" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
+
       <Border Style="{StaticResource Card}">
         <VerticalStackLayout Spacing="10">
           <Label Text="ДАННЫЕ" Style="{StaticResource SectionTitle}" />
