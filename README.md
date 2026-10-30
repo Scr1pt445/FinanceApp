@@ -17,6 +17,7 @@ A Windows desktop app for personal finance tracking, built around one idea: **re
 - **Main window.** Accounts and envelopes with balances on the left, operations grouped by day on the right; forms with category tiles instead of syntax; totals in a currency of your choice, split into accounts and savings; your own categories.
 - **Multi-currency accounts.** Each account has a currency; amounts are converted to a base currency at the Central Bank of Russia rate **fixed on the transaction date**, so past months never drift.
 - **Offline first.** Local SQLite database; exchange rates are cached and the latest known rate is used (and flagged) when there is no network.
+- **Your own rates.** Abroad the bank's rate is what counts, and without the CBR there may be no rate at all: set your own for a day, a week, a month or until removed. It replaces the CBR rate in the totals and new operations; a rate typed in a form can be remembered the same way.
 - **Daily backups.** A consistent copy of the database is made once a day on start; the latest 14 are kept ([ADR 0012](docs/adr/0012-database-backups.md)).
 - **Summaries for any period.** Week, month, quarter, year, a custom range or all time: income, expenses, money put into envelopes, balance, a month chart, expenses by category and comparison with the previous period.
 - **Transfers between currencies.** Enter what was sent and either what arrived or the rate; the result is shown before saving.
