@@ -17,7 +17,7 @@
     <ApplicationId>io.github.scr1pt445.financeapp</ApplicationId>
     <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
     <!-- Android's integer version code; raise it with every APK that is handed out. -->
-    <ApplicationVersion>7</ApplicationVersion>
+    <ApplicationVersion>8</ApplicationVersion>
     <SupportedOSPlatformVersion Condition="'$(TargetFramework)' == 'net10.0-android'">21.0</SupportedOSPlatformVersion>
     <!-- Debug builds of .NET for Android run interpreted (for hot reload, which this project does not use):
          several times slower, and the APKs handed out for testing are debug builds. Compile with the JIT. -->

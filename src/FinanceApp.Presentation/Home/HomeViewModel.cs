@@ -47,6 +47,10 @@ public sealed partial class HomeViewModel : ObservableObject
     [ObservableProperty]
     public partial string TotalDetails { get; private set; } = string.Empty;
 
+    /// <summary>«Октябрь: расходы 45 000 ₽ · доходы 80 000 ₽» — for the home-screen widget.</summary>
+    [ObservableProperty]
+    public partial string MonthText { get; private set; } = string.Empty;
+
     /// <summary>Missing rates or a failed load; empty when all is well.</summary>
     [ObservableProperty]
     public partial string Warning { get; private set; } = string.Empty;
@@ -110,6 +114,8 @@ public sealed partial class HomeViewModel : ObservableObject
 
             IsEmpty = Recent.Count == 0;
             Warning = balances.HasMissingRates ? ShellViewModel.MissingRatesWarning : string.Empty;
+            var month = (await _backend.LoadPeriodAsync(Period.MonthOf(today), cancellationToken)).Summary.Current;
+            MonthText = $"{Format.MonthName(today.Month)}: расходы {Format.Money(month.Expense, overview.BaseCurrency)} · доходы {Format.Money(month.Income, overview.BaseCurrency)}";
             await LoadDueAsync(today, cancellationToken);
             await LoadLimitsAsync(today, cancellationToken);
         }

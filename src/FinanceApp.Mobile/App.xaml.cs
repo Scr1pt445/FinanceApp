@@ -1,6 +1,7 @@
 using FinanceApp.Mobile.Views;
 using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.Home;
+using FinanceApp.Application.Settings;
 using FinanceApp.Presentation.Settings;
 using FinanceApp.Presentation.Setup;
 
@@ -39,7 +40,7 @@ public partial class App : Microsoft.Maui.Controls.Application
         // The home-screen widget shows what the home screen counted last.
         home.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(HomeViewModel.TotalText) or nameof(HomeViewModel.TotalDetails))
+            if (e.PropertyName is nameof(HomeViewModel.TotalText) or nameof(HomeViewModel.TotalDetails) or nameof(HomeViewModel.MonthText))
             {
                 PublishWidget();
             }
@@ -49,7 +50,11 @@ public partial class App : Microsoft.Maui.Controls.Application
     /// <summary>The PIN is asked for: on start and after <see cref="LockAfter"/> in the background.</summary>
     public bool IsLocked => _lockPage is not null;
 
-    public void PublishWidget() => WidgetData.Publish(_home.TotalText, _home.TotalDetails, _lock.IsOn);
+    public void PublishWidget()
+    {
+        var lockSettings = _services.GetRequiredService<ISettingsStore>().Load().Lock;
+        WidgetData.Publish(WidgetText.From(_home.TotalText, _home.TotalDetails, _home.MonthText, lockSettings.IsOn && !lockSettings.WidgetAmounts));
+    }
 
     /// <summary>
     /// The tabs appear once the database is ready: their view models start loading as soon as they exist,

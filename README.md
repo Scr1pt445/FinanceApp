@@ -20,7 +20,7 @@ A Windows desktop app for personal finance tracking, built around one idea: **re
 - **Your own rates.** Abroad the bank's rate is what counts, and without the CBR there may be no rate at all: set your own for a day, a week, a month or until removed. It replaces the CBR rate in the totals and new operations; a rate typed in a form can be remembered the same way.
 - **Recurring operations.** Rent, subscriptions, the salary: mark an operation «repeat every week / month / year», and on its day the phone's home screen offers to record it (the amount can be corrected) or skip it.
 - **Monthly limits.** A limit per expense category, with a bar in the summary and a warning on the home screen from 80 %.
-- **On the phone:** restore from a copy (also on a new phone), PIN and fingerprint lock, shortcuts on the app icon («Расход», «Доход», «Перевод») and a home-screen widget with the total and «+».
+- **On the phone:** restore from a copy (also on a new phone), PIN and fingerprint lock, shortcuts on the app icon («Расход», «Доход», «Перевод») and a resizable home-screen widget: the total and buttons for each kind of operation, the month so far when tall (amounts hidden under the PIN unless allowed).
 - **Daily backups.** A consistent copy of the database is made once a day on start; the latest 14 are kept ([ADR 0012](docs/adr/0012-database-backups.md)).
 - **Summaries for any period.** Week, month, quarter, year, a custom range or all time: income, expenses, money put into envelopes, balance, a month chart, expenses by category and comparison with the previous period.
 - **Transfers between currencies.** Enter what was sent and either what arrived or the rate; the result is shown before saving.

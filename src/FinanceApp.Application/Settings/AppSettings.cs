@@ -62,6 +62,12 @@ public sealed record LockSettings
     /// <summary>A fingerprint (or face) may open the app instead of the PIN.</summary>
     public bool Biometrics { get; init; }
 
+    /// <summary>
+    /// The home-screen widget shows the amounts even while the lock is on (anyone can look at a home screen, so off
+    /// by default); its buttons work either way.
+    /// </summary>
+    public bool WidgetAmounts { get; init; }
+
     public bool IsOn => PinHash is not null && PinSalt is not null;
 }
 

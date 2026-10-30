@@ -65,7 +65,7 @@
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
             <VerticalStackLayout Spacing="2">
               <Label Text="Вход по PIN" FontSize="16" />
-              <Label Text="Четыре цифры при каждом открытии. Сумма в виджете тогда скрыта." Style="{StaticResource Muted}" />
+              <Label Text="Четыре цифры при каждом открытии." Style="{StaticResource Muted}" />
             </VerticalStackLayout>
             <Switch x:Name="LockSwitch" Grid.Column="1" IsToggled="{Binding LockOn, Mode=OneWay}" Toggled="OnLockToggled" VerticalOptions="Center" />
           </Grid>
@@ -75,6 +75,14 @@
               <Label Text="Открывать приложение отпечатком вместо PIN" Style="{StaticResource Muted}" />
             </VerticalStackLayout>
             <Switch Grid.Column="1" IsToggled="{Binding Biometrics}" IsEnabled="{Binding BiometricsAvailable}" VerticalOptions="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding LockOn}">
+            <VerticalStackLayout Spacing="2">
+              <Label Text="Суммы в виджете" FontSize="16" />
+              <Label Text="Показывать итог на рабочем столе и при включённом PIN. Кнопки виджета работают в любом случае."
+                     Style="{StaticResource Muted}" />
+            </VerticalStackLayout>
+            <Switch Grid.Column="1" IsToggled="{Binding WidgetAmounts}" VerticalOptions="Center" />
           </Grid>
           <Label Text="На телефоне не настроен отпечаток — добавьте его в настройках Android." Style="{StaticResource Muted}" FontSize="12"
                  IsVisible="{Binding BiometricsMissing}" />

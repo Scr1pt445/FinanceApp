@@ -127,6 +127,58 @@ public sealed class NewScreensTests : IAsyncLifetime
         _bindingFailures.ShouldBeEmpty();
     }
 
+    [Theory]
+    [InlineData(0, 0, WidgetLayout.Wide)] // not reported yet: the size it is placed with
+    [InlineData(150, 60, WidgetLayout.Small)]
+    [InlineData(150, 200, WidgetLayout.Small)]
+    [InlineData(320, 70, WidgetLayout.Wide)]
+    [InlineData(320, 180, WidgetLayout.Large)]
+    public void Widget_FollowsItsSize(int width, int height, WidgetLayout layout) =>
+        WidgetData.LayoutFor(width, height).ShouldBe(layout);
+
+    [Fact]
+    public void Widget_HidesTheAmounts_OnlyWhenAsked()
+    {
+        var shown = WidgetText.From("48 650 ₽", "Счета 45 650 ₽ · Конверты 3 000 ₽", "Октябрь: расходы 12 000 ₽ · доходы 60 000 ₽", hideAmounts: false);
+        var hidden = WidgetText.From("48 650 ₽", "Счета 45 650 ₽ · Конверты 3 000 ₽", "Октябрь: расходы 12 000 ₽ · доходы 60 000 ₽", hideAmounts: true);
+
+        shown.Total.ShouldBe("48 650 ₽");
+        shown.Month.ShouldStartWith("Октябрь");
+        hidden.Total.ShouldBe(WidgetText.Hidden);
+        hidden.Details.ShouldBe("Суммы скрыты — включён вход по PIN");
+        hidden.Month.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Settings_WidgetAmounts_IsRememberedWithTheLock()
+    {
+        var store = _app.Get<ISettingsStore>();
+        await store.SaveAsync(store.Load() with { Lock = PinCode.Create("1357", biometrics: false) }, Ct);
+        var settings = _app.Get<PhoneSettingsViewModel>();
+        settings.Load();
+        var redraws = 0;
+        settings.WidgetChanged += (_, _) => redraws++;
+
+        settings.WidgetAmounts = true;
+        await Task.Delay(50, Ct);
+
+        store.Load().Lock.WidgetAmounts.ShouldBeTrue();
+        PinCode.Verify(store.Load().Lock, "1357").ShouldBeTrue();
+        redraws.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Home_CountsTheMonth_ForTheWidget()
+    {
+        var home = _app.Get<HomeViewModel>();
+        await home.OpenAsync(Ct);
+        home.QuickEntry.Input = "350 еда кофе";
+        await home.QuickEntry.SaveCommand.ExecuteAsync(null);
+        await home.RefreshAsync(Ct);
+
+        home.MonthText.ShouldContain("расходы 350");
+    }
+
     [Fact]
     public void Shortcuts_WaitForTheApp_AndTakeOnlyKnownKinds()
     {

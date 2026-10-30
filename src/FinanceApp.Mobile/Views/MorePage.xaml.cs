@@ -30,6 +30,7 @@ public partial class MorePage : ContentPage
         _settings = settings;
         _services = services;
         settings.BiometricsAvailable = biometrics.IsAvailable;
+        settings.WidgetChanged += (_, _) => PublishWidget();
         InitializeComponent();
         BindingContext = _viewModel = viewModel;
         SettingsCard.BindingContext = settings;

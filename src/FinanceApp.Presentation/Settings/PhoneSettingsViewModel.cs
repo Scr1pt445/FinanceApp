@@ -34,6 +34,13 @@ public sealed partial class PhoneSettingsViewModel(ISettingsStore settings, Home
     [NotifyPropertyChangedFor(nameof(BiometricsMissing))]
     public partial bool BiometricsAvailable { get; set; }
 
+    /// <summary>With the lock on: the widget shows the amounts anyway.</summary>
+    [ObservableProperty]
+    public partial bool WidgetAmounts { get; set; }
+
+    /// <summary>The widget's look changed: it has to be drawn again.</summary>
+    public event EventHandler? WidgetChanged;
+
     /// <summary>The lock is on but the phone has no fingerprint enrolled: say where to add one.</summary>
     public bool BiometricsMissing => LockOn && !BiometricsAvailable;
 
@@ -49,6 +56,7 @@ public sealed partial class PhoneSettingsViewModel(ISettingsStore settings, Home
             home.QuickEntryOn = QuickEntryLine;
             LockOn = settings.Load().Lock.IsOn;
             Biometrics = settings.Load().Lock.Biometrics;
+            WidgetAmounts = settings.Load().Lock.WidgetAmounts;
         }
         finally
         {
@@ -76,6 +84,14 @@ public sealed partial class PhoneSettingsViewModel(ISettingsStore settings, Home
         if (!_loading && LockOn)
         {
             _ = SaveAsync(s => s with { Lock = s.Lock with { Biometrics = value } }, () => { });
+        }
+    }
+
+    partial void OnWidgetAmountsChanged(bool value)
+    {
+        if (!_loading && LockOn)
+        {
+            _ = SaveAsync(s => s with { Lock = s.Lock with { WidgetAmounts = value } }, () => WidgetChanged?.Invoke(this, EventArgs.Empty));
         }
     }
 
