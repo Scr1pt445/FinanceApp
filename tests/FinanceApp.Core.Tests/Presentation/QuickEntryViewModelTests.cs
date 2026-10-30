@@ -151,6 +151,18 @@ public class QuickEntryViewModelTests
     }
 
     [Fact]
+    public async Task ReceiptInAnotherCurrency_IsPreviewedInIt_WithTheAccountCurrency()
+    {
+        var viewModel = await OpenAsync();
+
+        viewModel.Input = "20 eur еда ужин";
+
+        viewModel.Headline.ShouldBe("Расход 20 €");
+        viewModel.Details.ShouldBe("Еда · Наличные, в RUB по курсу ЦБ · сегодня · «ужин»");
+        viewModel.SaveCommand.CanExecute(null).ShouldBeTrue();
+    }
+
+    [Fact]
     public void Formatter_Money() =>
         QuickEntryFormatter.Money(1234567.5m, CurrencyCode.Usd).ShouldBe("1 234 567,50 $");
 

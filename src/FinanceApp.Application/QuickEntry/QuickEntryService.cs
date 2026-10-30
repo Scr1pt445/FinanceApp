@@ -86,7 +86,7 @@ public sealed class QuickEntryService(
                 new TransferInput(draft.Date, draft.Amount!.Value, draft.Account!.Id, draft.ToAccount!.Id, draft.Note),
                 cancellationToken)
             : await transactionService.AddAsync(
-                new TransactionInput(draft.Date, draft.Type, draft.Amount!.Value, draft.Category!.Id, draft.Account!.Id, draft.Note),
+                new TransactionInput(draft.Date, draft.Type, draft.Amount!.Value, draft.Category!.Id, draft.Account!.Id, draft.Note, PaidCurrency: draft.PaidCurrency),
                 cancellationToken);
     }
 }

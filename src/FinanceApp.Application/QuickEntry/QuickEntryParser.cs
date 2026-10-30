@@ -5,8 +5,9 @@ using FinanceApp.Domain;
 namespace FinanceApp.Application.QuickEntry;
 
 /// <summary>
-/// Parses the quick-entry line (ADR 0009): <c>[+|&gt;]&lt;amount&gt; [category|envelope] [note…] [date] [@account]</c>.
-/// <c>&gt;</c> puts money into an envelope (ADR 0010).
+/// Parses the quick-entry line (ADR 0009): <c>[+|&gt;]&lt;amount&gt;[currency] [category|envelope] [note…] [date] [@account]</c>.
+/// <c>&gt;</c> puts money into an envelope (ADR 0010). A currency right after the amount — <c>20 eur</c>, <c>20€</c>,
+/// <c>€20</c>, <c>20 евро</c> — is the receipt's when it differs from the account's: the amount is converted on saving.
 /// Pure and fast — meant to run on every keystroke.
 /// </summary>
 public static partial class QuickEntryParser
@@ -22,6 +23,23 @@ public static partial class QuickEntryParser
         ["пт"] = DayOfWeek.Friday, ["пятница"] = DayOfWeek.Friday, ["пятницу"] = DayOfWeek.Friday,
         ["сб"] = DayOfWeek.Saturday, ["суббота"] = DayOfWeek.Saturday, ["субботу"] = DayOfWeek.Saturday,
         ["вс"] = DayOfWeek.Sunday, ["воскресенье"] = DayOfWeek.Sunday,
+    };
+
+    /// <summary>Symbols and words for the currencies of receipts; three-letter codes are in <see cref="ReceiptCodes"/>.</summary>
+    private static readonly Dictionary<string, string> ReceiptWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["$"] = "USD", ["€"] = "EUR", ["£"] = "GBP", ["₽"] = "RUB", ["₸"] = "KZT", ["¥"] = "CNY", ["₺"] = "TRY",
+        ["₾"] = "GEL", ["₴"] = "UAH", ["฿"] = "THB", ["₫"] = "VND", ["₹"] = "INR", ["₩"] = "KRW", ["֏"] = "AMD",
+        ["евро"] = "EUR", ["долл"] = "USD", ["доллар"] = "USD", ["доллара"] = "USD", ["долларов"] = "USD",
+        ["руб"] = "RUB", ["рубль"] = "RUB", ["рубля"] = "RUB", ["рублей"] = "RUB", ["тенге"] = "KZT", ["лари"] = "GEL",
+    };
+
+    /// <summary>Codes understood after the amount; any other three letters stay words of the note.</summary>
+    private static readonly HashSet<string> ReceiptCodes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "USD", "EUR", "GBP", "CHF", "CNY", "JPY", "KRW", "TRY", "GEL", "AMD", "AZN", "KZT", "KGS", "UZS", "TJS", "BYN",
+        "UAH", "MDL", "RUB", "AED", "THB", "VND", "INR", "IDR", "EGP", "ILS", "CZK", "PLN", "HUF", "RSD", "BGN", "RON",
+        "SEK", "NOK", "DKK", "CAD", "AUD", "NZD", "SGD", "HKD", "MNT",
     };
 
     public static QuickEntryDraft Parse(string? input, QuickEntryContext context)
@@ -51,6 +69,15 @@ public static partial class QuickEntryParser
             return new QuickEntryDraft(type, null, null, false, defaultAccount, true, context.Today, null, issues);
         }
 
+        // A currency stuck to the amount: "20€", "€20", "20eur".
+        CurrencyCode? paid = null;
+        var stuck = StuckCurrencyPattern().Match(tokens[0]);
+        if (stuck.Success && ReceiptCurrency(stuck.Groups["before"].Value + stuck.Groups["after"].Value) is { } attached)
+        {
+            paid = attached;
+            tokens[0] = stuck.Groups["number"].Value;
+        }
+
         // Thousands written with spaces: "1 200" or "1 200 000,50". A bare number is never a category or a date.
         if (WholeNumberPattern().IsMatch(tokens[0]))
         {
@@ -63,6 +90,11 @@ public static partial class QuickEntryParser
 
         var amount = ParseAmount(tokens[0], issues);
         var rest = tokens.Skip(1).ToList();
+        if (paid is null && rest.Count > 0 && ReceiptCurrency(rest[0]) is { } separate)
+        {
+            paid = separate;
+            rest.RemoveAt(0);
+        }
 
         var account = defaultAccount;
         var accountIsDefault = true;
@@ -105,6 +137,11 @@ public static partial class QuickEntryParser
                     : "Укажите конверт после суммы, например: >10000 машина"));
             }
 
+            if (paid is { } transferCurrency && transferCurrency != account?.Currency)
+            {
+                issues.Add(new(QuickEntryIssueKind.ForeignTransfer, "В конверт кладут в валюте счёта — уберите валюту после суммы."));
+            }
+
             var transferNote = rest.Count == 0 ? null : string.Join(' ', rest);
             return new QuickEntryDraft(type, amount, null, false, account, accountIsDefault, date, transferNote, issues, envelope);
         }
@@ -131,8 +168,17 @@ public static partial class QuickEntryParser
         }
 
         var note = rest.Count == 0 ? null : string.Join(' ', rest);
-        return new QuickEntryDraft(type, amount, category, categoryFromHint, account, accountIsDefault, date, note, issues);
+        return new QuickEntryDraft(type, amount, category, categoryFromHint, account, accountIsDefault, date, note, issues)
+        {
+            // Only a currency other than the account's needs converting.
+            PaidCurrency = paid is { } receipt && receipt != account?.Currency ? receipt : null,
+        };
     }
+
+    private static CurrencyCode? ReceiptCurrency(string token) =>
+        ReceiptWords.TryGetValue(token, out var code) ? CurrencyCode.Parse(code)
+        : ReceiptCodes.Contains(token) ? CurrencyCode.Parse(token.ToUpperInvariant())
+        : null;
 
     /// <summary>
     /// The last account used for this type, but only a regular one in the base currency, so a dinner abroad
@@ -272,6 +318,9 @@ public static partial class QuickEntryParser
 
         return true;
     }
+
+    [GeneratedRegex(@"^(?<before>[$€£₽₸¥₺₾₴฿₫₹₩֏])?(?<number>\d+(?:[.,]\d+)?)(?<after>[$€£₽₸¥₺₾₴฿₫₹₩֏]|[A-Za-z]{3})?$")]
+    private static partial Regex StuckCurrencyPattern();
 
     [GeneratedRegex(@"^\d+(?:[.,](?<fraction>\d+))?$")]
     private static partial Regex AmountPattern();

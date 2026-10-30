@@ -355,4 +355,59 @@ public class QuickEntryParserTests
 
     private static Transaction History(string note, Category category, int minutesAgo = 0) =>
         Transaction.Create(Today, category.Type, 1m, 1m, category, Card, note, new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc).AddMinutes(-minutesAgo));
+
+    [Theory]
+    [InlineData("20 eur еда ужин", "EUR")]
+    [InlineData("20 EUR еда ужин", "EUR")]
+    [InlineData("20€ еда ужин", "EUR")]
+    [InlineData("€20 еда ужин", "EUR")]
+    [InlineData("20eur еда ужин", "EUR")]
+    [InlineData("20 евро еда ужин", "EUR")]
+    [InlineData("20 $ еда ужин", "USD")]
+    [InlineData("20 gel еда ужин", "GEL")]
+    public void ReceiptCurrency_AfterTheAmount_IsKept_ForAnAccountInAnotherCurrency(string line, string currency)
+    {
+        var draft = Parse(line);
+
+        draft.Amount.ShouldBe(20m);
+        draft.PaidCurrency.ShouldBe(CurrencyCode.Parse(currency));
+        draft.Account!.Currency.ShouldBe(CurrencyCode.Rub);
+        draft.Category.ShouldBe(Named("Еда", TransactionType.Expense));
+        draft.Note.ShouldBe("ужин");
+        draft.IsComplete.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void ReceiptCurrency_SameAsTheAccount_NeedsNoConversion()
+    {
+        Parse("350 руб еда").PaidCurrency.ShouldBeNull();
+        QuickEntryParser.Parse("20 usd еда @карта usd", Context([Card, CardUsd])).PaidCurrency.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ThreeLettersThatAreNotACurrency_StayInTheNote()
+    {
+        var draft = Parse("350 еда bar");
+
+        draft.PaidCurrency.ShouldBeNull();
+        draft.Note.ShouldBe("bar");
+    }
+
+    [Fact]
+    public void ReceiptCurrency_WorksWithThousands()
+    {
+        var draft = Parse("1 200 thb еда");
+
+        draft.Amount.ShouldBe(1200m);
+        draft.PaidCurrency.ShouldBe(CurrencyCode.Parse("THB"));
+    }
+
+    [Fact]
+    public void EnvelopeInAnotherCurrency_IsAnIssue()
+    {
+        var draft = Parse(">50 usd машина");
+
+        draft.Issues.ShouldContain(i => i.Kind == QuickEntryIssueKind.ForeignTransfer);
+        draft.IsComplete.ShouldBeFalse();
+    }
 }

@@ -6,6 +6,11 @@ using FinanceApp.Domain;
 namespace FinanceApp.Application.Transactions;
 
 /// <param name="ExchangeRate">Manual rate to the base currency; <c>null</c> = look it up.</param>
+/// <param name="PaidCurrency">
+/// The currency of the receipt, when it is not the account's — a card in rubles paying euros abroad.
+/// <see cref="Amount"/> is then in it and is converted into the account currency; the note keeps the receipt amount.
+/// </param>
+/// <param name="PaidRate">Manual rate: account currency per one unit of <see cref="PaidCurrency"/> (what the bank charged); <c>null</c> = the CBR rate of the date.</param>
 public sealed record TransactionInput(
     DateOnly Date,
     TransactionType Type,
@@ -13,7 +18,9 @@ public sealed record TransactionInput(
     Guid CategoryId,
     Guid AccountId,
     string? Note,
-    decimal? ExchangeRate = null);
+    decimal? ExchangeRate = null,
+    CurrencyCode? PaidCurrency = null,
+    decimal? PaidRate = null);
 
 /// <param name="ToAmount">Received amount for accounts in different currencies; <c>null</c> = convert at the CBR rate.</param>
 /// <param name="ExchangeRate">Manual rate of the source currency to the base currency; <c>null</c> = look it up.</param>
@@ -45,6 +52,7 @@ public sealed class TransactionService(
         ArgumentNullException.ThrowIfNull(input);
 
         var (category, account) = await LoadReferencesAsync(input, cancellationToken);
+        (input, var paidFallback) = await ConvertPaidAsync(input, account, cancellationToken);
         var (rate, isFallback) = await ResolveRateAsync(input, account, cancellationToken);
 
         var transaction = Transaction.Create(
@@ -53,7 +61,7 @@ public sealed class TransactionService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         notifier.NotifyChanged();
-        return new SavedTransaction(transaction, isFallback);
+        return new SavedTransaction(transaction, isFallback || paidFallback);
     }
 
     public async Task<SavedTransaction> UpdateAsync(Guid id, TransactionInput input, CancellationToken cancellationToken = default)
@@ -62,6 +70,7 @@ public sealed class TransactionService(
 
         var transaction = await transactions.FindAsync(id, cancellationToken) ?? throw NotFound(id);
         var (category, account) = await LoadReferencesAsync(input, cancellationToken);
+        (input, var paidFallback) = await ConvertPaidAsync(input, account, cancellationToken);
 
         // Keep the stored (possibly hand-edited) rate unless what it depends on has changed.
         var rateStillValid = input.ExchangeRate is null && transaction.Date == input.Date && transaction.AccountId == account.Id;
@@ -73,7 +82,7 @@ public sealed class TransactionService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         notifier.NotifyChanged();
-        return new SavedTransaction(transaction, isFallback);
+        return new SavedTransaction(transaction, isFallback || paidFallback);
     }
 
     /// <summary>Moves money between accounts or envelopes (ADR 0010).</summary>
@@ -173,6 +182,37 @@ public sealed class TransactionService(
         var to = await accounts.FindAsync(input.ToAccountId, cancellationToken)
             ?? throw new DomainException("Счёт зачисления не найден.");
         return (from, to);
+    }
+
+    /// <summary>
+    /// A receipt in another currency becomes an amount in the account's: at the rate the bank charged if known,
+    /// otherwise at the CBR rate of the date. «20 EUR» goes into the note, so the receipt can still be matched.
+    /// </summary>
+    private async Task<(TransactionInput Input, bool IsFallback)> ConvertPaidAsync(TransactionInput input, Account account, CancellationToken cancellationToken)
+    {
+        if (input.PaidCurrency is not { } paid || paid == account.Currency)
+        {
+            return (input with { PaidCurrency = null, PaidRate = null }, false);
+        }
+
+        var (rate, isFallback) = input.PaidRate is { } manual
+            ? (manual, false)
+            : await QuoteAsync(paid, account.Currency, input.Date, cancellationToken);
+        if (rate <= 0)
+        {
+            throw new DomainException("Курс — число больше нуля.");
+        }
+
+        var converted = decimal.Round(input.Amount * rate, 2, MidpointRounding.AwayFromZero);
+        var receipt = $"{input.Amount.ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("ru-RU"))} {paid}";
+        var note = string.IsNullOrWhiteSpace(input.Note) ? receipt : $"{input.Note.Trim()} · {receipt}";
+        return (input with { Amount = converted, Note = note, PaidCurrency = null, PaidRate = null }, isFallback);
+    }
+
+    private async Task<(decimal Rate, bool IsFallback)> QuoteAsync(CurrencyCode from, CurrencyCode to, DateOnly date, CancellationToken cancellationToken)
+    {
+        var quote = await exchangeRates.GetRateAsync(from, to, date, cancellationToken);
+        return (quote.Rate, quote.IsFallback);
     }
 
     private Task<(decimal Rate, bool IsFallback)> ResolveRateAsync(TransactionInput input, Account account, CancellationToken cancellationToken) =>
