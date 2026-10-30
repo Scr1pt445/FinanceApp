@@ -1,6 +1,7 @@
 using FinanceApp.Mobile.Views;
 using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.Home;
+using FinanceApp.Presentation.Settings;
 using FinanceApp.Presentation.Setup;
 
 namespace FinanceApp.Mobile;
@@ -11,10 +12,17 @@ public partial class App : Microsoft.Maui.Controls.Application
     private readonly AppStartup _startup;
     private readonly HomeViewModel _home;
     private readonly RatePrefetcher _rates;
+    private readonly LockViewModel _lock;
+    private AppShell? _shell;
+    private LockPage? _lockPage;
+    private DateTimeOffset? _sleptAt;
 
     // Pages are not constructor parameters: DI would build them before InitializeComponent loads the theme,
     // and their {StaticResource} lookups would fail — the first APK crashed on start that way.
-    public App(IServiceProvider services, AppStartup startup, HomeViewModel home, RatePrefetcher rates)
+    /// <summary>Back after this long in the background, the app asks for the PIN again (a file picker or a share sheet is shorter).</summary>
+    public static readonly TimeSpan LockAfter = TimeSpan.FromSeconds(60);
+
+    public App(IServiceProvider services, AppStartup startup, HomeViewModel home, RatePrefetcher rates, LockViewModel lockViewModel)
     {
         InitializeComponent();
 
@@ -24,7 +32,24 @@ public partial class App : Microsoft.Maui.Controls.Application
         _startup = startup;
         _home = home;
         _rates = rates;
+        _lock = lockViewModel;
+        _lock.Unlocked += (_, _) => _ = UnlockedAsync();
+        PendingAction.Requested += (_, _) => Dispatcher.Dispatch(RunPendingAction);
+
+        // The home-screen widget shows what the home screen counted last.
+        home.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(HomeViewModel.TotalText) or nameof(HomeViewModel.TotalDetails))
+            {
+                PublishWidget();
+            }
+        };
     }
+
+    /// <summary>The PIN is asked for: on start and after <see cref="LockAfter"/> in the background.</summary>
+    public bool IsLocked => _lockPage is not null;
+
+    public void PublishWidget() => WidgetData.Publish(_home.TotalText, _home.TotalDetails, _lock.IsOn);
 
     /// <summary>
     /// The tabs appear once the database is ready: their view models start loading as soon as they exist,
@@ -55,8 +80,85 @@ public partial class App : Microsoft.Maui.Controls.Application
     protected override void OnResume()
     {
         base.OnResume();
+        if (_sleptAt is { } slept && DateTimeOffset.UtcNow - slept >= LockAfter)
+        {
+            _ = ShowLockAsync();
+        }
+
+        _sleptAt = null;
         _ = _home.RefreshAsync();
         _ = RefreshRatesAsync();
+    }
+
+    protected override void OnSleep()
+    {
+        base.OnSleep();
+        _sleptAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>The lock over everything, forms included; nothing under it can be touched.</summary>
+    private async Task ShowLockAsync()
+    {
+        if (!_lock.IsOn || _shell is null || _lockPage is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            _lockPage = new LockPage(_lock, _services.GetRequiredService<IBiometrics>());
+            await _shell.Navigation.PushModalAsync(_lockPage, animated: false);
+        }
+#pragma warning disable CA1031 // Without the lock screen the app must not crash; the report says why.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            CrashReport.Save(ex);
+        }
+    }
+
+    private async Task UnlockedAsync()
+    {
+        if (_lockPage is not { } page || _shell is null)
+        {
+            return;
+        }
+
+        _lockPage = null;
+        try
+        {
+            var modals = _shell.Navigation.ModalStack;
+            if (modals.Count > 0 && ReferenceEquals(modals[^1], page))
+            {
+                await _shell.Navigation.PopModalAsync(animated: true);
+            }
+        }
+#pragma warning disable CA1031 // See ShowLockAsync.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            CrashReport.Save(ex);
+        }
+
+        RunPendingAction();
+    }
+
+    /// <summary>«Новый расход» from a shortcut or the widget, once the tabs are there and the lock is open.</summary>
+    private void RunPendingAction()
+    {
+        if (_shell is null || IsLocked || PendingAction.Take() is not { } kind)
+        {
+            return;
+        }
+
+        var shell = _services.GetRequiredService<ShellViewModel>();
+        var command = kind switch
+        {
+            PendingAction.Income => shell.NewIncomeCommand,
+            PendingAction.Transfer => shell.NewTransferCommand,
+            _ => shell.NewExpenseCommand,
+        };
+        _ = command.ExecuteAsync(null);
     }
 
     /// <summary>In the background: a new day's rates, then the totals once more with them.</summary>
@@ -97,8 +199,21 @@ public partial class App : Microsoft.Maui.Controls.Application
             {
                 var shell = _services.GetRequiredService<AppShell>();
                 window.Page = shell;
+                _shell = shell;
+
+                // Only now: the view models it listens to load data as soon as they exist.
+                _services.GetRequiredService<Screens>();
                 _services.GetRequiredService<FormPresenter>().Attach(shell.Navigation);
                 _ = RefreshRatesAsync();
+                PublishWidget();
+                if (_lock.IsOn)
+                {
+                    _ = ShowLockAsync();
+                }
+                else
+                {
+                    RunPendingAction();
+                }
             }
 #pragma warning disable CA1031 // A screen that cannot be built is reported in place, not as a silent blank window.
             catch (Exception ex)

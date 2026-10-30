@@ -1,6 +1,8 @@
 using FinanceApp.Application.Accounts;
+using FinanceApp.Application.Backups;
 using FinanceApp.Application.Settings;
 using FinanceApp.Domain;
+using FinanceApp.Presentation.Data;
 using FinanceApp.Presentation.Setup;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,8 +12,22 @@ namespace FinanceApp.Mobile;
 /// The first run's choices, in order: the base currency goes into the settings before the database is created,
 /// so the starter accounts are made in it; then their balances and the first envelope.
 /// </summary>
-public sealed class SetupBackend(ISettingsStore settings, AppStartup startup, IServiceScopeFactory scopes) : ISetupBackend
+public sealed class SetupBackend(
+    ISettingsStore settings, AppStartup startup, IServiceScopeFactory scopes, IFileChooser picker, IDatabaseRestore restore) : ISetupBackend
 {
+    /// <summary>A copy instead of the setup: the database is put in place first, then brought up to date as usual.</summary>
+    public async Task<string?> RestoreFromCopyAsync(CancellationToken cancellationToken = default)
+    {
+        if (await picker.PickAsync("Копия базы FinanceApp (.db)") is not { } path)
+        {
+            return null;
+        }
+
+        var result = await restore.RestoreAsync(path, cancellationToken);
+        await startup.EnsureReadyAsync();
+        return DataViewModel.Describe(result.Contents);
+    }
+
     public async Task CompleteAsync(SetupChoices choices, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(choices);

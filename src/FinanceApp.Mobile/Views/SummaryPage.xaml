@@ -184,6 +184,20 @@
         </VerticalStackLayout>
       </Border>
 
+      <!-- Monthly limits of the categories: only when a month is shown. Set in «Ещё → Категории». -->
+      <Border Style="{StaticResource Card}" IsVisible="{Binding HasLimits}">
+        <VerticalStackLayout Spacing="12">
+          <Label Text="ЛИМИТЫ" Style="{StaticResource SectionTitle}" />
+          <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding Limits}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="finance:LimitRow">
+                <controls:LimitBarView />
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </VerticalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+
       <Border Style="{StaticResource Card}" IsVisible="{Binding Envelopes.Count, Converter={StaticResource IsNotEmpty}}">
         <VerticalStackLayout Spacing="10">
           <Label Text="КОНВЕРТЫ" Style="{StaticResource SectionTitle}" />

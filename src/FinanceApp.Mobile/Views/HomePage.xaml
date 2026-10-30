@@ -64,7 +64,51 @@
 
     <CollectionView Grid.Row="3" ItemsSource="{Binding Recent}" SelectionMode="None">
       <CollectionView.Header>
-        <Label Text="Последние 30 дней" Style="{StaticResource SectionTitle}" Margin="0,4,0,0" />
+        <VerticalStackLayout Spacing="8">
+          <!-- Recurring operations that are due: record with one tap (the amount may be corrected) or skip. -->
+          <VerticalStackLayout Spacing="8" IsVisible="{Binding HasDue}" Margin="0,4,0,4">
+            <Label Text="ПОРА ЗАПИСАТЬ" Style="{StaticResource SectionTitle}" />
+            <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Due}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="finance:DueItem">
+                  <Border Style="{StaticResource Card}" Stroke="{StaticResource AccentDeep}" Padding="14,12">
+                    <VerticalStackLayout Spacing="8">
+                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Label Text="↻" FontSize="22" TextColor="{StaticResource AccentLight}" VerticalOptions="Center" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="1">
+                          <Label Text="{Binding Title}" FontSize="16" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                          <Label Text="{Binding Details}" Style="{StaticResource Muted}" />
+                        </VerticalStackLayout>
+                      </Grid>
+                      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                        <controls:Field MinimumHeightRequest="44">
+                          <Entry Text="{Binding AmountText}" Keyboard="Numeric" FontSize="16" MinimumHeightRequest="44" />
+                        </controls:Field>
+                        <Button Grid.Column="1" Text="Записать" HeightRequest="44" MinimumHeightRequest="44" Command="{Binding RecordCommand}"
+                                IsEnabled="{Binding IsBusy, Converter={StaticResource Not}}" />
+                        <Button Grid.Column="2" Text="Пропустить" Style="{StaticResource Soft}" HeightRequest="44" MinimumHeightRequest="44"
+                                Command="{Binding SkipCommand}" />
+                      </Grid>
+                    </VerticalStackLayout>
+                  </Border>
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+          </VerticalStackLayout>
+
+          <!-- Limits near or over: a nudge, not a report — the full list is in «Итоги». -->
+          <Border Style="{StaticResource Card}" Padding="14,12" IsVisible="{Binding HasLimitWarnings}">
+            <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding LimitWarnings}">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="finance:LimitRow">
+                  <controls:LimitBarView />
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+          </Border>
+
+          <Label Text="Последние 30 дней" Style="{StaticResource SectionTitle}" Margin="0,4,0,0" />
+        </VerticalStackLayout>
       </CollectionView.Header>
       <CollectionView.EmptyView>
         <Label Text="Операций пока нет — запишите первую строкой выше." Style="{StaticResource Muted}"

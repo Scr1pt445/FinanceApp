@@ -10,6 +10,7 @@
     <!-- One row: the name (or a field while renaming), how often it is used, and what can be done with it. -->
     <DataTemplate x:Key="CategoryTemplate" x:DataType="finance:CategoryItem">
       <Border Style="{StaticResource Row}">
+        <VerticalStackLayout Spacing="6">
         <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="4">
           <Label Text="{Binding Name}" FontSize="16" IsVisible="{Binding IsEditing, Converter={StaticResource Not}}">
             <Label.Triggers>
@@ -35,6 +36,25 @@
             </Button.Triggers>
           </Button>
         </Grid>
+        <!-- Expenses only: a monthly limit, shown with a bar in «Итоги» and as a warning on the home screen. -->
+        <VerticalStackLayout Spacing="6" IsVisible="{Binding CanHaveLimit}">
+          <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsEditingLimit, Converter={StaticResource Not}}">
+            <Label Text="{Binding LimitText}" FontSize="13" TextColor="{StaticResource AccentLight}" VerticalOptions="Center"
+                   IsVisible="{Binding HasLimit}" />
+            <Button Grid.Column="1" Text="Лимит на месяц" Style="{StaticResource Link}" FontSize="13" Padding="4,0" MinimumHeightRequest="32"
+                    Command="{Binding StartLimitCommand}" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" IsVisible="{Binding IsEditingLimit}">
+            <controls:Field MinimumHeightRequest="44">
+              <Entry Text="{Binding LimitInput}" Keyboard="Numeric" Placeholder="Сколько в месяц" FontSize="16" MinimumHeightRequest="44"
+                     ReturnType="Done" ReturnCommand="{Binding SaveLimitCommand}" />
+            </controls:Field>
+            <Button Grid.Column="1" Text="OK" Style="{StaticResource Soft}" Command="{Binding SaveLimitCommand}" />
+            <Button Grid.Column="2" Text="Убрать" Style="{StaticResource Link}" TextColor="{StaticResource MutedText}"
+                    Command="{Binding RemoveLimitCommand}" IsVisible="{Binding HasLimit}" />
+          </Grid>
+        </VerticalStackLayout>
+        </VerticalStackLayout>
       </Border>
     </DataTemplate>
   </ContentPage.Resources>
@@ -45,7 +65,8 @@
         <Button Text="‹ Назад" Style="{StaticResource Link}" Clicked="OnBack" Padding="0" />
       </Grid>
       <Label Text="Категории" Style="{StaticResource PageTitle}" />
-      <Label Text="Скрытые категории не предлагаются в формах, но остаются в истории." Style="{StaticResource Muted}" />
+      <Label Text="Скрытые категории не предлагаются в формах, но остаются в истории. На расходы можно поставить лимит в месяц — приложение предупредит, когда он подходит к концу."
+             Style="{StaticResource Muted}" />
       <Label Text="{Binding Status}" Style="{StaticResource Problem}"
              IsVisible="{Binding Status, Converter={StaticResource IsNotEmpty}}" />
 

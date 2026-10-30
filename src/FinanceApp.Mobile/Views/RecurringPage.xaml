@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- «Регулярные операции»: what comes round, the soonest first; a tap edits, new ones come from the operation form. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:finance="clr-namespace:FinanceApp.Presentation.Finance;assembly=FinanceApp.Presentation"
+             xmlns:controls="clr-namespace:FinanceApp.Mobile.Controls"
+             x:Class="FinanceApp.Mobile.Views.RecurringPage"
+             x:DataType="finance:RecurringViewModel"
+             Title="Регулярные операции">
+  <Grid>
+    <ScrollView>
+      <VerticalStackLayout Spacing="10" Padding="16,16,16,24">
+        <Grid ColumnDefinitions="Auto,*">
+          <Button Text="‹ Назад" Style="{StaticResource Link}" Clicked="OnBack" Padding="0" />
+        </Grid>
+        <Label Text="Регулярные операции" Style="{StaticResource PageTitle}" />
+        <Label Text="Аренда, подписки, зарплата. В нужный день приложение покажет их на главной: записать одним нажатием, поправив сумму, или пропустить."
+               Style="{StaticResource Muted}" />
+        <Label Text="{Binding Status}" Style="{StaticResource Problem}"
+               IsVisible="{Binding Status, Converter={StaticResource IsNotEmpty}}" />
+
+        <Button Text="+ Новая регулярная" Style="{StaticResource Soft}" Clicked="OnNew" Margin="0,4,0,4" />
+
+        <Label Text="Пока ничего. Добавьте здесь или выберите «Повторять» в форме операции."
+               Style="{StaticResource Muted}" HorizontalTextAlignment="Center" Margin="0,16"
+               IsVisible="{Binding IsEmpty}" />
+
+        <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Items}">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="finance:RecurringItem">
+              <Border Style="{StaticResource Row}" Padding="16,12">
+                <Border.GestureRecognizers>
+                  <TapGestureRecognizer Tapped="OnItem" />
+                </Border.GestureRecognizers>
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                  <Label Text="↻" FontSize="22" TextColor="{StaticResource AccentLight}" VerticalOptions="Center" />
+                  <VerticalStackLayout Grid.Column="1" Spacing="2">
+                    <Label Text="{Binding Title}" FontSize="16" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                    <Label Text="{Binding AmountText}" FontSize="14" />
+                    <Label Text="{Binding ScheduleText}" Style="{StaticResource Muted}" />
+                    <Label Text="{Binding NextText}" FontSize="13" TextColor="{StaticResource MutedText}">
+                      <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsDue}" Value="True">
+                          <Setter Property="TextColor" Value="{StaticResource Warning}" />
+                        </DataTrigger>
+                      </Label.Triggers>
+                    </Label>
+                  </VerticalStackLayout>
+                  <Label Grid.Column="2" Text="›" FontSize="24" TextColor="{StaticResource MutedText}" VerticalOptions="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+      </VerticalStackLayout>
+    </ScrollView>
+
+    <!-- The editor: a sheet over the list. -->
+    <Grid IsVisible="{Binding IsEditing}" BackgroundColor="#B3000000">
+      <Grid.GestureRecognizers>
+        <TapGestureRecognizer Tapped="OnEditorBackdrop" />
+      </Grid.GestureRecognizers>
+      <Border x:Name="Sheet" BindingContext="{Binding Editor}" x:DataType="finance:RecurringEditor"
+              VerticalOptions="End" BackgroundColor="{StaticResource Surface}" Stroke="{StaticResource Border}"
+              StrokeShape="RoundRectangle 28,28,0,0" Padding="20,16,20,24">
+        <Border.GestureRecognizers>
+          <!-- Taps inside the sheet must not reach the backdrop. -->
+          <TapGestureRecognizer />
+        </Border.GestureRecognizers>
+        <VerticalStackLayout Spacing="8">
+          <BoxView WidthRequest="40" HeightRequest="4" CornerRadius="2" Color="{StaticResource Border}" HorizontalOptions="Center" />
+          <Label Text="{Binding Title}" FontSize="20" FontAttributes="Bold" Margin="0,6,0,0" />
+          <Label Text="Сумма" Style="{StaticResource FieldLabel}" />
+          <controls:Field>
+            <Entry Text="{Binding AmountText}" Keyboard="Numeric" FontSize="20" FontAttributes="Bold" />
+          </controls:Field>
+          <Label Text="Как часто" Style="{StaticResource FieldLabel}" />
+          <HorizontalStackLayout x:Name="FrequencyChips" Spacing="6" BindableLayout.ItemsSource="{Binding Frequencies}">
+            <BindableLayout.ItemTemplate>
+              <DataTemplate x:DataType="finance:RepeatChoice">
+                <Button Text="{Binding Title}" Style="{StaticResource Chip}" HeightRequest="32" MinimumHeightRequest="32"
+                        FontSize="13" Padding="12,0" Clicked="OnFrequency" />
+              </DataTemplate>
+            </BindableLayout.ItemTemplate>
+          </HorizontalStackLayout>
+          <Label Text="Следующая" Style="{StaticResource FieldLabel}" />
+          <controls:DateField Text="{Binding NextText}" Kind="Start" Title="Следующая операция" />
+          <Label Text="Заметка" Style="{StaticResource FieldLabel}" />
+          <controls:Field>
+            <Entry Text="{Binding Note}" Placeholder="Например, «Аренда»" />
+          </controls:Field>
+          <Label Text="{Binding Problem}" Style="{StaticResource Problem}"
+                 IsVisible="{Binding Problem, Converter={StaticResource IsNotEmpty}}" />
+          <Button Text="Сохранить" Command="{Binding SaveCommand}" HeightRequest="52" Margin="0,8,0,0" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Button Text="Удалить" Style="{StaticResource Soft}" TextColor="{StaticResource Warning}" Command="{Binding DeleteCommand}" />
+            <Button Grid.Column="1" Text="Отмена" Style="{StaticResource Soft}" Command="{Binding CancelCommand}" />
+          </Grid>
+        </VerticalStackLayout>
+      </Border>
+    </Grid>
+  </Grid>
+</ContentPage>

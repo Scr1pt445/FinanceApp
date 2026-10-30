@@ -1,5 +1,7 @@
 using Android.App;
+using Android.Content;
 using Android.Content.PM;
+using Android.OS;
 using Android.Views;
 
 namespace FinanceApp.Mobile;
@@ -14,4 +16,26 @@ namespace FinanceApp.Mobile;
         | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
 public class MainActivity : MauiAppCompatActivity
 {
+    protected override void OnCreate(Bundle? savedInstanceState)
+    {
+        base.OnCreate(savedInstanceState);
+        TakeRequest(Intent);
+        AppShortcuts.Install(this);
+    }
+
+    /// <summary>A shortcut or the widget's «+» while the app is already running.</summary>
+    protected override void OnNewIntent(Intent? intent)
+    {
+        base.OnNewIntent(intent);
+        TakeRequest(intent);
+    }
+
+    private static void TakeRequest(Intent? intent)
+    {
+        if (intent?.Action == AppShortcuts.Action)
+        {
+            PendingAction.Request(intent.GetStringExtra(AppShortcuts.KindExtra));
+            intent.SetAction(null);
+        }
+    }
 }
