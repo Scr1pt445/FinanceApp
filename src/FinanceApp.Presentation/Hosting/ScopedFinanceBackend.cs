@@ -75,6 +75,20 @@ public sealed class ScopedFinanceBackend(IServiceScopeFactory scopes) : IFinance
     public Task<ExchangeRateQuote> GetRateAsync(CurrencyCode from, CurrencyCode to, DateOnly date, CancellationToken cancellationToken = default) =>
         InScopeAsync<IExchangeRateService, ExchangeRateQuote>(s => s.GetRateAsync(from, to, date, cancellationToken));
 
+    public Task<IReadOnlyList<ManualRate>> ListManualRatesAsync(CancellationToken cancellationToken = default) =>
+        InScopeAsync<ManualRateService, IReadOnlyList<ManualRate>>(s => Task.FromResult(s.List()));
+
+    public Task<ManualRate> AddManualRateAsync(
+        CurrencyCode from, CurrencyCode to, decimal rate, DateOnly validFrom, ManualRatePeriod period, CancellationToken cancellationToken = default) =>
+        InScopeAsync<ManualRateService, ManualRate>(s => s.AddAsync(from, to, rate, validFrom, period, cancellationToken));
+
+    public Task RemoveManualRateAsync(ManualRate rate, CancellationToken cancellationToken = default) =>
+        InScopeAsync<ManualRateService, bool>(async s =>
+        {
+            await s.RemoveAsync(rate, cancellationToken);
+            return true;
+        });
+
     public Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default) =>
         InScopeAsync<ISettingsStore, bool>(async store =>
         {

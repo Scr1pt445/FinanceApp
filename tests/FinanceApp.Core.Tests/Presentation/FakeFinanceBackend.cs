@@ -98,9 +98,13 @@ public sealed class FakeFinanceBackend : IFinanceBackend
         return Task.FromResult(new Catalog(Categories, Accounts, usage, last, CurrencyCode.Rub));
     }
 
+    /// <summary>The last expense or income saved, as the form sent it (receipt currency and rate included).</summary>
+    public TransactionInput? LastInput { get; private set; }
+
     public Task<SavedTransaction> AddAsync(TransactionInput input, CancellationToken cancellationToken = default)
     {
         ThrowIfFailing();
+        LastInput = input;
         var t = Transaction.Create(input.Date, input.Type, input.Amount, 1m, Categories.Single(c => c.Id == input.CategoryId), Find(input.AccountId), input.Note, Stamp());
         return Task.FromResult(new SavedTransaction(Record(t), false));
     }
@@ -229,6 +233,25 @@ public sealed class FakeFinanceBackend : IFinanceBackend
         RubRates.TryGetValue(from, out var fromRub) && RubRates.TryGetValue(to, out var toRub)
             ? Task.FromResult(new ExchangeRateQuote(from, to, date, fromRub / toRub, false))
             : Task.FromException<ExchangeRateQuote>(new ExchangeRateUnavailableException($"Нет курса {from}."));
+
+    public List<ManualRate> ManualRates { get; } = [];
+
+    public Task<IReadOnlyList<ManualRate>> ListManualRatesAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ManualRate>>([.. ManualRates]);
+
+    public Task<ManualRate> AddManualRateAsync(
+        CurrencyCode from, CurrencyCode to, decimal rate, DateOnly validFrom, ManualRatePeriod period, CancellationToken cancellationToken = default)
+    {
+        var added = new ManualRate(from, to, rate, validFrom, ManualRate.EndOf(validFrom, period));
+        ManualRates.Add(added);
+        return Task.FromResult(added);
+    }
+
+    public Task RemoveManualRateAsync(ManualRate rate, CancellationToken cancellationToken = default)
+    {
+        ManualRates.Remove(rate);
+        return Task.CompletedTask;
+    }
 
     public Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default)
     {

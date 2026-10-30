@@ -1,3 +1,4 @@
+using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Domain;
 
 namespace FinanceApp.Application.Settings;
@@ -25,6 +26,23 @@ public sealed record AppSettings
     /// easier than a syntax. The desktop app always has it, behind the hotkey.
     /// </summary>
     public bool QuickEntryLine { get; init; }
+
+    /// <summary>Rates the user typed for a day, a week, a month or for good; they win over the CBR rate.</summary>
+    public IReadOnlyList<ManualRate> ManualRates { get; init; } = [];
+
+    /// <summary>Value equality, the list of rates included (a record compares lists by reference).</summary>
+    public bool Equals(AppSettings? other) =>
+        other is not null
+        && BaseCurrency == other.BaseCurrency
+        && CsvExport == other.CsvExport
+        && QuickEntryHotKey == other.QuickEntryHotKey
+        && TotalsCurrency == other.TotalsCurrency
+        && Backups == other.Backups
+        && QuickEntryLine == other.QuickEntryLine
+        && ManualRates.SequenceEqual(other.ManualRates);
+
+    public override int GetHashCode() =>
+        HashCode.Combine(BaseCurrency, CsvExport, QuickEntryHotKey, TotalsCurrency, Backups, QuickEntryLine, ManualRates.Count);
 }
 
 /// <summary>Daily copies of the database (ADR 0012). On by default: losing the only file loses everything.</summary>

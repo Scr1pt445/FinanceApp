@@ -27,7 +27,9 @@ public interface IExchangeRateCache
     Task SaveAsync(DateOnly date, RubRates rates, CancellationToken cancellationToken = default);
 }
 
-public sealed record ExchangeRateQuote(CurrencyCode From, CurrencyCode To, DateOnly Date, decimal Rate, bool IsFallback);
+/// <param name="IsFallback">Offline: the latest cached CBR rate, not the one of the date.</param>
+/// <param name="IsManual">The user's own rate (<see cref="ManualRate"/>), alone or on one leg of the conversion.</param>
+public sealed record ExchangeRateQuote(CurrencyCode From, CurrencyCode To, DateOnly Date, decimal Rate, bool IsFallback, bool IsManual = false);
 
 public interface IExchangeRateService
 {

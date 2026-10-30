@@ -43,6 +43,15 @@ public interface IFinanceBackend
     /// <exception cref="ExchangeRateUnavailableException">No rate online and none cached.</exception>
     Task<ExchangeRateQuote> GetRateAsync(CurrencyCode from, CurrencyCode to, DateOnly date, CancellationToken cancellationToken = default);
 
+    /// <summary>The user's own rates (ManualRateService), the expired ones included.</summary>
+    Task<IReadOnlyList<ManualRate>> ListManualRatesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Adds a rate of the user's for a day, a week, a month or until removed; it wins over the CBR rate.</summary>
+    Task<ManualRate> AddManualRateAsync(
+        CurrencyCode from, CurrencyCode to, decimal rate, DateOnly validFrom, ManualRatePeriod period, CancellationToken cancellationToken = default);
+
+    Task RemoveManualRateAsync(ManualRate rate, CancellationToken cancellationToken = default);
+
     /// <summary>Remembers the currency of the «Всего» totals; <c>null</c> — the base currency.</summary>
     Task SetTotalsCurrencyAsync(CurrencyCode? currency, CancellationToken cancellationToken = default);
 }

@@ -1,3 +1,4 @@
+using FinanceApp.Application.ExchangeRates;
 using FinanceApp.Domain;
 using FinanceApp.Presentation.Finance;
 
@@ -123,6 +124,32 @@ public class TransferByRateTests : FinanceViewModelTestBase
 
         form.Problem.ShouldBe("Курс — положительное число.");
         form.CanSave.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task TypedRate_CanBeRememberedForTheTotals()
+    {
+        var form = await TransferAsync(Backend.Card, Usd);
+        form.AmountText = "9000";
+        form.RatePlaceholder.ShouldBe("90"); // the CBR rate, read the way the field does
+        form.RateText = "91";
+
+        form.ChooseRememberCommand.Execute(form.RememberChoices.Single(c => c.Period == ManualRatePeriod.Month));
+        await form.SaveCommand.ExecuteAsync(null);
+
+        Backend.ManualRates.ShouldHaveSingleItem().ShouldBe(
+            new ManualRate(CurrencyCode.Usd, CurrencyCode.Rub, 91m, FakeFinanceBackend.Today, new DateOnly(2026, 11, 14)));
+    }
+
+    [Fact]
+    public async Task ModeButtons_SwitchBetweenAmountAndRate()
+    {
+        var form = await TransferAsync(Backend.Card, Usd);
+
+        form.ChooseTransferModeCommand.Execute("amount");
+        form.UseRate.ShouldBeFalse();
+        form.ChooseTransferModeCommand.Execute("rate");
+        form.UseRate.ShouldBeTrue();
     }
 
     [Fact]

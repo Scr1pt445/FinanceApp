@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddTransient<IExchangeRateSource, CoolingExchangeRateSource>();
         services.AddScoped<IExchangeRateCache, EfExchangeRateCache>();
         services.AddScoped<IExchangeRateService, ExchangeRateService>();
+        services.AddSingleton<ManualRateService>();
 
         services.AddScoped<DataChangedNotifier>();
         services.AddScoped<TransactionService>();

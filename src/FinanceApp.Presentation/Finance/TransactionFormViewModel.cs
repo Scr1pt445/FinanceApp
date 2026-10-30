@@ -19,6 +19,18 @@ public sealed partial class CategoryTile(Category category) : ObservableObject
     public partial bool IsSelected { get; set; }
 }
 
+/// <summary>Whether to keep a rate typed in the form for later operations and the totals.</summary>
+public sealed record RememberChoice(ManualRatePeriod? Period, string Title)
+{
+    public static IReadOnlyList<RememberChoice> All { get; } =
+    [
+        new(null, "Только здесь"),
+        new(ManualRatePeriod.Day, "На день"),
+        new(ManualRatePeriod.Week, "На неделю"),
+        new(ManualRatePeriod.Month, "На месяц"),
+    ];
+}
+
 /// <summary>
 /// The «Расход / Доход / Перевод» form — the no-syntax way to record a transaction, used both for new
 /// operations and for editing. Category tiles instead of a dropdown, date shortcuts, a received amount
@@ -32,6 +44,9 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     private readonly Transaction? _editing;
     private readonly List<Category> _created = [];
     private int _conversion;
+    private int _transferQuote;
+    private decimal? _paidQuote;
+    private decimal? _transferRate;
 
     private TransactionFormViewModel(IFinanceBackend backend, Catalog catalog, DateOnly today, Transaction? editing)
     {
@@ -98,8 +113,17 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     /// received = amount ÷ rate. Starts so that the rate reads as usual: «1 USD = 90 RUB» both ways.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RateLabel), nameof(ReceivedPreview))]
+    [NotifyPropertyChangedFor(nameof(RateLabel), nameof(ReceivedPreview), nameof(RatePlaceholder))]
     public partial bool RateInverted { get; set; }
+
+    /// <summary>The CBR rate (or the user's own) of the transfer, as a hint in the empty rate field.</summary>
+    public string RatePlaceholder => Hint(_transferRate, RateInverted);
+
+    /// <summary>A rate typed in the form, kept for the totals and later operations — or only for this one.</summary>
+    public IReadOnlyList<RememberChoice> RememberChoices => RememberChoice.All;
+
+    [ObservableProperty]
+    public partial RememberChoice Remember { get; set; } = RememberChoice.All[0];
 
     public string RateLabel =>
         Account is null || ToAccount is null ? string.Empty
@@ -147,7 +171,7 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     public ObservableCollection<CurrencyCode> PaidCurrencies { get; } = [];
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsForeign), nameof(AmountCurrency), nameof(ChargedLabel), nameof(Problem), nameof(CanSave))]
+    [NotifyPropertyChangedFor(nameof(IsForeign), nameof(AmountCurrency), nameof(ChargedLabel), nameof(Problem), nameof(CanSave), nameof(ForeignRateLabel), nameof(ForeignRateUnit), nameof(ChargedPreview))]
     public partial CurrencyCode? PaidCurrency { get; set; }
 
     /// <summary>The receipt is in another currency than the account: the amount is converted on saving.</summary>
@@ -159,6 +183,38 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     public partial string ChargedText { get; set; } = string.Empty;
 
     public string ChargedLabel => Account is null ? string.Empty : $"Списано со счёта, {Account.Currency.Value} — если знаете";
+
+    /// <summary>A receipt in another currency: the rate is typed instead of what was charged («Курс» instead of «Сумма»).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave), nameof(ChargedPreview))]
+    public partial bool ForeignByRate { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Problem), nameof(CanSave), nameof(ChargedPreview))]
+    public partial string ForeignRateText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// <c>false</c>: «1 {paid} = rate {account}»; <c>true</c>: «1 {account} = rate {paid}». Starts so the rate reads as
+    /// usual: a card in the base currency paying dollars — «1 USD = 3,4 BYN»; a dollar card paying in the base one — the same.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ForeignRateLabel), nameof(ForeignRateUnit), nameof(ChargedPreview), nameof(ForeignRatePlaceholder))]
+    public partial bool ForeignRateInverted { get; set; }
+
+    public string ForeignRateLabel =>
+        !IsForeign ? string.Empty : $"1 {(ForeignRateInverted ? Account!.Currency : PaidCurrency!.Value)} =";
+
+    public string ForeignRateUnit =>
+        !IsForeign ? string.Empty : (ForeignRateInverted ? PaidCurrency!.Value : Account!.Currency).Value;
+
+    /// <summary>The CBR rate (or the user's own) in the empty rate field.</summary>
+    public string ForeignRatePlaceholder => Hint(_paidQuote, ForeignRateInverted);
+
+    /// <summary>«Спишется 6,82 BYN» under the rate.</summary>
+    public string ChargedPreview =>
+        IsForeign && ForeignByRate && TryAmount(AmountText, out var amount) && AccountPerPaid() is { } rate
+            ? $"Спишется {Format.Money(decimal.Round(amount * rate, 2, MidpointRounding.AwayFromZero), Account!.Currency)}"
+            : string.Empty;
 
     /// <summary>«≈ 1 850 ₽ по курсу ЦБ на 20.10.2026» or why there is no rate.</summary>
     [ObservableProperty]
@@ -180,8 +236,9 @@ public sealed partial class TransactionFormViewModel : ObservableObject
         : NeedsReceivedAmount && !UseRate && ReceivedText.Trim().Length > 0 && !TryAmount(ReceivedText, out _) ? "Зачислено — положительное число."
         : NeedsReceivedAmount && UseRate && ReceivedByRate() is null ? "Курс — положительное число."
         : !IsTransfer && Category is null ? "Выберите категорию."
-        : IsForeign && ChargedText.Trim().Length > 0 && !TryAmount(ChargedText, out _) ? "Списано — сумма больше нуля."
-        : IsForeign && RateMissing && ChargedText.Trim().Length == 0 ? $"Нет курса {PaidCurrency} — укажите, сколько списано со счёта."
+        : IsForeign && ForeignByRate && AccountPerPaid() is null ? "Курс — положительное число."
+        : IsForeign && !ForeignByRate && ChargedText.Trim().Length > 0 && !TryAmount(ChargedText, out _) ? "Списано — сумма больше нуля."
+        : IsForeign && !ForeignByRate && RateMissing && ChargedText.Trim().Length == 0 ? $"Нет курса {PaidCurrency} — укажите курс или сколько списано со счёта."
         : null;
 
     public bool CanSave => Problem is null && !IsBusy;
@@ -257,6 +314,28 @@ public sealed partial class TransactionFormViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SwapForeignRate()
+    {
+        if (Format.TryParseAmount(ForeignRateText, out var rate) && rate > 0)
+        {
+            ForeignRateText = decimal.Round(1m / rate, 6).ToString("0.######", Format.Russian);
+        }
+
+        ForeignRateInverted = !ForeignRateInverted;
+    }
+
+    /// <summary>«Сумма» or «Курс»: what the user knows of the conversion.</summary>
+    [RelayCommand]
+    private void ChooseForeignMode(string mode) => ForeignByRate = mode == "rate";
+
+    /// <summary>The same for a transfer between currencies: what arrived, or the rate.</summary>
+    [RelayCommand]
+    private void ChooseTransferMode(string mode) => UseRate = mode == "rate";
+
+    [RelayCommand]
+    private void ChooseRemember(RememberChoice choice) => Remember = choice;
+
+    [RelayCommand]
     private void StartAddCategory()
     {
         NewCategoryName = string.Empty;
@@ -327,15 +406,27 @@ public sealed partial class TransactionFormViewModel : ObservableObject
                 saved = _editing is null
                     ? await _backend.AddTransferAsync(input, cancellationToken)
                     : await _backend.UpdateTransferAsync(_editing.Id, input, cancellationToken);
+                if (NeedsReceivedAmount && UseRate && Format.TryParseAmount(RateText, out var typed))
+                {
+                    var (from, to) = RateInverted ? (ToAccount.Currency, Account.Currency) : (Account.Currency, ToAccount.Currency);
+                    await RememberRateAsync(from, to, typed, date, cancellationToken);
+                }
             }
             else
             {
                 var input = new TransactionInput(date, Kind, amount, Category!.Id, Account!.Id, Note,
                     PaidCurrency: IsForeign ? PaidCurrency : null,
-                    PaidRate: IsForeign && TryAmount(ChargedText, out var charged) ? decimal.Round(charged / amount, 6) : null);
+                    PaidRate: !IsForeign ? null
+                        : ForeignByRate ? AccountPerPaid()
+                        : TryAmount(ChargedText, out var charged) ? decimal.Round(charged / amount, 6) : null);
                 saved = _editing is null
                     ? await _backend.AddAsync(input, cancellationToken)
                     : await _backend.UpdateAsync(_editing.Id, input, cancellationToken);
+                if (IsForeign && ForeignByRate && Format.TryParseAmount(ForeignRateText, out var typed))
+                {
+                    var (from, to) = ForeignRateInverted ? (Account.Currency, PaidCurrency!.Value) : (PaidCurrency!.Value, Account.Currency);
+                    await RememberRateAsync(from, to, typed, date, cancellationToken);
+                }
             }
 
             Saved?.Invoke(this, saved);
@@ -352,18 +443,104 @@ public sealed partial class TransactionFormViewModel : ObservableObject
         }
     }
 
+    /// <summary>The operation is saved already; a rate that could not be remembered only costs typing it again.</summary>
+    private async Task RememberRateAsync(CurrencyCode from, CurrencyCode to, decimal rate, DateOnly date, CancellationToken cancellationToken)
+    {
+        if (Remember.Period is not { } period || rate <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await _backend.AddManualRateAsync(from, to, rate, date, period, cancellationToken);
+        }
+#pragma warning disable CA1031 // See the summary.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
+        {
+        }
+    }
+
+    /// <summary>Account currency per one unit of the receipt's, by the typed rate.</summary>
+    private decimal? AccountPerPaid()
+    {
+        if (!Format.TryParseAmount(ForeignRateText, out var rate) || rate <= 0)
+        {
+            return null;
+        }
+
+        return decimal.Round(ForeignRateInverted ? 1m / rate : rate, 6, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>«3,41» — a known rate from → to, shown the way the field reads (inverted: to → from).</summary>
+    private static string Hint(decimal? rate, bool inverted) =>
+        rate is not { } r || r <= 0 ? "0"
+        : (inverted ? decimal.Round(1m / r, 4, MidpointRounding.AwayFromZero) : decimal.Round(r, 4, MidpointRounding.AwayFromZero)).ToString("0.####", Format.Russian);
+
     partial void OnAccountChanged(Account? value)
     {
         UpdateRateDirection();
         RebuildPaidCurrencies();
         _ = RefreshConversionAsync();
+        _ = RefreshTransferRateAsync();
     }
 
-    partial void OnPaidCurrencyChanged(CurrencyCode? value) => _ = RefreshConversionAsync();
+    partial void OnPaidCurrencyChanged(CurrencyCode? value)
+    {
+        UpdateForeignRateDirection();
+        _ = RefreshConversionAsync();
+    }
 
-    partial void OnAmountTextChanged(string value) => _ = RefreshConversionAsync();
+    partial void OnForeignRateTextChanged(string value) => OnPropertyChanged(nameof(ChargedPreview));
 
-    partial void OnDateTextChanged(string value) => _ = RefreshConversionAsync();
+    /// <summary>The rate reads «1 USD = 3,4 BYN» whichever way the money goes: the base currency is the unit of price.</summary>
+    private void UpdateForeignRateDirection()
+    {
+        ForeignRateInverted = Account is not null && PaidCurrency == _catalog.BaseCurrency && Account.Currency != _catalog.BaseCurrency;
+        ForeignRateText = string.Empty;
+        OnPropertyChanged(nameof(ForeignRateLabel));
+        OnPropertyChanged(nameof(ForeignRateUnit));
+    }
+
+    /// <summary>The rate of a transfer between currencies, for the hint in the rate field.</summary>
+    private async Task RefreshTransferRateAsync()
+    {
+        var version = ++_transferQuote;
+        _transferRate = null;
+        OnPropertyChanged(nameof(RatePlaceholder));
+        if (!NeedsReceivedAmount || !Format.TryParseDate(DateText, out var date))
+        {
+            return;
+        }
+
+        try
+        {
+            var quote = await _backend.GetRateAsync(Account!.Currency, ToAccount!.Currency, date);
+            if (version == _transferQuote)
+            {
+                _transferRate = quote.Rate;
+                OnPropertyChanged(nameof(RatePlaceholder));
+            }
+        }
+#pragma warning disable CA1031 // Only a hint; without it the field shows «0».
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+        }
+    }
+
+    partial void OnAmountTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(ChargedPreview));
+        _ = RefreshConversionAsync();
+    }
+
+    partial void OnDateTextChanged(string value)
+    {
+        _ = RefreshConversionAsync();
+        _ = RefreshTransferRateAsync();
+    }
 
     [RelayCommand]
     private void ChoosePaidCurrency(CurrencyCode currency) => PaidCurrency = currency;
@@ -389,6 +566,7 @@ public sealed partial class TransactionFormViewModel : ObservableObject
         OnPropertyChanged(nameof(IsForeign));
         OnPropertyChanged(nameof(AmountCurrency));
         OnPropertyChanged(nameof(ChargedLabel));
+        UpdateForeignRateDirection();
     }
 
     /// <summary>The CBR estimate under the amount, for a receipt in another currency; a stale answer is dropped.</summary>
@@ -399,6 +577,8 @@ public sealed partial class TransactionFormViewModel : ObservableObject
         {
             ConversionText = string.Empty;
             RateMissing = false;
+            _paidQuote = null;
+            OnPropertyChanged(nameof(ForeignRatePlaceholder));
             return;
         }
 
@@ -412,7 +592,11 @@ public sealed partial class TransactionFormViewModel : ObservableObject
             }
 
             RateMissing = false;
-            var when = quote.IsFallback ? "по последнему известному курсу ЦБ" : $"по курсу ЦБ на {Format.DateText(date)}";
+            _paidQuote = quote.Rate;
+            OnPropertyChanged(nameof(ForeignRatePlaceholder));
+            var when = quote.IsManual ? "по вашему курсу"
+                : quote.IsFallback ? "по последнему известному курсу ЦБ"
+                : $"по курсу ЦБ на {Format.DateText(date)}";
             ConversionText = TryAmount(AmountText, out var amount)
                 ? $"≈ {Format.Money(decimal.Round(amount * quote.Rate, 2, MidpointRounding.AwayFromZero), account)} {when}"
                 : $"1 {paid} = {quote.Rate.ToString("0.####", Format.Russian)} {account} {when}";
@@ -422,12 +606,18 @@ public sealed partial class TransactionFormViewModel : ObservableObject
             if (version == _conversion)
             {
                 RateMissing = true;
-                ConversionText = $"Курса {paid} пока нет: нет связи с ЦБ.";
+                _paidQuote = null;
+                OnPropertyChanged(nameof(ForeignRatePlaceholder));
+                ConversionText = $"Курса {paid} нет: ЦБ недоступен. Введите курс или сколько списано.";
             }
         }
     }
 
-    partial void OnToAccountChanged(Account? value) => UpdateRateDirection();
+    partial void OnToAccountChanged(Account? value)
+    {
+        UpdateRateDirection();
+        _ = RefreshTransferRateAsync();
+    }
 
     /// <summary>From the base currency, the rate is quoted for the other one: RUB → USD reads «1 USD = 90 RUB».</summary>
     private void UpdateRateDirection()
@@ -455,7 +645,11 @@ public sealed partial class TransactionFormViewModel : ObservableObject
         // A transfer has no receipt currency: its received amount is asked separately.
         OnPropertyChanged(nameof(IsForeign));
         OnPropertyChanged(nameof(AmountCurrency));
+        OnPropertyChanged(nameof(ForeignRateLabel));
+        OnPropertyChanged(nameof(ForeignRateUnit));
+        OnPropertyChanged(nameof(ChargedPreview));
         _ = RefreshConversionAsync();
+        _ = RefreshTransferRateAsync();
         if (value == TransactionType.Transfer)
         {
             Category = null;

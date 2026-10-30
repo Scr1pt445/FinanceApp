@@ -68,6 +68,9 @@ public sealed partial class ShellViewModel : ObservableObject
         Selected = AllOperations;
     }
 
+    /// <summary>Shown under the totals while a currency has no rate; the phone offers «Задать свой курс» next to it.</summary>
+    public const string MissingRatesWarning = "Нет курса для части валют — они пока не в итоге.";
+
     public SidebarItem AllOperations { get; } = new(SidebarKind.AllOperations, "Все операции", null);
 
     public SidebarItem SummaryItem { get; } = new(SidebarKind.Summary, "Итоги", null);
@@ -289,7 +292,7 @@ public sealed partial class ShellViewModel : ObservableObject
             TotalText = Format.Balance(balances.InDisplay(balances.Total), display);
             AccountsTotalText = Format.Balance(balances.InDisplay(balances.FreeTotal), display);
             EnvelopesTotalText = Format.Balance(balances.InDisplay(balances.EnvelopesTotal), display);
-            Warning = balances.HasMissingRates ? "Курс ЦБ для части валют ещё не загружен — они пока не в итоге." : string.Empty;
+            Warning = balances.HasMissingRates ? MissingRatesWarning : string.Empty;
 
             _refreshingTotals = true;
             try
