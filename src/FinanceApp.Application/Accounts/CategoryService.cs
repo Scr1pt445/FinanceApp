@@ -60,6 +60,15 @@ public sealed class CategoryService(ICategoryRepository categories, IUnitOfWork 
         await SaveAsync(cancellationToken);
     }
 
+    /// <summary>Sets or removes (<c>null</c>) the monthly limit of an expense category, in the base currency.</summary>
+    public async Task<Category> SetLimitAsync(Guid id, decimal? limit, CancellationToken cancellationToken = default)
+    {
+        var category = await categories.FindAsync(id, cancellationToken) ?? throw NotFound();
+        category.SetLimit(limit);
+        await SaveAsync(cancellationToken);
+        return category;
+    }
+
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
         await unitOfWork.SaveChangesAsync(cancellationToken);

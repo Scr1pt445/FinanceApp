@@ -41,6 +41,13 @@ public sealed class SqliteDatabaseBackup(FinancePaths paths, ISettingsStore sett
             var now = timeProvider.GetLocalNow().DateTime;
             var path = Path.Combine(Folder, Prefix + now.ToString(StampFormat, CultureInfo.InvariantCulture) + ".db");
 
+            // Two copies within a second (a restore right after a copy) must not overwrite each other.
+            while (File.Exists(path))
+            {
+                now = now.AddSeconds(1);
+                path = Path.Combine(Folder, Prefix + now.ToString(StampFormat, CultureInfo.InvariantCulture) + ".db");
+            }
+
             // Write next to the target first: a half-written copy must never look like a backup.
             var partial = path + ".partial";
             File.Delete(partial);

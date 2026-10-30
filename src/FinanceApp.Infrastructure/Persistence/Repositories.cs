@@ -66,6 +66,19 @@ internal sealed class EfAccountRepository(FinanceDbContext db) : IAccountReposit
     public void Add(Account account) => db.Accounts.Add(account);
 }
 
+internal sealed class EfRecurringOperationRepository(FinanceDbContext db) : IRecurringOperationRepository
+{
+    public async Task<IReadOnlyList<RecurringOperation>> ListAsync(CancellationToken cancellationToken = default) =>
+        await db.RecurringOperations.OrderBy(r => r.NextDate).ThenBy(r => r.CreatedAt).ToListAsync(cancellationToken);
+
+    public Task<RecurringOperation?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        db.RecurringOperations.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+
+    public void Add(RecurringOperation operation) => db.RecurringOperations.Add(operation);
+
+    public void Remove(RecurringOperation operation) => db.RecurringOperations.Remove(operation);
+}
+
 internal sealed class EfUnitOfWork(FinanceDbContext db) : IUnitOfWork
 {
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) => db.SaveChangesAsync(cancellationToken);

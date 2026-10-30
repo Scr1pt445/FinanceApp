@@ -34,6 +34,18 @@ public interface IAccountRepository
     void Add(Account account);
 }
 
+public interface IRecurringOperationRepository
+{
+    /// <summary>All, the soonest due first.</summary>
+    Task<IReadOnlyList<RecurringOperation>> ListAsync(CancellationToken cancellationToken = default);
+
+    Task<RecurringOperation?> FindAsync(Guid id, CancellationToken cancellationToken = default);
+
+    void Add(RecurringOperation operation);
+
+    void Remove(RecurringOperation operation);
+}
+
 /// <summary>Commits the changes made through the repositories as one unit.</summary>
 public interface IUnitOfWork
 {
