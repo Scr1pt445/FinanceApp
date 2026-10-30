@@ -2,13 +2,23 @@
 
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
 ![Platform: Windows | Android](https://img.shields.io/badge/platform-Windows%20%7C%20Android-0078D4)
+[![Release](https://img.shields.io/github/v/release/Scr1pt445/FinanceApp?label=release&color=9446F8)](https://github.com/Scr1pt445/FinanceApp/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 **English** | [Русский](README.ru.md)
 
-A Windows desktop app for personal finance tracking, built around one idea: **recording a transaction should take five seconds.** A global hotkey opens a one-line entry box; a banking-style main window keeps accounts, envelopes for savings goals, transfers and summaries for any period.
+Personal finance for **Android** and **Windows**, built around one idea: **recording a transaction should take five seconds.** Accounts and savings envelopes, several currencies, summaries and forecasts — and the data stays on your device.
 
-> **Status:** the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 572 automated tests. The Android app 1.0 covers the same ground on the phone and more: quick entry, operations, accounts and envelopes, summaries, recurring operations, limits, debts, a PIN lock and a widget ([Android](#android)). See the [roadmap](#roadmap).
+<p align="center">
+  <a href="https://github.com/Scr1pt445/FinanceApp/releases/latest"><img alt="Download for Android" src="https://img.shields.io/badge/Download%20for%20Android-APK-9446F8?style=for-the-badge&logo=android&logoColor=white"></a>
+</p>
+
+- **On the phone** — an expense, income or transfer in a couple of taps, accounts and envelopes, totals for any period with a month-to-month comparison and a forecast, recurring payments, limits, debts, a PIN and fingerprint lock, a home-screen widget. Install: download the APK from the [latest release](https://github.com/Scr1pt445/FinanceApp/releases/latest) and open it on the phone ([more](#android)).
+- **On the computer** — a global hotkey opens a one-line entry box (`350 еда кофе`); a banking-style window keeps accounts, envelopes, transfers and summaries ([getting started](#getting-started)).
+
+The two apps share the same core but keep separate data — they are not synced.
+
+> **Status:** Android 1.0 is released; the Windows app is usable day to day (milestones 1–4; README screenshots are the last bit) — 572 automated tests. See the [roadmap](#roadmap).
 
 ## Features
 
