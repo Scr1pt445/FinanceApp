@@ -1,0 +1,53 @@
+name: Release
+
+# A tag like v1.0.0 builds the signed Android APK and publishes it in GitHub Releases (ADR 0013).
+# The signing key lives only in the repository secrets:
+#   ANDROID_KEYSTORE_BASE64    the .jks file, base64-encoded (base64 -w0 financeapp-release.jks)
+#   ANDROID_KEYSTORE_PASSWORD  its password (the key has the same one)
+#   ANDROID_KEY_ALIAS          the key's alias (financeapp)
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install the MAUI Android workload
+        run: dotnet workload install maui-android
+
+      - name: Install the Android SDK packages the project needs
+        run: >
+          dotnet build src/FinanceApp.Mobile -t:InstallAndroidDependencies -f net10.0-android
+          -p:AndroidSdkDirectory="$ANDROID_HOME" -p:AcceptAndroidSDKLicenses=True
+
+      - name: Test the screens
+        run: dotnet test --project tests/FinanceApp.Mobile.Tests
+
+      - name: Build the signed APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          FINANCEAPP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          FINANCEAPP_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] || { echo "Секреты ключа подписи не заданы (см. начало release.yml)."; exit 1; }
+          export FINANCEAPP_KEYSTORE="$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$FINANCEAPP_KEYSTORE"
+          tools/build-android-release.sh "$ANDROID_HOME"
+          rm -f "$FINANCEAPP_KEYSTORE"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" artifacts/android/FinanceApp-*.apk
+          --title "FinanceApp ${GITHUB_REF_NAME#v}" --generate-notes

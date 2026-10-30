@@ -45,6 +45,14 @@ public sealed class SqliteDatabaseRestore(FinancePaths paths, IDatabaseBackup ba
                 }
             }
 
+            // FinanceApp's schema has no triggers or views; in a file from elsewhere they could run code on its tables
+            // during the migration, so such a file is refused.
+            var extra = await ScalarAsync(connection, "SELECT count(*) FROM sqlite_master WHERE type IN ('trigger', 'view')", cancellationToken);
+            if (Convert.ToInt64(extra, CultureInfo.InvariantCulture) > 0)
+            {
+                throw new InvalidDataException("В файле есть то, чего нет в базах FinanceApp (триггеры или представления) — восстанавливать из него небезопасно.");
+            }
+
             var transactions = Convert.ToInt32(await ScalarAsync(connection, "SELECT count(*) FROM Transactions", cancellationToken), CultureInfo.InvariantCulture);
             var accounts = Convert.ToInt32(await ScalarAsync(connection, "SELECT count(*) FROM Accounts", cancellationToken), CultureInfo.InvariantCulture);
             var last = await ScalarAsync(connection, "SELECT max(Date) FROM Transactions", cancellationToken) as string;

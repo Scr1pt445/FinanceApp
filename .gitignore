@@ -487,3 +487,7 @@ $RECYCLE.BIN/
 
 # Personal notes kept out of the public repo
 .local/
+
+# The Android signing key never goes into the repository (tools/build-android-release.sh).
+*.jks
+*.keystore

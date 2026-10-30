@@ -64,6 +64,26 @@ public sealed class DatabaseRestoreTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ACopyWithATrigger_IsRefused_AndNothingChanges()
+    {
+        await SaveAsync("350 еда кофе");
+        var copy = await _app.Get<IDatabaseBackup>().CreateAsync(Ct);
+        var builder = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = copy.Path, Pooling = false };
+        await using (var connection = new Microsoft.Data.Sqlite.SqliteConnection(builder.ToString()))
+        {
+            await connection.OpenAsync(Ct);
+            await using var command = connection.CreateCommand();
+            command.CommandText = "CREATE TRIGGER wipe AFTER INSERT ON Accounts BEGIN DELETE FROM Transactions; END";
+            await command.ExecuteNonQueryAsync(Ct);
+        }
+
+        var error = await Should.ThrowAsync<InvalidDataException>(() => _app.Get<IDatabaseRestore>().RestoreAsync(copy.Path, Ct));
+
+        error.Message.ShouldContain("небезопасно");
+        (await CountAsync()).ShouldBe(1);
+    }
+
+    [Fact]
     public async Task TheBaseCurrency_FollowsTheCopy()
     {
         await SaveAsync("350 еда кофе");

@@ -75,6 +75,12 @@ public sealed record LockSettings
     /// </summary>
     public bool WidgetAmounts { get; init; }
 
+    /// <summary>Wrong PINs in a row; kept on disk, so closing the app does not give five new tries.</summary>
+    public int FailedAttempts { get; init; }
+
+    /// <summary>No PIN is taken before this moment (UTC) after too many wrong ones.</summary>
+    public DateTimeOffset? RetryAfter { get; init; }
+
     public bool IsOn => PinHash is not null && PinSalt is not null;
 }
 

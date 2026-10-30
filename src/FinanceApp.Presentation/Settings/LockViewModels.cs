@@ -55,14 +55,21 @@ public abstract partial class PinPadViewModel : ObservableObject
 
 /// <summary>
 /// The lock screen: the app opens after the PIN or a fingerprint. After five wrong PINs the keypad waits 30 seconds
-/// (then a minute, and so on) — four digits are quickly guessed otherwise.
+/// (then a minute, and so on up to half an hour) — four digits are quickly guessed otherwise. The count is kept in the
+/// settings, so closing the app does not give five new tries.
 /// </summary>
 public sealed partial class LockViewModel(ISettingsStore settings, TimeProvider timeProvider) : PinPadViewModel
 {
     public const int FreeAttempts = 5;
 
+    /// <summary>The longest wait: 30 s doubled six times, about half an hour.</summary>
+    public static readonly TimeSpan LongestWait = TimeSpan.FromSeconds(30 * 64);
+
+    private readonly SemaphoreSlim _saving = new(1, 1);
     private int _failures;
-    private DateTimeOffset _waitUntil;
+    private DateTimeOffset? _retryAfter;
+    private string? _countedFor;
+    private bool _counted;
 
     /// <summary>The app is locked: a PIN is set.</summary>
     public bool IsOn => settings.Load().Lock.IsOn;
@@ -85,7 +92,23 @@ public sealed partial class LockViewModel(ISettingsStore settings, TimeProvider 
 
     protected override bool CanType()
     {
-        var left = _waitUntil - timeProvider.GetUtcNow();
+        Count();
+        if (_retryAfter is not { } retryAfter)
+        {
+            return true;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var left = retryAfter - now;
+
+        // A wait longer than any the keypad sets means the clock was turned back: count it from now.
+        if (left > LongestWait)
+        {
+            _retryAfter = now + LongestWait;
+            left = LongestWait;
+            Persist();
+        }
+
         if (left <= TimeSpan.Zero)
         {
             return true;
@@ -103,26 +126,72 @@ public sealed partial class LockViewModel(ISettingsStore settings, TimeProvider 
             return;
         }
 
+        Count();
         _failures++;
         IsWrong = true;
         if (_failures >= FreeAttempts)
         {
             var wait = TimeSpan.FromSeconds(30 * (1 << Math.Min(_failures - FreeAttempts, 6)));
-            _waitUntil = timeProvider.GetUtcNow() + wait;
+            _retryAfter = timeProvider.GetUtcNow() + wait;
             Message = $"Неверный PIN. Следующая попытка через {wait.TotalSeconds} с.";
         }
         else
         {
             Message = $"Неверный PIN. Осталось попыток: {FreeAttempts - _failures}.";
         }
+
+        Persist();
     }
 
     private void Accept()
     {
-        _failures = 0;
-        _waitUntil = default;
+        Count();
+        if (_failures != 0 || _retryAfter is not null)
+        {
+            _failures = 0;
+            _retryAfter = null;
+            Persist();
+        }
+
         Reset();
         Unlocked?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Takes the count from the settings once, and again after a new PIN is set.</summary>
+    private void Count()
+    {
+        var stored = settings.Load().Lock;
+        if (_counted && _countedFor == stored.PinHash)
+        {
+            return;
+        }
+
+        (_failures, _retryAfter, _countedFor, _counted) = (stored.FailedAttempts, stored.RetryAfter, stored.PinHash, true);
+    }
+
+    /// <summary>Writes the count at once, one write at a time, each with the latest values.</summary>
+    private void Persist() => _ = PersistAsync();
+
+    private async Task PersistAsync()
+    {
+        await _saving.WaitAsync();
+        try
+        {
+            var current = settings.Load();
+            if (current.Lock.PinHash == _countedFor)
+            {
+                await settings.SaveAsync(current with { Lock = current.Lock with { FailedAttempts = _failures, RetryAfter = _retryAfter } });
+            }
+        }
+#pragma warning disable CA1031 // The count still holds in memory until the app closes; nothing else to do.
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+        }
+        finally
+        {
+            _saving.Release();
+        }
     }
 }
 
