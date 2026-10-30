@@ -40,6 +40,7 @@ public static class MauiProgram
         services
             .AddFinanceApp(paths)
             .AddSingleton<AppStartup>()
+            .AddSingleton<RatePrefetcher>()
             .AddSingleton<IQuickEntryBackend, ScopedQuickEntryBackend>()
             .AddSingleton<IFinanceBackend, ScopedFinanceBackend>()
             .AddSingleton<IDataBackend, ScopedDataBackend>()

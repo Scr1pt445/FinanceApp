@@ -1,4 +1,5 @@
 using FinanceApp.Mobile.Views;
+using FinanceApp.Presentation.Finance;
 using FinanceApp.Presentation.Home;
 using FinanceApp.Presentation.Setup;
 
@@ -9,10 +10,11 @@ public partial class App : Microsoft.Maui.Controls.Application
     private readonly IServiceProvider _services;
     private readonly AppStartup _startup;
     private readonly HomeViewModel _home;
+    private readonly RatePrefetcher _rates;
 
     // Pages are not constructor parameters: DI would build them before InitializeComponent loads the theme,
     // and their {StaticResource} lookups would fail — the first APK crashed on start that way.
-    public App(IServiceProvider services, AppStartup startup, HomeViewModel home)
+    public App(IServiceProvider services, AppStartup startup, HomeViewModel home, RatePrefetcher rates)
     {
         InitializeComponent();
 
@@ -21,6 +23,7 @@ public partial class App : Microsoft.Maui.Controls.Application
         _services = services;
         _startup = startup;
         _home = home;
+        _rates = rates;
     }
 
     /// <summary>
@@ -53,6 +56,25 @@ public partial class App : Microsoft.Maui.Controls.Application
     {
         base.OnResume();
         _ = _home.RefreshAsync();
+        _ = RefreshRatesAsync();
+    }
+
+    /// <summary>In the background: a new day's rates, then the totals once more with them.</summary>
+    private async Task RefreshRatesAsync()
+    {
+        try
+        {
+            if (await _rates.WarmUpAsync())
+            {
+                await _home.RefreshAsync();
+                await _services.GetRequiredService<ShellViewModel>().RefreshAsync();
+            }
+        }
+#pragma warning disable CA1031 // Rates are a nicety here; the screens work with the cached ones.
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+        }
     }
 
     private async Task ShowAppAsync(Window window, StartupPage startup)
@@ -76,6 +98,7 @@ public partial class App : Microsoft.Maui.Controls.Application
                 var shell = _services.GetRequiredService<AppShell>();
                 window.Page = shell;
                 _services.GetRequiredService<FormPresenter>().Attach(shell.Navigation);
+                _ = RefreshRatesAsync();
             }
 #pragma warning disable CA1031 // A screen that cannot be built is reported in place, not as a silent blank window.
             catch (Exception ex)
